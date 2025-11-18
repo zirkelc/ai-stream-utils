@@ -41,7 +41,7 @@ const tools = {
   calculator: dynamicTool({
     description: 'Calculate a mathematical expression',
     execute: async ({ expression }) => ({
-      result: eval(expression),
+      result: `Result: ${expression}`,
     }),
   }),
 };
