@@ -1,134 +1,177 @@
-# TypeScript Single Package Project Template
+<div align='center'>
 
-This template provides an opinionated setup for a single package TypeScript project.
+# ai-filter-stream
 
-## 🚀 Features
+<p align="center">Filter UI message streams to the client</p>
+<p align="center">
+  <a href="https://www.npmjs.com/package/ai-filter-stream" alt="ai-filter-stream"><img src="https://img.shields.io/npm/dt/ai-filter-stream?label=ai-filter-stream"></a> <a href="https://github.com/zirkelc/ai-filter-stream/actions/workflows/ci.yml" alt="CI"><img src="https://img.shields.io/github/actions/workflow/status/zirkelc/ai-filter-stream/ci.yml?branch=main"></a>
+</p>
 
-- [PNPM](https://pnpm.io/) for efficient package management
-- [Biome](https://biomejs.dev/) for linting and formatting
-- [Vitest](https://vitest.dev/) for fast, modern testing
-- [tsdown](https://github.com/rolldown/tsdown) for TypeScript building and bundling
-- [tsx](https://tsx.is/) for running TypeScript files
-- [Husky](https://github.com/typicode/husky) for Git hooks
-- [GitHub Actions](.github/workflows/ci.yml) for continuous integration
-- [VSCode](.vscode/) debug configuration and editor settings
-- [@total-typescript/tsconfig](https://github.com/total-typescript/tsconfig) for TypeScript configuration
-- [Are The Types Wrong?](https://github.com/arethetypeswrong/arethetypeswrong.github.io) for type validation
-- [publint](https://github.com/publint/publint) for package.json validation
-- [EditorConfig](https://editorconfig.org/) for consistent coding styles
+</div>
 
-## 🚀 Getting Started
+This library allows you filter UI message chunks returned from `streamText()` by their corresonpding UI message part type. 
 
-### 1. Create a new repository
+### Why?
 
-Create a new repository [using this template](https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-repository-from-a-template)
+By default, the `UIMessageChunk` stream from `toUIMessageStream()` will stream all parts (text, tools, data, etc.) to the client. Tool calls often contain large amounts of data or senstive information that should not be visible on the client. This library provides a type-safe filter to apply selective streaming of certain message parts.
 
-### 2. Replace placeholders
+### Installation
 
-Replace all occurences of the following placeholders with the correct values:
+This library only supports AI SDK v5.
 
-| Placeholder | File | Description |
-| --- | --- | --- |
-| `<PACKAGE>` | `package.json` | Your package name |
-| `<DESCRIPTION>` | `package.json` | Your package description |
-| `<USERNAME>` | `package.json` | Your GitHub username |
-| `<REPO>` | `package.json` | Your repository name |
-| `<AUTHOR>` | `package.json` | Your name |
-| `<LICENSE>` | `package.json` | Your license |
-
-### 3. Apply ToDos
-
-Find all occurrences of `TODO` and apply them:
-
-| TODO | File | Description |
-| --- | --- | --- |
-| `TODO: PREVIEW` | `.github/workflows/ci.yml` | Create [preview releases](#preview-releases) |
-| `TODO: PUBLISH` | `.github/workflows/ci.yml` | [Publish to NPM](#publish-npm) |
-
-### 4. Install, Build, Test
-
-Verify your project is working by running `install`, `build`, and `test`:
-
-```sh
-pnpm install
-pnpm build
-pnpm test
+```bash
+npm install ai-filter-stream
 ```
 
-Happy coding! 🎉
+### Usage
 
-## 📋 Details
+Use the `filterUIMessageStream` function to wrap the UI message stream from `result.toUIMessageStream()` and provide a filter to include or exclude certain UI message parts:
 
-### Package
+> ![NOTE]: 
+> Providing a `MyUIMessage` type `filterUIMessageStream<MyMessage>()` is optional and only required for type-safety so that the part type is inferred based on your tools and data parts.
 
-The [`package.json`](package.json) is configured as ESM (`"type": "module"`), but supports dual publishing with both ESM and CJS module formats.
+```typescript
+import { streamText } from 'ai';
+import { filterUIMessageStream } from 'ai-filter-stream';
+import type { UIMessage, InferUITools } from 'ai';
 
-### Biome
+type MyUIMessageMetadata = {};
 
-[`biome.jsonc`](biome.jsonc) contains the default [Biome configuration](https://biomejs.dev/reference/configuration/) with minimal formatting adjustments. It uses the formatter settings from the [`.editorconfig`](.editorconfig) file.
+type MyDatapart = {};
 
-### Vitest
+type MyTools = InferUITools<typeof tools>;
 
-An empty Vitest config is provided in [`vitest.config.ts`](vitest.config.ts).
+// Define your UI message type for type safety
+type MyUIMessage = UIMessage<
+  MyUIMessageMetadata, // or unknown
+  MyDatapart, // or unknown
+  MyTools,
+>;
 
-### Build and Run
+const tools = {
+  weather: tool({
+    description: 'Get the weather in a location',
+    inputSchema: z.object({
+      location: z.string().describe('The location to get the weather for'),
+    }),
+    execute: ({ location }) => ({
+      location,
+      temperature: 72 + Math.floor(Math.random() * 21) - 10,
+    }),
+  }),
+};
 
-- `tsdown` builds `./src/index.ts`, outputting an ES module to the `dist` folder.
-- `tsx` compiles and runs TypeScript files on-the-fly.
+const result = streamText({
+  model,
+  prompt: 'What is the weather in Tokyo?',
+  tools,
+});
 
-### Git Hooks
+// Inclusive filtering: include only `text` parts
+const stream = filterUIMessageStream<MyMessage>(result.toUIMessageStream(), {
+  includeParts: ['text'], // Autocomplete works here!
+});
 
-[Husky](https://github.com/typicode/husky) runs the [.husky/pre-commit](.husky/pre-commit) hook to lint staged files.
+// Exclusive filtering: exclude only `tool-weather` parts
+const stream = filterUIMessageStream<MyMessage>(result.toUIMessageStream(), {
+  excludeParts: ['reasoning', 'tool-calculator'], // Autocomplete works here!
+});
 
-### Continuous Integration
+// Dynamic filtering: apply filter function for each chunk
+const stream = filterUIMessageStream<MyMessage>(result.toUIMessageStream(), {
+  filterParts: ({ partType }) => {
+    // Always include text
+    if (partType === 'text') return true;
 
-[`.github/workflows/ci.yml`](.github/workflows/ci.yml) defines a GitHub Actions workflow to run linting and tests on commits and pull requests.
+    // Only include tools that start with 'weather'
+    if (partType.startsWith('tool-weather')) return true;
 
-### VSCode Integration
+    // Exclude everything else
+    return false;
+  },
+});
+```
 
-#### Debugging
+## Part Type Mapping
 
-[`.vscode/launch.json`](.vscode/launch.json) provides VSCode launch configurations:
-- `Debug (tsx)`: Run and debug TypeScript files
-- `Test (vitest)`: Debug tests
+The filter operates on UI message **part types**, not chunk types:
 
-It uses the [JavaScript Debug Terminal](https://code.visualstudio.com/docs/nodejs/nodejs-debugging) to run and debug.
+| Chunk Type(s)                                                        | Part Type         | Example                           |
+| -------------------------------------------------------------------- | ----------------- | --------------------------------- |
+| `text-start`, `text-delta`, `text-end`                               | `text`            | Text content                      |
+| `reasoning-start`, `reasoning-delta`, `reasoning-end`                | `reasoning`       | Reasoning content                 |
+| `tool-input-start`, `tool-input-available`, etc. (for static tools)  | `tool-{name}`     | `tool-weather`, `tool-calculator` |
+| `tool-input-start`, `tool-input-available`, etc. (for dynamic tools) | `dynamic-tool`    | Dynamic tool calls                |
+| `start-step`                                                         | `step-start`      | Step boundary marker              |
+| `file`                                                               | `file`            | File content                      |
+| `source-url`                                                         | `source-url`      | URL sources                       |
+| `source-document`                                                    | `source-document` | Document sources                  |
 
-#### Editor Settings
+## Step Buffering Behavior
 
-[`.vscode/settings.json`](.vscode/settings.json) configures Biome as the formatter and enables format-on-save.
+The filter automatically handles step boundaries, that maneas a `start-step` is only emitted if the actual content is not filtered:
 
-### EditorConfig
+1. `start-step` is buffered until the first content chunk is encountered
+2. If the first content chunk passes the filter, `start-step` is included
+3. If the first content chunk is filtered out, `start-step` is also filtered out
+4. `finish-step` is only included if the corresponding `start-step` was included
 
-[`.editorconfig`](.editorconfig) ensures consistent coding styles across different editors and IDEs:
+Example: 
 
-- Uses spaces for indentation (2 spaces)
-- Sets UTF-8 charset
-- Ensures LF line endings
-- Trims trailing whitespace (except in Markdown files)
-- Inserts a final newline in files
+Input stream: `['start-step', 'text-start', 'text-delta', 'text-end', 'finish-step']`
 
-This configuration complements Biome and helps maintain a consistent code style throughout the project.
+With filter: `{ includeParts: ['text'] }`
+Output stream: `['start-step', 'text-start', 'text-delta', 'text-end', 'finish-step']`
 
-### Types Validation
+With filter: `{ excludeParts: ['text'] }`
+Output stream: `[]`
 
-The project includes the `@arethetypeswrong/cli` CLI tool to validate TypeScript types in your package. It is integrated into `tsdown` and will run automatically during the build
+These chunk types are always passed through regardless of filter settings:
 
-### Publint
+- `start` - Stream start marker
+- `finish` - Stream finish marker
+- `abort` - Stream abort marker
+- `message-metadata` - Message metadata updates
+- `error` - Error messages
 
-The project includes `publint` to validate your `package.json` file. It is integrated into `tsdown` and will run automatically during the build.
 
-## Optional
+## Type Safety
 
-### <a name="publish-npm"></a> Publish to NPM
-[JS-DevTools/npm-publish](https://github.com/JS-DevTools/npm-publish) is a GitHub Action to publish packages to npm automatically by updating the version number.
+The `toUIMessageStream()` from `streamText()` retruns a generic stream `ReadableStream<UIMessageChunk>` which means that the original `UIMessage` cannot be inferred automatically. To enable autocomplete and type-safety for filtering parts by type, we need to pass our own `UIMessage` as generic param to `filterUIMessageStream()`:
 
-To enable this, apply the `TODO: PUBLISH`.
+```typescript
+type MyMessage = UIMessage<MyMetadata, MyData, MyTools>;
 
-### <a name="preview-releases"></a> Preview Releases
+const stream = filterUIMessageStream<MyMessage>(
+  result.toUIMessageStream(), // returns generic ReadableStream<UIMessageChunk>
+  {
+    includeParts: ['text', 'tool-weather'] }, // type-safe through MyMessage
+  }
+);
+```
 
-[pkg.pr.new](https://github.com/stackblitz-labs/pkg.pr.new) will automatically generate preview releases for every push and pull request. This allows you to test changes before publishing to npm.
+## API Reference
 
-Must install GitHub App: [pkg.pr.new](https://github.com/apps/pkg-pr-new)
+### `filterUIMessageStream`
 
-To enable this, apply the `TODO: PREVIEW`.
+```typescript
+function filterUIMessageStream<UI_MESSAGE extends UIMessage>(
+  stream: ReadableStream<UIMessageChunk>,
+  options: FilterUIMessageStreamOptions<UI_MESSAGE>,
+): AsyncIterableStream<InferUIMessageChunk<UI_MESSAGE>>
+```
+
+### `FilterUIMessageStreamOptions`
+
+```typescript
+type FilterUIMessageStreamOptions<UI_MESSAGE extends UIMessage> =
+  | {
+      filterParts: (options: { partType: InferUIMessagePartType<UI_MESSAGE> }) => boolean;
+    }
+  | {
+      includeParts: Array<InferUIMessagePartType<UI_MESSAGE>>;
+    }
+  | {
+      excludeParts: Array<InferUIMessagePartType<UI_MESSAGE>>;
+    };
+```
