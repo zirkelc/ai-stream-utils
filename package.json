@@ -1,7 +1,7 @@
 {
   "name": "ai-filter-stream",
   "version": "0.0.0",
-  "description": "Filter UI message streams to the client",
+  "description": "AI SDK: Filter UI messages streamed to the client",
   "packageManager": "pnpm@^10.0.0",
   "main": "./dist/index.mjs",
   "module": "./dist/index.mjs",
@@ -21,7 +21,18 @@
     "lint": "biome check . --write",
     "prepare": "husky"
   },
-  "keywords": [],
+  "keywords": [
+    "ai",
+    "sdk",
+    "ai-sdk",
+    "ui",
+    "message",
+    "stream",
+    "chunk",
+    "ui-message",
+    "ui-message-stream",
+    "ui-message-chunk"
+  ],
   "author": "Chris Cook",
   "license": "MIT",
   "repository": {

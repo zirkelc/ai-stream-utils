@@ -2,7 +2,7 @@
 
 # ai-filter-stream
 
-<p align="center">Filter UI message streams to the client</p>
+<p align="center">AI SDK: Filter UI messages streamed to the client</p>
 <p align="center">
   <a href="https://www.npmjs.com/package/ai-filter-stream" alt="ai-filter-stream"><img src="https://img.shields.io/npm/dt/ai-filter-stream?label=ai-filter-stream"></a> <a href="https://github.com/zirkelc/ai-filter-stream/actions/workflows/ci.yml" alt="CI"><img src="https://img.shields.io/github/actions/workflow/status/zirkelc/ai-filter-stream/ci.yml?branch=main"></a>
 </p>
