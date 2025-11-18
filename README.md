@@ -27,7 +27,7 @@ npm install ai-filter-stream
 
 Use the `filterUIMessageStream` function to wrap the UI message stream from `result.toUIMessageStream()` and provide a filter to include or exclude certain UI message parts:
 
-> ![NOTE]: 
+> [!NOTE]  
 > Providing a `MyUIMessage` type `filterUIMessageStream<MyMessage>()` is optional and only required for type-safety so that the part type is inferred based on your tools and data parts.
 
 ```typescript
