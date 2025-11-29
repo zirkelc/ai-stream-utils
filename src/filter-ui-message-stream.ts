@@ -4,20 +4,26 @@ import type {
   UIMessage,
   UIMessageChunk,
 } from 'ai';
-import { createAsyncIterableStream } from './create-async-iterable-stream.js';
+import {
+  type ChunkMapContext,
+  type ChunkMapInput,
+  mapUIMessageChunkStream,
+} from './map-ui-message-chunk-stream.js';
 import type { InferUIMessagePartType } from './types.js';
 
+/**
+ * Filter function that receives the same input/context as mapUIMessageChunkStream.
+ * Return true to include the chunk, false to filter it out.
+ */
+export type FilterUIMessageStreamFn<UI_MESSAGE extends UIMessage> = (
+  input: ChunkMapInput<UI_MESSAGE>,
+  context: ChunkMapContext<UI_MESSAGE>,
+) => boolean;
+
+/**
+ * Shorthand options for filtering by part type.
+ */
 export type FilterUIMessageStreamOptions<UI_MESSAGE extends UIMessage> =
-  | {
-      /**
-       * Custom filter function. Receives an object with the part type and returns whether to include it.
-       * For tool chunks, the type is the tool-specific part type (e.g., 'tool-weather').
-       * For dynamic tools, the type is 'dynamic-tool'.
-       */
-      filterParts: (options: {
-        partType: InferUIMessagePartType<UI_MESSAGE>;
-      }) => boolean;
-    }
   | {
       /**
        * Include only these part types.
@@ -36,353 +42,89 @@ export type FilterUIMessageStreamOptions<UI_MESSAGE extends UIMessage> =
     };
 
 /**
- * Maps a chunk type to its corresponding UI message part type.
- * For tool-related chunks that have complete info, returns 'tool-{toolName}' or 'dynamic-tool'.
- * For other chunks, returns a placeholder that will be resolved using state tracking.
+ * Filter argument - either a filter function or shorthand options.
  */
-function getPartTypeFromChunk(chunk: UIMessageChunk): string {
-  switch (chunk.type) {
-    case 'tool-input-start':
-      return chunk.dynamic ? 'dynamic-tool' : `tool-${chunk.toolName}`;
-
-    case 'tool-input-available':
-    case 'tool-input-error':
-      return chunk.dynamic ? 'dynamic-tool' : `tool-${chunk.toolName}`;
-
-    case 'start-step':
-      return 'step-start';
-
-    case 'text-start':
-    case 'text-delta':
-    case 'text-end':
-      return 'text';
-
-    case 'reasoning-start':
-    case 'reasoning-delta':
-    case 'reasoning-end':
-      return 'reasoning';
-
-    case 'file':
-      return 'file';
-
-    case 'source-url':
-      return 'source-url';
-
-    case 'source-document':
-      return 'source-document';
-
-    case 'start':
-    case 'finish':
-    case 'abort':
-    case 'message-metadata':
-    case 'error':
-      return chunk.type;
-
-    default:
-      // For data-* chunks and other types, use the chunk type directly
-      // For tool chunks without complete info, return placeholder
-      return chunk.type;
-  }
-}
+export type FilterUIMessageStreamFilter<UI_MESSAGE extends UIMessage> =
+  | FilterUIMessageStreamFn<UI_MESSAGE>
+  | FilterUIMessageStreamOptions<UI_MESSAGE>;
 
 /**
- * Creates a filter function from the options.
- */
-function createFilterFunction<UI_MESSAGE extends UIMessage>(
-  options: FilterUIMessageStreamOptions<UI_MESSAGE>,
-): (partType: InferUIMessagePartType<UI_MESSAGE>) => boolean {
-  if ('filterParts' in options) {
-    return (partType: InferUIMessagePartType<UI_MESSAGE>) =>
-      options.filterParts({ partType });
-  }
-
-  if ('includeParts' in options) {
-    const includeSet = new Set(options.includeParts);
-    return (partType: InferUIMessagePartType<UI_MESSAGE>) =>
-      includeSet.has(partType);
-  }
-
-  // excludeParts
-  const excludeSet = new Set(options.excludeParts);
-  return (partType: InferUIMessagePartType<UI_MESSAGE>) =>
-    !excludeSet.has(partType);
-}
-
-/**
- * State for tracking tool calls across chunks.
- */
-type ToolCallState = {
-  toolName: string;
-  dynamic: boolean | undefined;
-};
-
-/**
- * Filters a UIMessageStream to include or exclude specific part types.
+ * Filters a UIMessageStream to include or exclude specific chunks.
  *
- * This function buffers `start-step` chunks and only enqueues them if the
- * subsequent content in that step passes the filter. Similarly, `finish-step`
- * is only enqueued if the corresponding `start-step` was enqueued.
+ * This is a convenience wrapper around `mapUIMessageChunkStream` that provides
+ * a simpler API for filtering chunks.
+ *
+ * The filter can be:
+ * - A function that receives `{ chunk, part }` and `{ index, chunks }` and returns boolean
+ * - An object with `includeParts` array to include only specific part types
+ * - An object with `excludeParts` array to exclude specific part types
+ *
+ * Meta chunks (start, finish, abort, message-metadata, error) always pass through.
+ * Step boundaries (start-step, finish-step) are handled automatically.
  *
  * @example
  * ```typescript
- * // Include only text and specific tools
+ * // Filter function - include only text parts
  * const stream = filterUIMessageStream(
  *   result.toUIMessageStream(),
- *   {
- *     includeParts: ['text', 'tool-weather', 'tool-search']
- *   }
+ *   ({ part }) => part.type === 'text'
  * );
  *
- * // Exclude reasoning and specific tools
+ * // Filter function with context - skip first chunk of each part
  * const stream = filterUIMessageStream(
  *   result.toUIMessageStream(),
- *   {
- *     excludeParts: ['reasoning', 'tool-calculator']
- *   }
+ *   ({ chunk }, { index }) => index > 0
  * );
  *
- * // Custom filter function
+ * // Shorthand - include only specific parts
  * const stream = filterUIMessageStream(
  *   result.toUIMessageStream(),
- *   {
- *     filterParts: ({ partType }) => {
- *       if (partType.startsWith('tool-')) {
- *         return partType.includes('weather');
- *       }
- *       return true;
- *     }
- *   }
+ *   { includeParts: ['text', 'tool-weather'] }
+ * );
+ *
+ * // Shorthand - exclude specific parts
+ * const stream = filterUIMessageStream(
+ *   result.toUIMessageStream(),
+ *   { excludeParts: ['reasoning', 'tool-calculator'] }
  * );
  * ```
  */
 export function filterUIMessageStream<UI_MESSAGE extends UIMessage>(
   stream: ReadableStream<UIMessageChunk>,
-  options: FilterUIMessageStreamOptions<UI_MESSAGE>,
+  filter: FilterUIMessageStreamFilter<UI_MESSAGE>,
 ): AsyncIterableStream<InferUIMessageChunk<UI_MESSAGE>> {
-  const shouldIncludePartType = createFilterFunction(options);
+  // Convert filter to a predicate function
+  const shouldInclude = createFilterPredicate(filter);
 
-  // State for the transform stream
-  let bufferedStartStep: InferUIMessageChunk<UI_MESSAGE> | undefined;
-  let stepStartEnqueued = false;
-  let stepHasContent = false;
-  const toolCallStates = new Map<string, ToolCallState>();
-
-  const transformStream = new TransformStream<
-    InferUIMessageChunk<UI_MESSAGE>,
-    InferUIMessageChunk<UI_MESSAGE>
-  >({
-    transform(chunk, controller) {
-      const chunkType = chunk.type;
-
-      switch (chunkType) {
-        case 'tool-input-start': {
-          const toolChunk = chunk as {
-            type: 'tool-input-start';
-            toolCallId: string;
-            toolName: string;
-            dynamic?: boolean;
-          };
-          // Track tool call state for later lookups
-          toolCallStates.set(toolChunk.toolCallId, {
-            toolName: toolChunk.toolName,
-            dynamic: toolChunk.dynamic,
-          });
-
-          // Apply filter
-          const partType = getPartTypeFromChunk(
-            chunk,
-          ) as InferUIMessagePartType<UI_MESSAGE>;
-          const shouldInclude = shouldIncludePartType(partType);
-
-          if (bufferedStartStep && !stepHasContent) {
-            stepHasContent = true;
-            if (shouldInclude) {
-              controller.enqueue(bufferedStartStep);
-              stepStartEnqueued = true;
-              bufferedStartStep = undefined;
-            }
-          }
-
-          if (shouldInclude) {
-            controller.enqueue(chunk);
-          }
-          break;
-        }
-
-        case 'start-step': {
-          // Buffer start-step until we know if content will be included
-          bufferedStartStep = chunk;
-          stepHasContent = false;
-          break;
-        }
-
-        case 'finish-step': {
-          // Only enqueue if corresponding start-step was enqueued
-          if (stepStartEnqueued) {
-            controller.enqueue(chunk);
-            stepStartEnqueued = false;
-          }
-          bufferedStartStep = undefined;
-          break;
-        }
-
-        case 'start':
-        case 'finish':
-        case 'abort':
-        case 'message-metadata':
-        case 'error': {
-          // Always pass through meta chunks
-          controller.enqueue(chunk);
-          break;
-        }
-
-        case 'tool-input-delta': {
-          const toolChunk = chunk as {
-            type: 'tool-input-delta';
-            toolCallId: string;
-          };
-          const toolState = toolCallStates.get(toolChunk.toolCallId);
-          const partType = toolState
-            ? toolState.dynamic
-              ? 'dynamic-tool'
-              : `tool-${toolState.toolName}`
-            : getPartTypeFromChunk(chunk);
-
-          const shouldInclude = shouldIncludePartType(
-            partType as InferUIMessagePartType<UI_MESSAGE>,
-          );
-
-          if (bufferedStartStep && !stepHasContent) {
-            stepHasContent = true;
-            if (shouldInclude) {
-              controller.enqueue(bufferedStartStep);
-              stepStartEnqueued = true;
-              bufferedStartStep = undefined;
-            }
-          }
-
-          if (shouldInclude) {
-            controller.enqueue(chunk);
-          }
-          break;
-        }
-
-        case 'tool-input-available':
-        case 'tool-input-error': {
-          // These have toolName directly on the chunk
-          const partType = getPartTypeFromChunk(chunk);
-          const shouldInclude = shouldIncludePartType(
-            partType as InferUIMessagePartType<UI_MESSAGE>,
-          );
-
-          if (bufferedStartStep && !stepHasContent) {
-            stepHasContent = true;
-            if (shouldInclude) {
-              controller.enqueue(bufferedStartStep);
-              stepStartEnqueued = true;
-              bufferedStartStep = undefined;
-            }
-          }
-
-          if (shouldInclude) {
-            controller.enqueue(chunk);
-          }
-          break;
-        }
-
-        case 'tool-output-available':
-        case 'tool-output-error': {
-          const toolChunk = chunk as {
-            type: 'tool-output-available' | 'tool-output-error';
-            toolCallId: string;
-          };
-          const toolState = toolCallStates.get(toolChunk.toolCallId);
-          const partType = toolState
-            ? toolState.dynamic
-              ? 'dynamic-tool'
-              : `tool-${toolState.toolName}`
-            : getPartTypeFromChunk(chunk);
-
-          const shouldInclude = shouldIncludePartType(
-            partType as InferUIMessagePartType<UI_MESSAGE>,
-          );
-
-          if (bufferedStartStep && !stepHasContent) {
-            stepHasContent = true;
-            if (shouldInclude) {
-              controller.enqueue(bufferedStartStep);
-              stepStartEnqueued = true;
-              bufferedStartStep = undefined;
-            }
-          }
-
-          if (shouldInclude) {
-            controller.enqueue(chunk);
-          }
-          break;
-        }
-
-        case 'text-start':
-        case 'text-delta':
-        case 'text-end':
-        case 'reasoning-start':
-        case 'reasoning-delta':
-        case 'reasoning-end':
-        case 'file':
-        case 'source-url':
-        case 'source-document': {
-          const partType = getPartTypeFromChunk(chunk);
-          const shouldInclude = shouldIncludePartType(
-            partType as InferUIMessagePartType<UI_MESSAGE>,
-          );
-
-          if (bufferedStartStep && !stepHasContent) {
-            stepHasContent = true;
-            if (shouldInclude) {
-              controller.enqueue(bufferedStartStep);
-              stepStartEnqueued = true;
-              bufferedStartStep = undefined;
-            }
-          }
-
-          if (shouldInclude) {
-            controller.enqueue(chunk);
-          }
-          break;
-        }
-
-        default: {
-          // Handle data-* chunks and any future chunk types
-          const partType = getPartTypeFromChunk(chunk);
-          const shouldInclude = shouldIncludePartType(
-            partType as InferUIMessagePartType<UI_MESSAGE>,
-          );
-
-          if (bufferedStartStep && !stepHasContent) {
-            stepHasContent = true;
-            if (shouldInclude) {
-              controller.enqueue(bufferedStartStep);
-              stepStartEnqueued = true;
-              bufferedStartStep = undefined;
-            }
-          }
-
-          if (shouldInclude) {
-            controller.enqueue(chunk);
-          }
-          break;
-        }
-      }
-    },
-
-    flush() {
-      // Clean up state
-      bufferedStartStep = undefined;
-      stepStartEnqueued = false;
-      stepHasContent = false;
-      toolCallStates.clear();
-    },
+  return mapUIMessageChunkStream(stream, (input, context) => {
+    return shouldInclude(input, context) ? input.chunk : null;
   });
+}
 
-  return createAsyncIterableStream(stream.pipeThrough(transformStream));
+/**
+ * Creates a filter predicate from the filter argument.
+ */
+function createFilterPredicate<UI_MESSAGE extends UIMessage>(
+  filter: FilterUIMessageStreamFilter<UI_MESSAGE>,
+): FilterUIMessageStreamFn<UI_MESSAGE> {
+  // If it's a function, use it directly
+  if (typeof filter === 'function') {
+    return filter;
+  }
+
+  // If it's includeParts, create a set-based filter
+  if ('includeParts' in filter) {
+    const includeSet = new Set(filter.includeParts);
+    return ({ part }) => {
+      const partType = part.type as InferUIMessagePartType<UI_MESSAGE>;
+      return includeSet.has(partType);
+    };
+  }
+
+  // If it's excludeParts, create a set-based filter
+  const excludeSet = new Set(filter.excludeParts);
+  return ({ part }) => {
+    const partType = part.type as InferUIMessagePartType<UI_MESSAGE>;
+    return !excludeSet.has(partType);
+  };
 }

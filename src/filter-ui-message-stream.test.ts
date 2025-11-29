@@ -276,11 +276,9 @@ describe('filterUIMessageStream', () => {
       FINISH_CHUNK,
     ]);
 
-    const filteredStream = filterUIMessageStream(stream, {
-      filterParts: ({ partType }) => {
-        // Include text and any tool that starts with 'tool-weather'
-        return partType.startsWith('tool-weather');
-      },
+    const filteredStream = filterUIMessageStream(stream, ({ part }) => {
+      // Include any tool that starts with 'tool-weather'
+      return part.type.startsWith('tool-weather');
     });
 
     const result = await convertAsyncIterableToArray(filteredStream);
@@ -431,7 +429,7 @@ describe('filterUIMessageStream', () => {
         expect(partsByType.length).toBe(0);
       });
 
-      it('filterParts', async () => {
+      it('filter function', async () => {
         const stream = convertArrayToReadableStream([
           START_CHUNK,
           ...TEXT_CHUNKS,
@@ -444,9 +442,10 @@ describe('filterUIMessageStream', () => {
           FINISH_CHUNK,
         ]);
 
-        const filteredStream = filterUIMessageStream(stream, {
-          filterParts: (opts) => opts.partType === partType,
-        });
+        const filteredStream = filterUIMessageStream(
+          stream,
+          ({ part }) => part.type === partType,
+        );
 
         const result = await convertAsyncIterableToArray(
           readUIMessageStream({ stream: filteredStream }),
