@@ -6,6 +6,7 @@ import type {
 } from 'ai';
 import { createAsyncIterableStream } from './create-async-iterable-stream.js';
 import {
+  buildPartialPart,
   isMetaChunk,
   isPartEndChunk,
   isPartStartChunk,
@@ -14,20 +15,27 @@ import {
   resolveToolPartType,
   type ToolCallState,
 } from './stream-utils.js';
-import type { InferUIMessagePart, InferUIMessagePartType } from './types.js';
+import type {
+  InferUIMessagePart,
+  InferUIMessagePartType,
+  PartialPart,
+} from './types.js';
 
 /**
  * Input object provided to the part flatMap function.
  */
-export type PartFlatMapInput<UI_MESSAGE extends UIMessage> = {
-  /** The reconstructed part (use part.type to get the part type) */
-  part: InferUIMessagePart<UI_MESSAGE>;
+export type PartFlatMapInput<
+  UI_MESSAGE extends UIMessage,
+  PART extends InferUIMessagePart<UI_MESSAGE> = InferUIMessagePart<UI_MESSAGE>,
+> = {
+  /** The reconstructed part */
+  part: PART;
   /** The original chunks that make up this part */
   chunks: InferUIMessageChunk<UI_MESSAGE>[];
 };
 
 /**
- * Context provided to the part flatMap function (similar to Array.map callback).
+ * Context provided to the part flatMap function.
  */
 export type PartFlatMapContext<UI_MESSAGE extends UIMessage> = {
   /** The index of the current part in the stream (0-based) */
@@ -38,16 +46,56 @@ export type PartFlatMapContext<UI_MESSAGE extends UIMessage> = {
 
 /**
  * FlatMap function for part-level transformation.
- * Similar to Array.flatMap, receives the input object, index, and array of all parts.
  * Return:
  * - The part (possibly transformed) to include it
- * - An array of parts to expand into multiple parts
  * - null to filter out the part
  */
-export type FlatMapUIMessagePartFn<UI_MESSAGE extends UIMessage> = (
-  input: PartFlatMapInput<UI_MESSAGE>,
+export type FlatMapUIMessageStreamFn<
+  UI_MESSAGE extends UIMessage,
+  PART extends InferUIMessagePart<UI_MESSAGE> = InferUIMessagePart<UI_MESSAGE>,
+> = (
+  input: PartFlatMapInput<UI_MESSAGE, PART>,
   context: PartFlatMapContext<UI_MESSAGE>,
-) => InferUIMessagePart<UI_MESSAGE> | InferUIMessagePart<UI_MESSAGE>[] | null;
+) => PART | null;
+
+/**
+ * Predicate function to determine which parts should be buffered.
+ * Receives a PartialPart built from the current chunk.
+ * Returns true to buffer the part for transformation, false to pass through immediately.
+ */
+export type FlatMapUIMessageStreamPredicate<
+  UI_MESSAGE extends UIMessage,
+  // Part is needed for type narrowing in the predicate
+  PART extends InferUIMessagePart<UI_MESSAGE> = InferUIMessagePart<UI_MESSAGE>,
+> = (part: PartialPart<UI_MESSAGE>) => boolean;
+
+/**
+ * Creates a predicate that matches parts by their type.
+ * Supports both single type and array of types with full type narrowing.
+ *
+ * @example
+ * ```typescript
+ * // Single type - narrows to TextUIPart
+ * partTypeIs('text')
+ *
+ * // Multiple types - narrows to TextUIPart | ReasoningUIPart
+ * partTypeIs(['text', 'reasoning'])
+ * ```
+ */
+export function partTypeIs<
+  UI_MESSAGE extends UIMessage,
+  PART_TYPE extends InferUIMessagePartType<UI_MESSAGE>,
+>(
+  type: PART_TYPE | PART_TYPE[],
+): FlatMapUIMessageStreamPredicate<
+  UI_MESSAGE,
+  Extract<InferUIMessagePart<UI_MESSAGE>, { type: PART_TYPE }>
+> {
+  const partTypes = Array.isArray(type) ? type : [type];
+
+  return (part: PartialPart<UI_MESSAGE>): boolean =>
+    partTypes.includes(part.type as PART_TYPE);
+}
 
 /**
  * FlatMaps a UIMessageStream at the part level.
@@ -61,13 +109,13 @@ export type FlatMapUIMessagePartFn<UI_MESSAGE extends UIMessage> = (
  * @example
  * ```typescript
  * // Filter out reasoning parts using part.type
- * const stream = flatMapUIMessagePartStream(
+ * const stream = flatMapUIMessageStream(
  *   inputStream,
  *   ({ part }) => part.type === 'reasoning' ? null : part
  * );
  *
  * // Transform text parts
- * const stream = flatMapUIMessagePartStream(
+ * const stream = flatMapUIMessageStream(
  *   inputStream,
  *   ({ part, chunks }) => {
  *     if (part.type === 'text') {
@@ -77,31 +125,66 @@ export type FlatMapUIMessagePartFn<UI_MESSAGE extends UIMessage> = (
  *   }
  * );
  *
- * // Split a text part into multiple parts
- * const stream = flatMapUIMessagePartStream(
+ * // Buffer only specific part types, pass through others immediately
+ * const stream = flatMapUIMessageStream(
  *   inputStream,
- *   ({ part }, { partType }) => {
- *     if (partType === 'text' && part.text.includes('\n\n')) {
- *       return part.text.split('\n\n').map(text => ({ ...part, text }));
- *     }
- *     return part;
- *   }
+ *   partTypeIs('text'),
+ *   ({ part }) => ({ ...part, text: part.text.toUpperCase() })
+ * );
+ *
+ * // Buffer multiple part types
+ * const stream = flatMapUIMessageStream(
+ *   inputStream,
+ *   partTypeIs(['text', 'reasoning']),
+ *   ({ part }) => part // part is typed as TextUIPart | ReasoningUIPart
  * );
  * ```
  */
-export function flatMapUIMessagePartStream<UI_MESSAGE extends UIMessage>(
+export function flatMapUIMessageStream<
+  UI_MESSAGE extends UIMessage,
+  PART extends InferUIMessagePart<UI_MESSAGE>,
+>(
   stream: ReadableStream<UIMessageChunk>,
-  flatMapFn: FlatMapUIMessagePartFn<UI_MESSAGE>,
+  predicate: FlatMapUIMessageStreamPredicate<UI_MESSAGE, PART>,
+  flatMapFn: FlatMapUIMessageStreamFn<UI_MESSAGE, PART>,
+): AsyncIterableStream<InferUIMessageChunk<UI_MESSAGE>>;
+export function flatMapUIMessageStream<UI_MESSAGE extends UIMessage>(
+  stream: ReadableStream<UIMessageChunk>,
+  flatMapFn: FlatMapUIMessageStreamFn<UI_MESSAGE>,
+): AsyncIterableStream<InferUIMessageChunk<UI_MESSAGE>>;
+
+// Implementation
+export function flatMapUIMessageStream<
+  UI_MESSAGE extends UIMessage,
+  PART extends InferUIMessagePart<UI_MESSAGE>,
+>(
+  ...args:
+    | [
+        ReadableStream<UIMessageChunk>,
+        FlatMapUIMessageStreamFn<UI_MESSAGE, PART>,
+      ]
+    | [
+        ReadableStream<UIMessageChunk>,
+        FlatMapUIMessageStreamPredicate<UI_MESSAGE, PART>,
+        FlatMapUIMessageStreamFn<UI_MESSAGE, PART>,
+      ]
 ): AsyncIterableStream<InferUIMessageChunk<UI_MESSAGE>> {
-  // State for the transform stream
+  // Resolve arguments based on overload
+  const [stream, predicate, flatMapFn] =
+    args.length === 2
+      ? [args[0], undefined, args[1]]
+      : [args[0], args[1], args[2]];
+
   let bufferedStartStep: InferUIMessageChunk<UI_MESSAGE> | undefined;
   let stepStartEnqueued = false;
   let stepHasContent = false;
   const toolCallStates = new Map<string, ToolCallState>();
 
-  // Current part being collected
+  // Current part being collected (only when buffering)
   let currentPartChunks: InferUIMessageChunk<UI_MESSAGE>[] = [];
   let currentPartType: string | undefined;
+  // Track whether current part is being buffered or streamed through
+  let isBufferingCurrentPart = false;
 
   // Track all parts and current index
   const allParts: PartFlatMapInput<UI_MESSAGE>[] = [];
@@ -152,26 +235,46 @@ export function flatMapUIMessagePartStream<UI_MESSAGE extends UIMessage>(
       // Resolve part type
       const partType = resolveToolPartType(chunk, toolCallStates);
 
-      // Handle part start: begin collecting a new part
+      // Handle part start: decide whether to buffer or stream
       if (isPartStartChunk(chunk)) {
         // If we were already collecting a part, something is wrong - emit what we have
         if (currentPartChunks.length > 0) {
           flushCurrentPart(controller, bufferedStartStep);
         }
-        currentPartChunks = [chunk];
-        currentPartType = partType;
-      } else if (currentPartChunks.length > 0) {
-        // Continue collecting the current part
-        currentPartChunks.push(chunk);
-      } else {
-        // Orphan chunk - shouldn't happen normally, but pass it through
-        currentPartChunks = [chunk];
-        currentPartType = partType;
-      }
 
-      // Check if the part is complete
-      if (isPartEndChunk(chunk)) {
-        flushCurrentPart(controller, bufferedStartStep);
+        // Build partial part to check predicate
+        const partialPart = buildPartialPart(
+          chunk,
+          partType,
+          toolCallStates,
+        ) as PartialPart<UI_MESSAGE>;
+
+        // Check predicate to decide: buffer or stream?
+        const shouldBuffer = !predicate || predicate(partialPart);
+
+        if (shouldBuffer) {
+          // Start buffering this part
+          currentPartChunks = [chunk];
+          currentPartType = partType;
+          isBufferingCurrentPart = true;
+        } else {
+          // Stream this chunk immediately, don't buffer
+          isBufferingCurrentPart = false;
+          currentPartChunks = [];
+          currentPartType = partType;
+          emitChunk(controller, chunk, bufferedStartStep);
+        }
+      } else if (isBufferingCurrentPart) {
+        // Continue buffering the current part
+        currentPartChunks.push(chunk);
+
+        // Check if the part is complete
+        if (isPartEndChunk(chunk)) {
+          flushCurrentPart(controller, bufferedStartStep);
+        }
+      } else {
+        // Streaming mode - emit chunk immediately
+        emitChunk(controller, chunk, bufferedStartStep);
       }
     },
 
@@ -188,8 +291,39 @@ export function flatMapUIMessagePartStream<UI_MESSAGE extends UIMessage>(
       toolCallStates.clear();
       allParts.length = 0;
       currentIndex = 0;
+      isBufferingCurrentPart = false;
     },
   });
+
+  function emitChunk(
+    controller: TransformStreamDefaultController<
+      InferUIMessageChunk<UI_MESSAGE>
+    >,
+    chunk: InferUIMessageChunk<UI_MESSAGE>,
+    startStep: InferUIMessageChunk<UI_MESSAGE> | undefined,
+  ) {
+    // Handle buffered start-step
+    if (startStep && !stepHasContent) {
+      stepHasContent = true;
+      controller.enqueue(startStep);
+      stepStartEnqueued = true;
+      bufferedStartStep = undefined;
+    }
+
+    controller.enqueue(chunk);
+  }
+
+  function emitChunks(
+    controller: TransformStreamDefaultController<
+      InferUIMessageChunk<UI_MESSAGE>
+    >,
+    chunks: InferUIMessageChunk<UI_MESSAGE>[],
+    startStep: InferUIMessageChunk<UI_MESSAGE> | undefined,
+  ) {
+    for (const chunk of chunks) {
+      emitChunk(controller, chunk, startStep);
+    }
+  }
 
   function flushCurrentPart(
     controller: TransformStreamDefaultController<
@@ -203,6 +337,7 @@ export function flatMapUIMessagePartStream<UI_MESSAGE extends UIMessage>(
     const partType = currentPartType as InferUIMessagePartType<UI_MESSAGE>;
     currentPartChunks = [];
     currentPartType = undefined;
+    isBufferingCurrentPart = false;
 
     // Reconstruct the part from chunks
     const part = reconstructPartFromChunks(
@@ -215,43 +350,28 @@ export function flatMapUIMessagePartStream<UI_MESSAGE extends UIMessage>(
     allParts.push(input);
     const index = currentIndex++;
 
-    // Apply the flatMap function
-    const result = flatMapFn(input, { index, parts: allParts });
+    // Apply the flatMap function (cast needed for type safety with predicate overload)
+    const result = (flatMapFn as FlatMapUIMessageStreamFn<UI_MESSAGE>)(input, {
+      index,
+      parts: allParts,
+    });
 
     // If result is null, filter out this part
     if (result === null) {
       return;
     }
 
-    // Handle buffered start-step
-    if (startStep && !stepHasContent) {
-      stepHasContent = true;
-      controller.enqueue(startStep);
-      stepStartEnqueued = true;
-      bufferedStartStep = undefined;
-    }
-
-    // Convert result to array for uniform handling
-    const parts = Array.isArray(result) ? result : [result];
-
-    // Emit chunks for each resulting part
-    for (const resultPart of parts) {
-      // If the part is unchanged, emit original chunks
-      if (resultPart === part) {
-        for (const chunk of chunks) {
-          controller.enqueue(chunk);
-        }
-      } else {
-        // Part was transformed - serialize it to chunks
-        const newChunks = serializePartToChunks(
-          resultPart,
-          partType,
-          chunks,
-        ) as InferUIMessageChunk<UI_MESSAGE>[];
-        for (const chunk of newChunks) {
-          controller.enqueue(chunk);
-        }
-      }
+    // Emit chunks (handles start-step buffering)
+    if (result === part) {
+      emitChunks(controller, chunks, startStep);
+    } else {
+      // Part was transformed - serialize it to chunks
+      const newChunks = serializePartToChunks(
+        result,
+        partType,
+        chunks,
+      ) as InferUIMessageChunk<UI_MESSAGE>[];
+      emitChunks(controller, newChunks, startStep);
     }
   }
 
@@ -272,12 +392,7 @@ function reconstructPartFromChunks(
 
   // Single-chunk parts
   if (firstChunk.type === 'file') {
-    const fileChunk = firstChunk as {
-      type: 'file';
-      mediaType: string;
-      url: string;
-      providerMetadata?: unknown;
-    };
+    const fileChunk = firstChunk;
     return {
       type: 'file',
       mediaType: fileChunk.mediaType,
@@ -287,13 +402,7 @@ function reconstructPartFromChunks(
   }
 
   if (firstChunk.type === 'source-url') {
-    const sourceChunk = firstChunk as {
-      type: 'source-url';
-      sourceId: string;
-      url: string;
-      title?: string;
-      providerMetadata?: unknown;
-    };
+    const sourceChunk = firstChunk;
     return {
       type: 'source-url',
       sourceId: sourceChunk.sourceId,
@@ -304,14 +413,7 @@ function reconstructPartFromChunks(
   }
 
   if (firstChunk.type === 'source-document') {
-    const sourceChunk = firstChunk as {
-      type: 'source-document';
-      sourceId: string;
-      mediaType: string;
-      title: string;
-      filename?: string;
-      providerMetadata?: unknown;
-    };
+    const sourceChunk = firstChunk;
     return {
       type: 'source-document',
       sourceId: sourceChunk.sourceId,
@@ -335,11 +437,10 @@ function reconstructPartFromChunks(
     let providerMetadata: unknown;
     for (const chunk of chunks) {
       if (chunk.type === 'text-delta') {
-        text += (chunk as { delta: string }).delta;
+        text += chunk.delta;
       }
       if (chunk.type === 'text-end') {
-        providerMetadata = (chunk as { providerMetadata?: unknown })
-          .providerMetadata;
+        providerMetadata = chunk.providerMetadata;
       }
     }
     return {
@@ -356,11 +457,10 @@ function reconstructPartFromChunks(
     let providerMetadata: unknown;
     for (const chunk of chunks) {
       if (chunk.type === 'reasoning-delta') {
-        text += (chunk as { delta: string }).delta;
+        text += chunk.delta;
       }
       if (chunk.type === 'reasoning-end') {
-        providerMetadata = (chunk as { providerMetadata?: unknown })
-          .providerMetadata;
+        providerMetadata = chunk.providerMetadata;
       }
     }
     return {
@@ -373,12 +473,7 @@ function reconstructPartFromChunks(
 
   // Tool part
   if (firstChunk.type === 'tool-input-start') {
-    const toolInputStart = firstChunk as {
-      toolCallId: string;
-      toolName: string;
-      dynamic?: boolean;
-      providerExecuted?: boolean;
-    };
+    const toolInputStart = firstChunk;
 
     let input: unknown;
     let output: unknown;
@@ -389,23 +484,22 @@ function reconstructPartFromChunks(
 
     for (const chunk of chunks) {
       if (chunk.type === 'tool-input-available') {
-        input = (chunk as { input: unknown }).input;
+        input = chunk.input;
         state = 'input-available';
-        providerMetadata = (chunk as { providerMetadata?: unknown })
-          .providerMetadata;
+        providerMetadata = chunk.providerMetadata;
       }
       if (chunk.type === 'tool-input-error') {
-        input = (chunk as { input: unknown }).input;
-        errorText = (chunk as { errorText: string }).errorText;
+        input = chunk.input;
+        errorText = chunk.errorText;
         state = 'output-error';
       }
       if (chunk.type === 'tool-output-available') {
-        output = (chunk as { output: unknown }).output;
+        output = chunk.output;
         state = 'output-available';
-        preliminary = (chunk as { preliminary?: boolean }).preliminary;
+        preliminary = chunk.preliminary;
       }
       if (chunk.type === 'tool-output-error') {
-        errorText = (chunk as { errorText: string }).errorText;
+        errorText = chunk.errorText;
         state = 'output-error';
       }
     }

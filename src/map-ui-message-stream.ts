@@ -1,0 +1,192 @@
+import type {
+  AsyncIterableStream,
+  InferUIMessageChunk,
+  UIMessage,
+  UIMessageChunk,
+} from 'ai';
+import { createAsyncIterableStream } from './create-async-iterable-stream.js';
+import {
+  buildPartialPart,
+  isMetaChunk,
+  isStepEndChunk,
+  isStepStartChunk,
+  resolveToolPartType,
+  type ToolCallState,
+} from './stream-utils.js';
+import type { PartialPart } from './types.js';
+
+/**
+ * Input object provided to the chunk map function.
+ */
+export type ChunkMapInput<UI_MESSAGE extends UIMessage> = {
+  /** The current chunk */
+  chunk: InferUIMessageChunk<UI_MESSAGE>;
+  /**
+   * A partial representation of the part this chunk belongs to.
+   * Use `part.type` to determine the part type.
+   */
+  part: PartialPart<UI_MESSAGE>;
+};
+
+/**
+ * Context provided to the chunk map function (similar to Array.map callback).
+ */
+export type ChunkMapContext<UI_MESSAGE extends UIMessage> = {
+  /** The index of the current chunk in the stream (0-based) */
+  index: number;
+  /** All chunks seen so far (including the current one) */
+  chunks: InferUIMessageChunk<UI_MESSAGE>[];
+};
+
+/**
+ * Map function for chunk-level transformation.
+ * Similar to Array.map, receives the input object and context.
+ * Return the chunk (possibly transformed) to include it, or null to filter it out.
+ */
+export type MapUIMessageStreamFn<UI_MESSAGE extends UIMessage> = (
+  input: ChunkMapInput<UI_MESSAGE>,
+  context: ChunkMapContext<UI_MESSAGE>,
+) => InferUIMessageChunk<UI_MESSAGE> | null;
+
+/**
+ * Maps/filters a UIMessageStream at the chunk level.
+ *
+ * This function processes each chunk as it arrives and allows you to:
+ * - Transform chunks by returning a modified chunk
+ * - Filter out chunks by returning null
+ *
+ * Meta chunks (start, finish, abort, message-metadata, error) always pass through.
+ * Step boundaries (start-step, finish-step) are handled automatically:
+ * - start-step is buffered and only emitted if subsequent content is included
+ * - finish-step is only emitted if the corresponding start-step was emitted
+ *
+ * @example
+ * ```typescript
+ * // Filter out reasoning chunks using part.type
+ * const stream = mapUIMessageStream(
+ *   inputStream,
+ *   ({ chunk, part }) => part.type === 'reasoning' ? null : chunk
+ * );
+ *
+ * // Transform text chunks
+ * const stream = mapUIMessageStream(
+ *   inputStream,
+ *   ({ chunk, part }) => {
+ *     if (chunk.type === 'text-delta') {
+ *       return { ...chunk, delta: chunk.delta.toUpperCase() };
+ *     }
+ *     return chunk;
+ *   }
+ * );
+ *
+ * // Access previous chunks and index
+ * const stream = mapUIMessageStream(
+ *   inputStream,
+ *   ({ chunk }, { index, chunks }) => {
+ *     console.log(`Processing chunk ${index} of ${chunks.length}`);
+ *     return chunk;
+ *   }
+ * );
+ * ```
+ */
+export function mapUIMessageStream<UI_MESSAGE extends UIMessage>(
+  stream: ReadableStream<UIMessageChunk>,
+  mapFn: MapUIMessageStreamFn<UI_MESSAGE>,
+): AsyncIterableStream<InferUIMessageChunk<UI_MESSAGE>> {
+  // State for the transform stream
+  let bufferedStartStep: InferUIMessageChunk<UI_MESSAGE> | undefined;
+  let stepStartEnqueued = false;
+  let stepHasContent = false;
+  const toolCallStates = new Map<string, ToolCallState>();
+
+  // Track all chunks and current index
+  const allChunks: InferUIMessageChunk<UI_MESSAGE>[] = [];
+  let currentIndex = 0;
+
+  const transformStream = new TransformStream<
+    InferUIMessageChunk<UI_MESSAGE>,
+    InferUIMessageChunk<UI_MESSAGE>
+  >({
+    transform(chunk, controller) {
+      // Add chunk to history
+      allChunks.push(chunk);
+      const index = currentIndex++;
+
+      // Always pass through meta chunks
+      if (isMetaChunk(chunk)) {
+        controller.enqueue(chunk);
+        return;
+      }
+
+      // Buffer start-step until we know if content will be included
+      if (isStepStartChunk(chunk)) {
+        bufferedStartStep = chunk;
+        stepHasContent = false;
+        return;
+      }
+
+      // Only enqueue finish-step if corresponding start-step was enqueued
+      if (isStepEndChunk(chunk)) {
+        if (stepStartEnqueued) {
+          controller.enqueue(chunk);
+          stepStartEnqueued = false;
+        }
+        bufferedStartStep = undefined;
+        return;
+      }
+
+      // Track tool call state for later lookups
+      if (chunk.type === 'tool-input-start') {
+        const toolChunk = chunk as {
+          type: 'tool-input-start';
+          toolCallId: string;
+          toolName: string;
+          dynamic?: boolean;
+        };
+        toolCallStates.set(toolChunk.toolCallId, {
+          toolName: toolChunk.toolName,
+          dynamic: toolChunk.dynamic,
+        });
+      }
+
+      // Resolve part type
+      const partType = resolveToolPartType(chunk, toolCallStates);
+
+      // Build partial part from chunk
+      const part = buildPartialPart(chunk, partType, toolCallStates);
+
+      // Apply the map function
+      const result = mapFn(
+        { chunk, part: part as PartialPart<UI_MESSAGE> },
+        { index, chunks: allChunks },
+      );
+
+      // If result is null, filter out this chunk
+      if (result === null) {
+        return;
+      }
+
+      // Handle buffered start-step
+      if (bufferedStartStep && !stepHasContent) {
+        stepHasContent = true;
+        controller.enqueue(bufferedStartStep);
+        stepStartEnqueued = true;
+        bufferedStartStep = undefined;
+      }
+
+      controller.enqueue(result);
+    },
+
+    flush() {
+      // Clean up state
+      bufferedStartStep = undefined;
+      stepStartEnqueued = false;
+      stepHasContent = false;
+      toolCallStates.clear();
+      allChunks.length = 0;
+      currentIndex = 0;
+    },
+  });
+
+  return createAsyncIterableStream(stream.pipeThrough(transformStream));
+}

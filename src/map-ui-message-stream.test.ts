@@ -2,60 +2,22 @@ import {
   convertArrayToReadableStream,
   convertAsyncIterableToArray,
 } from '@ai-sdk/provider-utils/test';
-import type { InferUIMessageChunk, UIMessage } from 'ai';
+import type { UIMessageChunk } from 'ai';
 import { describe, expect, it } from 'vitest';
-import { mapUIMessageChunkStream } from './map-ui-message-chunk-stream.js';
+import { mapUIMessageStream } from './map-ui-message-stream.js';
+import {
+  ABORT_CHUNK,
+  ERROR_CHUNK,
+  FINISH_CHUNK,
+  MESSAGE_METADATA_CHUNK,
+  type MyUIMessageChunk,
+  REASONING_CHUNKS,
+  START_CHUNK,
+  TEXT_CHUNKS,
+  TOOL_CHUNKS,
+} from './test-utils.js';
 
-type MyUIMessage = UIMessage;
-type MyUIMessageChunk = InferUIMessageChunk<MyUIMessage>;
-
-const START_CHUNK: MyUIMessageChunk = { type: 'start' };
-const FINISH_CHUNK: MyUIMessageChunk = { type: 'finish' };
-
-const TEXT_CHUNKS: MyUIMessageChunk[] = [
-  { type: 'start-step' },
-  { type: 'text-start', id: '1' },
-  { type: 'text-delta', id: '1', delta: 'Hello' },
-  { type: 'text-delta', id: '1', delta: ' World' },
-  { type: 'text-end', id: '1' },
-  { type: 'finish-step' },
-];
-
-const REASONING_CHUNKS: MyUIMessageChunk[] = [
-  { type: 'start-step' },
-  { type: 'reasoning-start', id: '2' },
-  { type: 'reasoning-delta', id: '2', delta: 'Thinking...' },
-  { type: 'reasoning-end', id: '2' },
-  { type: 'finish-step' },
-];
-
-const TOOL_CHUNKS: MyUIMessageChunk[] = [
-  { type: 'start-step' },
-  {
-    type: 'tool-input-start',
-    toolCallId: '3',
-    toolName: 'weather',
-  },
-  {
-    type: 'tool-input-delta',
-    toolCallId: '3',
-    inputTextDelta: '{"location"',
-  },
-  {
-    type: 'tool-input-available',
-    toolCallId: '3',
-    toolName: 'weather',
-    input: { location: 'NYC' },
-  },
-  {
-    type: 'tool-output-available',
-    toolCallId: '3',
-    output: { temperature: 65 },
-  },
-  { type: 'finish-step' },
-];
-
-describe('mapUIMessageChunkStream', () => {
+describe('mapUIMessageStream', () => {
   it('should pass through all chunks with identity map', async () => {
     const stream = convertArrayToReadableStream([
       START_CHUNK,
@@ -63,7 +25,7 @@ describe('mapUIMessageChunkStream', () => {
       FINISH_CHUNK,
     ]);
 
-    const mappedStream = mapUIMessageChunkStream(stream, ({ chunk }) => chunk);
+    const mappedStream = mapUIMessageStream(stream, ({ chunk }) => chunk);
 
     const result = await convertAsyncIterableToArray(mappedStream);
 
@@ -78,7 +40,7 @@ describe('mapUIMessageChunkStream', () => {
       FINISH_CHUNK,
     ]);
 
-    const mappedStream = mapUIMessageChunkStream(stream, ({ chunk, part }) => {
+    const mappedStream = mapUIMessageStream(stream, ({ chunk, part }) => {
       return part.type === 'reasoning' ? null : chunk;
     });
 
@@ -95,7 +57,7 @@ describe('mapUIMessageChunkStream', () => {
       FINISH_CHUNK,
     ]);
 
-    const mappedStream = mapUIMessageChunkStream(stream, ({ chunk }) => {
+    const mappedStream = mapUIMessageStream(stream, ({ chunk }) => {
       if (chunk.type === 'text-delta') {
         return { ...chunk, delta: chunk.delta.toUpperCase() };
       }
@@ -112,16 +74,6 @@ describe('mapUIMessageChunkStream', () => {
   });
 
   it('should always pass through meta chunks', async () => {
-    const ERROR_CHUNK: MyUIMessageChunk = {
-      type: 'error',
-      errorText: 'Test error',
-    };
-    const ABORT_CHUNK: MyUIMessageChunk = { type: 'abort' };
-    const MESSAGE_METADATA_CHUNK: MyUIMessageChunk = {
-      type: 'message-metadata',
-      messageMetadata: { id: '1' },
-    };
-
     const stream = convertArrayToReadableStream([
       START_CHUNK,
       MESSAGE_METADATA_CHUNK,
@@ -131,7 +83,7 @@ describe('mapUIMessageChunkStream', () => {
     ]);
 
     // Even when returning null for everything, meta chunks pass through
-    const mappedStream = mapUIMessageChunkStream(stream, () => null);
+    const mappedStream = mapUIMessageStream(stream, () => null);
 
     const result = await convertAsyncIterableToArray(mappedStream);
 
@@ -151,7 +103,7 @@ describe('mapUIMessageChunkStream', () => {
       FINISH_CHUNK,
     ]);
 
-    const mappedStream = mapUIMessageChunkStream(stream, ({ chunk, part }) => {
+    const mappedStream = mapUIMessageStream(stream, ({ chunk, part }) => {
       return part.type === 'reasoning' ? null : chunk;
     });
 
@@ -169,7 +121,7 @@ describe('mapUIMessageChunkStream', () => {
     ]);
 
     const partTypes: string[] = [];
-    const mappedStream = mapUIMessageChunkStream(stream, ({ chunk, part }) => {
+    const mappedStream = mapUIMessageStream(stream, ({ chunk, part }) => {
       if (!['start', 'finish', 'step-start'].includes(part.type)) {
         partTypes.push(part.type);
       }
@@ -190,7 +142,7 @@ describe('mapUIMessageChunkStream', () => {
     ]);
 
     const partIds: (string | undefined)[] = [];
-    const mappedStream = mapUIMessageChunkStream(stream, ({ chunk, part }) => {
+    const mappedStream = mapUIMessageStream(stream, ({ chunk, part }) => {
       if (part.type === 'text') {
         partIds.push((part as { id?: string }).id);
       }
@@ -213,7 +165,7 @@ describe('mapUIMessageChunkStream', () => {
 
     const indices: number[] = [];
     const chunkCounts: number[] = [];
-    const mappedStream = mapUIMessageChunkStream(
+    const mappedStream = mapUIMessageStream(
       stream,
       ({ chunk }, { index, chunks }) => {
         indices.push(index);
@@ -241,14 +193,11 @@ describe('mapUIMessageChunkStream', () => {
       FINISH_CHUNK,
     ]);
 
-    let lastChunksSnapshot: MyUIMessageChunk[] = [];
-    const mappedStream = mapUIMessageChunkStream(
-      stream,
-      ({ chunk }, { chunks }) => {
-        lastChunksSnapshot = [...chunks];
-        return chunk;
-      },
-    );
+    let lastChunksSnapshot: UIMessageChunk[] = [];
+    const mappedStream = mapUIMessageStream(stream, ({ chunk }, { chunks }) => {
+      lastChunksSnapshot = [...chunks];
+      return chunk;
+    });
 
     await convertAsyncIterableToArray(mappedStream);
 
@@ -267,7 +216,7 @@ describe('mapUIMessageChunkStream', () => {
     ]);
 
     const textContents: (string | undefined)[] = [];
-    const mappedStream = mapUIMessageChunkStream(stream, ({ chunk, part }) => {
+    const mappedStream = mapUIMessageStream(stream, ({ chunk, part }) => {
       if (part.type === 'text') {
         // For text-delta chunks, part.text contains the delta
         textContents.push((part as { text?: string }).text);

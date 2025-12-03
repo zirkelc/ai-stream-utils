@@ -58,5 +58,8 @@
     "typescript": "^5.9.3",
     "vitest": "^4.0.10",
     "zod": "^4.1.12"
+  },
+  "dependencies": {
+    "@ai-sdk/openai": "^2.0.76"
   }
 }

@@ -92,6 +92,10 @@ export function isMetaChunk(chunk: UIMessageChunk): boolean {
   );
 }
 
+export function isMessageDataChunk(chunk: UIMessageChunk): boolean {
+  return chunk.type.startsWith('data-');
+}
+
 /**
  * Checks if a chunk marks the start of a message.
  */
@@ -178,18 +182,167 @@ export function getPartIdFromChunk(chunk: UIMessageChunk): string | undefined {
     case 'reasoning-start':
     case 'reasoning-delta':
     case 'reasoning-end':
-      return (chunk as { id: string }).id;
+      return chunk.id;
     case 'tool-input-start':
     case 'tool-input-delta':
     case 'tool-input-available':
     case 'tool-input-error':
     case 'tool-output-available':
     case 'tool-output-error':
-      return (chunk as { toolCallId: string }).toolCallId;
+      return chunk.toolCallId;
     case 'source-url':
     case 'source-document':
-      return (chunk as { sourceId: string }).sourceId;
+      return chunk.sourceId;
     default:
       return undefined;
   }
+}
+
+/**
+ * Builds a partial part representation from a chunk.
+ * This provides access to the part type and any available metadata.
+ */
+export function buildPartialPart(
+  chunk: UIMessageChunk,
+  partType: string,
+  toolCallStates: Map<string, ToolCallState>,
+): Record<string, unknown> {
+  const result: Record<string, unknown> = { type: partType };
+
+  switch (chunk.type) {
+    // Text chunks
+    case 'text-start':
+    case 'text-delta':
+    case 'text-end': {
+      const textChunk = chunk;
+      result.id = textChunk.id;
+      if (textChunk.type === 'text-delta' && textChunk.delta !== undefined)
+        result.text = textChunk.delta;
+      if (textChunk.providerMetadata)
+        result.providerMetadata = textChunk.providerMetadata;
+      break;
+    }
+
+    // Reasoning chunks
+    case 'reasoning-start':
+    case 'reasoning-delta':
+    case 'reasoning-end': {
+      const reasoningChunk = chunk;
+      result.id = reasoningChunk.id;
+      if (
+        reasoningChunk.type === 'reasoning-delta' &&
+        reasoningChunk.delta !== undefined
+      )
+        result.text = reasoningChunk.delta;
+      if (reasoningChunk.providerMetadata)
+        result.providerMetadata = reasoningChunk.providerMetadata;
+      break;
+    }
+
+    // Tool chunks
+    case 'tool-input-start': {
+      const toolChunk = chunk;
+      result.toolCallId = toolChunk.toolCallId;
+      result.toolName = toolChunk.toolName;
+      result.providerExecuted = toolChunk.providerExecuted;
+      break;
+    }
+
+    case 'tool-input-delta': {
+      const toolChunk = chunk;
+      const toolState = toolCallStates.get(toolChunk.toolCallId);
+      result.toolCallId = toolChunk.toolCallId;
+      result.toolName = toolState?.toolName;
+      result.inputTextDelta = toolChunk.inputTextDelta;
+      break;
+    }
+
+    case 'tool-input-available': {
+      const toolChunk = chunk;
+      result.toolCallId = toolChunk.toolCallId;
+      result.toolName = toolChunk.toolName;
+      result.input = toolChunk.input;
+      result.state = 'input-available';
+      result.providerExecuted = toolChunk.providerExecuted;
+      if (toolChunk.providerMetadata)
+        result.callProviderMetadata = toolChunk.providerMetadata;
+      break;
+    }
+
+    case 'tool-input-error': {
+      const toolChunk = chunk;
+      result.toolCallId = toolChunk.toolCallId;
+      result.toolName = toolChunk.toolName;
+      result.input = toolChunk.input;
+      result.errorText = toolChunk.errorText;
+      result.state = 'output-error';
+      result.providerExecuted = toolChunk.providerExecuted;
+      break;
+    }
+
+    case 'tool-output-available': {
+      const toolChunk = chunk;
+      const toolState = toolCallStates.get(toolChunk.toolCallId);
+      result.toolCallId = toolChunk.toolCallId;
+      result.toolName = toolState?.toolName;
+      result.output = toolChunk.output;
+      result.state = 'output-available';
+      result.providerExecuted = toolChunk.providerExecuted;
+      result.preliminary = toolChunk.preliminary;
+      break;
+    }
+
+    case 'tool-output-error': {
+      const toolChunk = chunk;
+      const toolState = toolCallStates.get(toolChunk.toolCallId);
+      result.toolCallId = toolChunk.toolCallId;
+      result.toolName = toolState?.toolName;
+      result.errorText = toolChunk.errorText;
+      result.state = 'output-error';
+      result.providerExecuted = toolChunk.providerExecuted;
+      break;
+    }
+
+    // Single-chunk parts
+    case 'file': {
+      const fileChunk = chunk;
+      result.url = fileChunk.url;
+      result.mediaType = fileChunk.mediaType;
+      if (fileChunk.providerMetadata)
+        result.providerMetadata = fileChunk.providerMetadata;
+      break;
+    }
+
+    case 'source-url': {
+      const sourceChunk = chunk;
+      result.sourceId = sourceChunk.sourceId;
+      result.url = sourceChunk.url;
+      result.title = sourceChunk.title;
+      if (sourceChunk.providerMetadata)
+        result.providerMetadata = sourceChunk.providerMetadata;
+      break;
+    }
+
+    case 'source-document': {
+      const sourceChunk = chunk;
+      result.sourceId = sourceChunk.sourceId;
+      result.mediaType = sourceChunk.mediaType;
+      result.title = sourceChunk.title;
+      result.filename = sourceChunk.filename;
+      if (sourceChunk.providerMetadata)
+        result.providerMetadata = sourceChunk.providerMetadata;
+      break;
+    }
+
+    default: {
+      // Data chunks and other types
+      if (chunk.type.startsWith('data-')) {
+        const dataChunk = chunk as { data: unknown };
+        result.data = dataChunk.data;
+      }
+      break;
+    }
+  }
+
+  return result;
 }

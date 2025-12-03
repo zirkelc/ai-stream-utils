@@ -7,124 +7,99 @@ import type {
 import {
   type ChunkMapContext,
   type ChunkMapInput,
-  mapUIMessageChunkStream,
-} from './map-ui-message-chunk-stream.js';
+  mapUIMessageStream,
+} from './map-ui-message-stream.js';
 import type { InferUIMessagePartType } from './types.js';
 
 /**
- * Filter function that receives the same input/context as mapUIMessageChunkStream.
+ * Filter function that receives the same input/context as mapUIMessageStream.
  * Return true to include the chunk, false to filter it out.
  */
-export type FilterUIMessageStreamFn<UI_MESSAGE extends UIMessage> = (
+export type FilterUIMessageStreamPredicate<UI_MESSAGE extends UIMessage> = (
   input: ChunkMapInput<UI_MESSAGE>,
   context: ChunkMapContext<UI_MESSAGE>,
 ) => boolean;
 
 /**
- * Shorthand options for filtering by part type.
+ * Creates a filter predicate that includes only the specified part types.
+ *
+ * @example
+ * ```typescript
+ * filterUIMessageStream(stream, includeParts(['text', 'tool-weather']));
+ * ```
  */
-export type FilterUIMessageStreamOptions<UI_MESSAGE extends UIMessage> =
-  | {
-      /**
-       * Include only these part types.
-       * For tools, use 'tool-<toolName>' (e.g., 'tool-weather').
-       * For dynamic tools, use 'dynamic-tool'.
-       */
-      includeParts: Array<InferUIMessagePartType<UI_MESSAGE>>;
-    }
-  | {
-      /**
-       * Exclude these part types.
-       * For tools, use 'tool-<toolName>' (e.g., 'tool-weather').
-       * For dynamic tools, use 'dynamic-tool'.
-       */
-      excludeParts: Array<InferUIMessagePartType<UI_MESSAGE>>;
-    };
+export function includeParts<UI_MESSAGE extends UIMessage>(
+  includePartTypes: Array<InferUIMessagePartType<UI_MESSAGE>>,
+): FilterUIMessageStreamPredicate<UI_MESSAGE> {
+  return ({ part }) => {
+    const partType = part.type as InferUIMessagePartType<UI_MESSAGE>;
+    return includePartTypes.includes(partType);
+  };
+}
 
 /**
- * Filter argument - either a filter function or shorthand options.
+ * Creates a filter predicate that excludes the specified part types.
+ *
+ * @example
+ * ```typescript
+ * filterUIMessageStream(stream, excludeParts(['reasoning', 'tool-calculator']));
+ * ```
  */
-export type FilterUIMessageStreamFilter<UI_MESSAGE extends UIMessage> =
-  | FilterUIMessageStreamFn<UI_MESSAGE>
-  | FilterUIMessageStreamOptions<UI_MESSAGE>;
+export function excludeParts<UI_MESSAGE extends UIMessage>(
+  excludePartTypes: Array<InferUIMessagePartType<UI_MESSAGE>>,
+): FilterUIMessageStreamPredicate<UI_MESSAGE> {
+  return ({ part }) => {
+    const partType = part.type as InferUIMessagePartType<UI_MESSAGE>;
+    return !excludePartTypes.includes(partType);
+  };
+}
 
 /**
  * Filters a UIMessageStream to include or exclude specific chunks.
  *
- * This is a convenience wrapper around `mapUIMessageChunkStream` that provides
+ * This is a convenience wrapper around `mapUIMessageStream` that provides
  * a simpler API for filtering chunks.
  *
- * The filter can be:
- * - A function that receives `{ chunk, part }` and `{ index, chunks }` and returns boolean
- * - An object with `includeParts` array to include only specific part types
- * - An object with `excludeParts` array to exclude specific part types
+ * The filter function receives `{ chunk, part }` and `{ index, chunks }` and returns
+ * a boolean indicating whether to include the chunk.
+ *
+ * Use the `includeParts()` and `excludeParts()` helper functions for common filtering patterns.
  *
  * Meta chunks (start, finish, abort, message-metadata, error) always pass through.
  * Step boundaries (start-step, finish-step) are handled automatically.
  *
  * @example
  * ```typescript
- * // Filter function - include only text parts
+ * // Custom filter function - include only text parts
  * const stream = filterUIMessageStream(
  *   result.toUIMessageStream(),
  *   ({ part }) => part.type === 'text'
  * );
  *
- * // Filter function with context - skip first chunk of each part
+ * // Using includeParts helper
  * const stream = filterUIMessageStream(
  *   result.toUIMessageStream(),
- *   ({ chunk }, { index }) => index > 0
+ *   includeParts(['text', 'tool-weather'])
  * );
  *
- * // Shorthand - include only specific parts
+ * // Using excludeParts helper
  * const stream = filterUIMessageStream(
  *   result.toUIMessageStream(),
- *   { includeParts: ['text', 'tool-weather'] }
+ *   excludeParts(['reasoning', 'tool-calculator'])
  * );
  *
- * // Shorthand - exclude specific parts
+ * // Filter with context - access index and previous chunks
  * const stream = filterUIMessageStream(
  *   result.toUIMessageStream(),
- *   { excludeParts: ['reasoning', 'tool-calculator'] }
+ *   ({ part }, { index }) => part.type === 'text' && index < 10
  * );
  * ```
  */
 export function filterUIMessageStream<UI_MESSAGE extends UIMessage>(
   stream: ReadableStream<UIMessageChunk>,
-  filter: FilterUIMessageStreamFilter<UI_MESSAGE>,
+  predicate: FilterUIMessageStreamPredicate<UI_MESSAGE>,
 ): AsyncIterableStream<InferUIMessageChunk<UI_MESSAGE>> {
-  // Convert filter to a predicate function
-  const shouldInclude = createFilterPredicate(filter);
-
-  return mapUIMessageChunkStream(stream, (input, context) => {
-    return shouldInclude(input, context) ? input.chunk : null;
+  return mapUIMessageStream(stream, (input, context) => {
+    return predicate(input, context) ? input.chunk : null;
   });
-}
-
-/**
- * Creates a filter predicate from the filter argument.
- */
-function createFilterPredicate<UI_MESSAGE extends UIMessage>(
-  filter: FilterUIMessageStreamFilter<UI_MESSAGE>,
-): FilterUIMessageStreamFn<UI_MESSAGE> {
-  // If it's a function, use it directly
-  if (typeof filter === 'function') {
-    return filter;
-  }
-
-  // If it's includeParts, create a set-based filter
-  if ('includeParts' in filter) {
-    const includeSet = new Set(filter.includeParts);
-    return ({ part }) => {
-      const partType = part.type as InferUIMessagePartType<UI_MESSAGE>;
-      return includeSet.has(partType);
-    };
-  }
-
-  // If it's excludeParts, create a set-based filter
-  const excludeSet = new Set(filter.excludeParts);
-  return ({ part }) => {
-    const partType = part.type as InferUIMessagePartType<UI_MESSAGE>;
-    return !excludeSet.has(partType);
-  };
 }

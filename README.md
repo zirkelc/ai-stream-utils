@@ -1,55 +1,54 @@
 <div align='center'>
 
-# ai-filter-stream
+# ai-stream-utils
 
-<p align="center">AI SDK: Filter UI messages streaming to the client</p>
+<p align="center">AI SDK: Stream transformation utilities for UI message streams</p>
 <p align="center">
-  <a href="https://www.npmjs.com/package/ai-filter-stream" alt="ai-filter-stream"><img src="https://img.shields.io/npm/dt/ai-filter-stream?label=ai-filter-stream"></a> <a href="https://github.com/zirkelc/ai-filter-stream/actions/workflows/ci.yml" alt="CI"><img src="https://img.shields.io/github/actions/workflow/status/zirkelc/ai-filter-stream/ci.yml?branch=main"></a>
+  <a href="https://www.npmjs.com/package/ai-stream-utils" alt="ai-stream-utils"><img src="https://img.shields.io/npm/dt/ai-stream-utils?label=ai-stream-utils"></a> <a href="https://github.com/zirkelc/ai-stream-utils/actions/workflows/ci.yml" alt="CI"><img src="https://img.shields.io/github/actions/workflow/status/zirkelc/ai-stream-utils/ci.yml?branch=main"></a>
 </p>
 
 </div>
 
-This library allows you filter UI message chunks returned from [`streamText()`](https://ai-sdk.dev/docs/reference/ai-sdk-core/stream-text) by their corresponding UI message part type. 
+This library provides composable stream transformation utilities for UI message streams created by [`streamText()`](https://ai-sdk.dev/docs/reference/ai-sdk-core/stream-text) in the AI SDK. It offers three levels of granularity for transforming streams:
+
+- **Chunk-level**: Transform or filter individual chunks as they arrive
+- **Part-level**: Buffer and transform complete message parts  
+- **Filter**: Convenient filtering by part type
 
 ### Why?
 
-The AI SDK UI message stream created by [`toUIMessageStream()`](https://ai-sdk.dev/docs/reference/ai-sdk-core/stream-text#to-ui-message-stream) by default streams all parts (text, tools, data, etc.) to the client. 
-However, tool calls like database queries often contain large amounts of data or sensitive information that should not be visible on the client. 
-This library provides a type-safe filter to apply selective streaming of certain message parts.
+The AI SDK UI message stream created by [`toUIMessageStream()`](https://ai-sdk.dev/docs/reference/ai-sdk-core/stream-text#to-ui-message-stream) streams all parts (text, tools, reasoning, etc.) to the client by default. However, you may want to:
+
+- **Filter sensitive data**: Tool calls like database queries often contain large amounts of data or sensitive information that should not be visible on the client
+- **Transform content**: Modify text or tool outputs before they reach the client
+
+This library provides type-safe, composable utilities for all these use cases.
 
 ### Installation
 
 This library only supports AI SDK v5.
 
 ```bash
-npm install ai-filter-stream
+npm install ai-stream-utils
 ```
 
-### Usage
+## Overview
 
-Use the `filterUIMessageStream` function to wrap the UI message stream from [`result.toUIMessageStream()`](https://ai-sdk.dev/docs/reference/ai-sdk-core/stream-text#to-ui-message-stream) and provide a filter to include or exclude certain UI message parts:
+| Function | Object | Use Case |
+|----------|-------------|----------|
+| [`mapUIMessageStream`](#mapuimessagestream) | [UIMessageChunk](https://github.com/vercel/ai/blob/main/packages/ai/src/ui-message-stream/ui-message-chunks.ts) | Transform each chunk as it arrives |
+| [`flatMapUIMessageStream`](#flatmapuimessagestream) | [UIMessagePart](https://ai-sdk.dev/docs/reference/ai-sdk-core/ui-message#uimessagepart-types) | Buffer chunks until a part is complete, then transform the part |
+| [`filterUIMessageStream`](#filteruimessagestream) | [UIMessageChunk](https://github.com/vercel/ai/blob/main/packages/ai/src/ui-message-stream/ui-message-chunks.ts) | Filter chunks by part type with `includeParts`/`excludeParts` helpers |
 
-> [!NOTE]  
-> Providing a [`MyUIMessage`](https://ai-sdk.dev/docs/reference/ai-sdk-core/ui-message#creating-your-own-uimessage-type) type to `filterUIMessageStream<MyMessage>()` is optional and only required for type-safety so that the part type is inferred based on your tools and data parts.
+## Usage
+
+### `mapUIMessageStream`
+
+Transform or filter individual chunks as they stream through. The map function receives the chunk and a partial representation of the part it belongs to.
 
 ```typescript
+import { mapUIMessageStream } from 'ai-stream-utils';
 import { streamText } from 'ai';
-import { filterUIMessageStream } from 'ai-filter-stream';
-import type { UIMessage, InferUITools } from 'ai';
-
-type MyUIMessageMetadata = {};
-
-type MyDataPart = {};
-
-type MyTools = InferUITools<typeof tools>;
-
-// Define your UI message type for type safety
-// See: https://ai-sdk.dev/docs/reference/ai-sdk-core/ui-message
-type MyUIMessage = UIMessage<
-  MyUIMessageMetadata, // or unknown
-  MyDataPart, // or unknown
-  MyTools,
->;
 
 const tools = {
   weather: tool({
@@ -70,43 +69,161 @@ const result = streamText({
   tools,
 });
 
-// Inclusive filtering: include only `text` parts
-const stream = filterUIMessageStream<MyMessage>(result.toUIMessageStream(), {
-  includeParts: ['text'], // Autocomplete works here!
-});
+// Filter out reasoning chunks
+const stream = mapUIMessageStream<MyUIMessage>(
+  result.toUIMessageStream(),
+  ({ chunk, part }) => part.type === 'reasoning' ? null : chunk
+);
 
-// Exclusive filtering: exclude only `tool-weather` parts
-const stream = filterUIMessageStream<MyMessage>(result.toUIMessageStream(), {
-  excludeParts: ['tool-weather'], // Autocomplete works here!
-});
+// Transform text chunks to uppercase
+const stream = mapUIMessageStream<MyUIMessage>(
+  result.toUIMessageStream(),
+  ({ chunk, part }) => {
+    if (chunk.type === 'text-delta') {
+      return { ...chunk, delta: chunk.delta.toUpperCase() };
+    }
+    return chunk;
+  }
+);
 
-// Dynamic filtering: apply filter function for each chunk
-const stream = filterUIMessageStream<MyMessage>(result.toUIMessageStream(), {
-  filterParts: ({ partType }) => {
-    // Always include text
-    if (partType === 'text') return true;
-
-    // Only include tools that start with 'weather'
-    if (partType.startsWith('tool-weather')) return true;
-
-    // Exclude everything else
-    return false;
-  },
-});
+// Access chunk history and index
+const stream = mapUIMessageStream<MyUIMessage>(
+  result.toUIMessageStream(),
+  ({ chunk }, { index, chunks }) => {
+    console.log(`Chunk ${index}, total seen: ${chunks.length}`);
+    return chunk;
+  }
+);
 ```
 
-#### Client-Side Usage
+### `flatMapUIMessageStream`
 
-The filtered stream has the same type as the original UI message stream, you can consume it with [`useChat()`](https://ai-sdk.dev/docs/reference/ai-sdk-ui/use-chat) or [`readUIMessageStream()`](https://ai-sdk.dev/docs/reference/ai-sdk-ui/read-ui-message-stream). However, since the message parts are different on the client side vs. the server side, you may need to reconcile the message parts on the server when you receive a message from the client.
+Buffer all chunks for a part until it's complete, then transform the complete part. This is useful when you need access to the full part content before deciding how to transform it.
 
-For example, the `useChat()` hook by default sends all messages to the server so that you don't need to persist the messages to a database. The state (messages) lives exclusively on the client. That means when you stream the filtered messages to the client, and the client sends the messages including the new message back to the server, the filtered parts will not be available.
+When a predicate is provided (e.g., `partTypeIs('text')`), only matching parts are buffered for transformation. Non-matching parts stream through immediately without buffering, preserving real-time streaming behavior.
 
-If you already save your messages to a database, you typically configure the `useChat()` hook to [only send the last message](https://ai-sdk.dev/docs/ai-sdk-ui/chatbot-message-persistence#sending-only-the-last-message) to the server. 
-In this case, you would read the existing messages from the database and only add the new message from the client. That means the model will have access to all message parts, including the filtered parts not available on the client.
+```typescript
+import { flatMapUIMessageStream, partTypeIs } from 'ai-stream-utils';
+
+// Filter out reasoning parts
+const stream = flatMapUIMessageStream<MyUIMessage>(
+  result.toUIMessageStream(),
+  ({ part }) => part.type === 'reasoning' ? null : part
+);
+
+// Transform text content
+const stream = flatMapUIMessageStream<MyUIMessage>(
+  result.toUIMessageStream(),
+  ({ part }) => {
+    if (part.type === 'text') {
+      return { ...part, text: part.text.toUpperCase() };
+    }
+    return part;
+  }
+);
+
+// Buffer only specific parts, pass through others immediately
+const stream = flatMapUIMessageStream(
+  result.toUIMessageStream(),
+  partTypeIs('text'),
+  ({ part }) => ({ ...part, text: part.text.toUpperCase() })
+);
+
+// Buffer multiple part types
+const stream = flatMapUIMessageStream(
+  result.toUIMessageStream(),
+  partTypeIs(['text', 'reasoning']),
+  ({ part }) => part // part is typed as TextUIPart | ReasoningUIPart
+);
+
+// Access part history
+const stream = flatMapUIMessageStream<MyUIMessage>(
+  result.toUIMessageStream(),
+  ({ part }, { index, parts }) => {
+    console.log(`Part ${index}, previous parts:`, parts.slice(0, -1));
+    return part;
+  }
+);
+```
+
+### `filterUIMessageStream`
+
+Filter individual chunks as they stream through. This is a convenience wrapper around `mapUIMessageStream` that provides a simpler API for filtering chunks by part type. Use the `includeParts()` and `excludeParts()` helper functions for common patterns, or provide a custom filter function.
+
+```typescript
+import { filterUIMessageStream, includeParts, excludeParts } from 'ai-stream-utils';
+
+// Include only specific parts
+const stream = filterUIMessageStream<MyUIMessage>(
+  result.toUIMessageStream(),
+  includeParts(['text', 'tool-weather'])
+);
+
+// Exclude specific parts
+const stream = filterUIMessageStream<MyUIMessage>(
+  result.toUIMessageStream(),
+  excludeParts(['reasoning', 'tool-database'])
+);
+
+// Custom filter function
+const stream = filterUIMessageStream<MyUIMessage>(
+  result.toUIMessageStream(),
+  ({ part }, { index }) => {
+    // Include text parts
+    if (part.type === 'text') return true;
+    // Include only first 5 parts
+    if (index < 5) return true;
+    return false;
+  }
+);
+```
+
+## Type Safety
+
+The [`toUIMessageStream()`](https://ai-sdk.dev/docs/reference/ai-sdk-core/stream-text#to-ui-message-stream) from [`streamText()`](https://ai-sdk.dev/docs/reference/ai-sdk-core/stream-text) returns a generic `ReadableStream<UIMessageChunk>`, which means the part types cannot be inferred automatically.
+
+To enable autocomplete and type-safety, pass your [`UIMessage`](https://ai-sdk.dev/docs/reference/ai-sdk-core/ui-message#creating-your-own-uimessage-type) type as a generic parameter:
+
+```typescript
+import type { UIMessage, InferUITools } from 'ai';
+
+type MyUIMessageMetadata = {};
+type MyDataPart = {};
+type MyTools = InferUITools<typeof tools>;
+
+type MyUIMessage = UIMessage<
+  MyUIMessageMetadata,
+  MyDataPart,
+  MyTools
+>;
+
+// Type-safe filtering with autocomplete
+const stream = filterUIMessageStream<MyUIMessage>(
+  result.toUIMessageStream(),
+  includeParts(['text', 'tool-weather']) // Autocomplete works!
+);
+
+// Type-safe chunk mapping
+const stream = mapUIMessageStream<MyUIMessage>(
+  result.toUIMessageStream(),
+  ({ chunk, part }) => {
+    // part.type is typed based on MyUIMessage
+    return chunk;
+  }
+);
+```
+
+## Client-Side Usage
+
+The transformed stream has the same type as the original UI message stream. You can consume it with [`useChat()`](https://ai-sdk.dev/docs/reference/ai-sdk-ui/use-chat) or [`readUIMessageStream()`](https://ai-sdk.dev/docs/reference/ai-sdk-ui/read-ui-message-stream).
+
+Since message parts may be different on the client vs. the server, you may need to reconcile message parts when the client sends messages back to the server.
+
+If you save messages to a database and configure `useChat()` to [only send the last message](https://ai-sdk.dev/docs/ai-sdk-ui/chatbot-message-persistence#sending-only-the-last-message), you can read existing messages from the database. This means the model will have access to all message parts, including filtered parts not available on the client.
 
 ## Part Type Mapping
 
-The filter operates on [UIMessagePart](https://ai-sdk.dev/docs/reference/ai-sdk-core/ui-message#uimessagepart-types) part types, which are derived from [UIMessageChunk](https://github.com/vercel/ai/blob/main/packages/ai/src/ui-message-stream/ui-message-chunks.ts) chunk types:
+The transformations operate on [UIMessagePart](https://ai-sdk.dev/docs/reference/ai-sdk-core/ui-message#uimessagepart-types) types, which are derived from [UIMessageChunk](https://github.com/vercel/ai/blob/main/packages/ai/src/ui-message-stream/ui-message-chunks.ts) types:
 
 | Part Type         | Chunk Types                           |
 | ----------------- | ------------------------------------- |
@@ -119,7 +236,9 @@ The filter operates on [UIMessagePart](https://ai-sdk.dev/docs/reference/ai-sdk-
 | [`source-url`](https://ai-sdk.dev/docs/reference/ai-sdk-core/ui-message#sourceurluipart)      | `source-url` |
 | [`source-document`](https://ai-sdk.dev/docs/reference/ai-sdk-core/ui-message#sourcedocumentuipart) | `source-document` |
 
-[Controls chunks](https://github.com/vercel/ai/blob/main/packages/ai/src/ui-message-stream/ui-message-chunks.ts#L278-L293) are always passed through regardless of filter settings:
+### Control Chunks
+
+[Control chunks](https://github.com/vercel/ai/blob/main/packages/ai/src/ui-message-stream/ui-message-chunks.ts#L278-L293) always pass through regardless of filter/transform settings:
 
 - `start`: Stream start marker
 - `finish`: Stream finish marker
@@ -127,57 +246,110 @@ The filter operates on [UIMessagePart](https://ai-sdk.dev/docs/reference/ai-sdk-
 - `message-metadata`: Message metadata updates
 - `error`: Error messages
 
-### Start-Step Filtering
+### Step Boundary Handling
 
-The filter automatically handles step boundaries, that means a [`start-step`](https://ai-sdk.dev/docs/reference/ai-sdk-core/ui-message#stepstartuipart) is only emitted if the actual content is not filtered:
+Step boundaries are handled automatically:
 
 1. `start-step` is buffered until the first content chunk is encountered
-2. If the first content chunk passes the filter, `start-step` is included
+2. If the first content chunk passes through, `start-step` is included
 3. If the first content chunk is filtered out, `start-step` is also filtered out
 4. `finish-step` is only included if the corresponding `start-step` was included
 
+## API Reference
 
-## Type Safety
-
-The [`toUIMessageStream()`](https://ai-sdk.dev/docs/reference/ai-sdk-core/stream-text#to-ui-message-stream) from [`streamText()`](https://ai-sdk.dev/docs/reference/ai-sdk-core/stream-text) returns a generic stream `ReadableStream<UIMessageChunk>` which means that the original `UIMessage` cannot be inferred automatically. 
-
-To enable autocomplete and type-safety for filtering parts by type, we need to pass our own [`UIMessage`](https://ai-sdk.dev/docs/reference/ai-sdk-core/ui-message#creating-your-own-uimessage-type) as generic param to `filterUIMessageStream()`:
+### `mapUIMessageStream`
 
 ```typescript
-type MyMessage = UIMessage<MyMetadata, MyData, MyTools>;
+function mapUIMessageStream<UI_MESSAGE extends UIMessage>(
+  stream: ReadableStream<UIMessageChunk>,
+  mapFn: MapUIMessageStreamFn<UI_MESSAGE>,
+): AsyncIterableStream<InferUIMessageChunk<UI_MESSAGE>>
 
-const stream = filterUIMessageStream<MyMessage>(
-  result.toUIMessageStream(), // returns generic ReadableStream<UIMessageChunk>
-  {
-    includeParts: ['text', 'tool-weather'] }, // type-safe through MyMessage
-  }
-);
+type MapUIMessageStreamFn<UI_MESSAGE extends UIMessage> = (
+  input: ChunkMapInput<UI_MESSAGE>,
+  context: ChunkMapContext<UI_MESSAGE>,
+) => InferUIMessageChunk<UI_MESSAGE> | null;
+
+type ChunkMapInput<UI_MESSAGE extends UIMessage> = {
+  chunk: InferUIMessageChunk<UI_MESSAGE>;
+  part: PartialPart<UI_MESSAGE>;
+};
+
+type ChunkMapContext<UI_MESSAGE extends UIMessage> = {
+  index: number;
+  chunks: InferUIMessageChunk<UI_MESSAGE>[];
+};
 ```
 
-See [UIMessage](https://ai-sdk.dev/docs/reference/ai-sdk-core/ui-message) in the AI SDK docs to create your own `UIMessage` type.
+### `flatMapUIMessageStream`
 
-## API Reference
+```typescript
+// Without predicate - buffer all parts
+function flatMapUIMessageStream<UI_MESSAGE extends UIMessage>(
+  stream: ReadableStream<UIMessageChunk>,
+  flatMapFn: FlatMapUIMessageStreamFn<UI_MESSAGE>,
+): AsyncIterableStream<InferUIMessageChunk<UI_MESSAGE>>
+
+// With predicate - buffer only matching parts, pass through others
+function flatMapUIMessageStream<UI_MESSAGE extends UIMessage, PART extends InferUIMessagePart<UI_MESSAGE>>(
+  stream: ReadableStream<UIMessageChunk>,
+  predicate: PartTypePredicate<UI_MESSAGE, PART>,
+  flatMapFn: FlatMapUIMessageStreamFn<UI_MESSAGE, PART>,
+): AsyncIterableStream<InferUIMessageChunk<UI_MESSAGE>>
+
+type FlatMapUIMessageStreamFn<UI_MESSAGE extends UIMessage, PART = InferUIMessagePart<UI_MESSAGE>> = (
+  input: PartFlatMapInput<UI_MESSAGE, PART>,
+  context: PartFlatMapContext<UI_MESSAGE>,
+) => PART | null;
+
+type PartFlatMapInput<UI_MESSAGE extends UIMessage, PART = InferUIMessagePart<UI_MESSAGE>> = {
+  part: PART;
+  chunks: InferUIMessageChunk<UI_MESSAGE>[];
+};
+
+type PartFlatMapContext<UI_MESSAGE extends UIMessage> = {
+  index: number;
+  parts: PartFlatMapInput<UI_MESSAGE>[];
+};
+```
+
+#### `partTypeIs`
+
+```typescript
+function partTypeIs<UI_MESSAGE extends UIMessage, T extends InferUIMessagePartType<UI_MESSAGE>>(
+  type: T | T[],
+): FlatMapUIMessageStreamPredicate<UI_MESSAGE, Extract<InferUIMessagePart<UI_MESSAGE>, { type: T }>>
+
+type FlatMapUIMessageStreamPredicate<UI_MESSAGE extends UIMessage, PART extends InferUIMessagePart<UI_MESSAGE>> = 
+  (part: PartialPart<UI_MESSAGE>) => boolean;
+```
 
 ### `filterUIMessageStream`
 
 ```typescript
 function filterUIMessageStream<UI_MESSAGE extends UIMessage>(
   stream: ReadableStream<UIMessageChunk>,
-  options: FilterUIMessageStreamOptions<UI_MESSAGE>,
+  filterFn: FilterUIMessageStreamPredicate<UI_MESSAGE>,
 ): AsyncIterableStream<InferUIMessageChunk<UI_MESSAGE>>
+
+type FilterUIMessageStreamPredicate<UI_MESSAGE extends UIMessage> = (
+  input: ChunkMapInput<UI_MESSAGE>,
+  context: ChunkMapContext<UI_MESSAGE>,
+) => boolean;
 ```
 
-### `FilterUIMessageStreamOptions`
+#### `includeParts`
 
 ```typescript
-type FilterUIMessageStreamOptions<UI_MESSAGE extends UIMessage> =
-  | {
-      filterParts: (options: { partType: InferUIMessagePartType<UI_MESSAGE> }) => boolean;
-    }
-  | {
-      includeParts: Array<InferUIMessagePartType<UI_MESSAGE>>;
-    }
-  | {
-      excludeParts: Array<InferUIMessagePartType<UI_MESSAGE>>;
-    };
+function includeParts<UI_MESSAGE extends UIMessage>(
+  partTypes: Array<InferUIMessagePartType<UI_MESSAGE>>,
+): FilterUIMessageStreamPredicate<UI_MESSAGE>
+```
+
+#### `excludeParts`
+
+```typescript
+function excludeParts<UI_MESSAGE extends UIMessage>(
+  partTypes: Array<InferUIMessagePartType<UI_MESSAGE>>,
+): FilterUIMessageStreamPredicate<UI_MESSAGE>
 ```

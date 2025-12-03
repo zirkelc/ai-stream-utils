@@ -1,22 +1,23 @@
 export {
-  type FilterUIMessageStreamFilter,
-  type FilterUIMessageStreamFn,
-  type FilterUIMessageStreamOptions,
+  excludeParts,
+  type FilterUIMessageStreamPredicate,
   filterUIMessageStream,
+  includeParts,
 } from './filter-ui-message-stream.js';
 export {
-  type FlatMapUIMessagePartFn,
-  flatMapUIMessagePartStream,
+  type FlatMapUIMessageStreamFn,
+  type FlatMapUIMessageStreamPredicate,
+  flatMapUIMessageStream,
   type PartFlatMapContext,
   type PartFlatMapInput,
-} from './flat-map-ui-message-part-stream.js';
+  partTypeIs,
+} from './flat-map-ui-message-stream.js';
 export {
   type ChunkMapContext,
   type ChunkMapInput,
-  type MapUIMessageChunkFn,
-  mapUIMessageChunkStream,
-  type PartialPart,
-} from './map-ui-message-chunk-stream.js';
+  type MapUIMessageStreamFn,
+  mapUIMessageStream,
+} from './map-ui-message-stream.js';
 
 export type {
   InferUIMessageData,
@@ -24,4 +25,5 @@ export type {
   InferUIMessagePart,
   InferUIMessagePartType,
   InferUIMessageTools,
+  PartialPart,
 } from './types.js';
