@@ -76,30 +76,6 @@ describe('flatMapUIMessageStream', () => {
     expect(textDeltas[0]!.delta).toBe('HELLO WORLD');
   });
 
-  it('should provide access to original chunks', async () => {
-    const stream = convertArrayToReadableStream([
-      START_CHUNK,
-      ...TEXT_CHUNKS,
-      FINISH_CHUNK,
-    ]);
-
-    let capturedChunks: MyUIMessageChunk[] = [];
-    const mappedStream = flatMapUIMessageStream<MyUIMessage>(
-      stream,
-      ({ part, chunks }) => {
-        capturedChunks = chunks;
-        return part;
-      },
-    );
-
-    await convertAsyncIterableToArray(mappedStream);
-
-    // Should have captured the text chunks (without step boundaries)
-    expect(capturedChunks.length).toBe(4); // text-start, 2x text-delta, text-end
-    expect(capturedChunks[0]?.type).toBe('text-start');
-    expect(capturedChunks[3]?.type).toBe('text-end');
-  });
-
   it('should handle single-chunk parts (file)', async () => {
     const stream = convertArrayToReadableStream([
       START_CHUNK,

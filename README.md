@@ -309,7 +309,6 @@ type FlatMapUIMessageStreamFn<UI_MESSAGE extends UIMessage, PART = InferUIMessag
 
 type PartFlatMapInput<UI_MESSAGE extends UIMessage, PART = InferUIMessagePart<UI_MESSAGE>> = {
   part: PART;
-  chunks: InferUIMessageChunk<UI_MESSAGE>[];
 };
 
 type PartFlatMapContext<UI_MESSAGE extends UIMessage> = {

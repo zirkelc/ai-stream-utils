@@ -1,6 +1,6 @@
 # IMPORTANT: DO NOT RENAME THIS FILE
 # It uses Trusted Publisher to deploy without token
-# https://www.npmjs.com/package/ai-filter-stream/access
+# https://www.npmjs.com/package/ai-stream-utils/access
 
 name: Release
 

@@ -30,8 +30,6 @@ export type PartFlatMapInput<
 > = {
   /** The reconstructed part */
   part: PART;
-  /** The original chunks that make up this part */
-  chunks: InferUIMessageChunk<UI_MESSAGE>[];
 };
 
 /**
@@ -344,7 +342,7 @@ export function flatMapUIMessageStream<
     ) as InferUIMessagePart<UI_MESSAGE>;
 
     // Create the input object and add to history
-    const input: PartFlatMapInput<UI_MESSAGE> = { part, chunks };
+    const input: PartFlatMapInput<UI_MESSAGE> = { part };
     allParts.push(input);
     const index = currentIndex++;
 
