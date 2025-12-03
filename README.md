@@ -15,8 +15,8 @@ This library provides composable stream transformation and filter utilities for 
 
 The AI SDK UI message stream created by [`toUIMessageStream()`](https://ai-sdk.dev/docs/reference/ai-sdk-core/stream-text#to-ui-message-stream) streams all parts (text, tools, reasoning, etc.) to the client by default. However, you may want to:
 
-- **Filter sensitive data**: Tool calls like database queries often contain large amounts of data or sensitive information that should not be visible on the client
-- **Transform content**: Modify text or tool outputs before they reach the client
+- **Filter**: Tool calls like database queries often contain large amounts of data or sensitive information that should not be visible on the client
+- **Transform**: Modify text or tool outputs while they are streamed to the client
 
 This library provides type-safe, composable utilities for all these use cases.
 
@@ -32,9 +32,9 @@ npm install ai-stream-utils
 
 | Function | Object | Use Case |
 |----------|-------------|----------|
-| [`mapUIMessageStream`](#mapuimessagestream) | [UIMessageChunk](https://github.com/vercel/ai/blob/main/packages/ai/src/ui-message-stream/ui-message-chunks.ts) | Transform each chunk as it arrives |
+| [`mapUIMessageStream`](#mapuimessagestream) | [UIMessageChunk](https://github.com/vercel/ai/blob/main/packages/ai/src/ui-message-stream/ui-message-chunks.ts) | Transform chunks while streaming to the client |
 | [`flatMapUIMessageStream`](#flatmapuimessagestream) | [UIMessagePart](https://ai-sdk.dev/docs/reference/ai-sdk-core/ui-message#uimessagepart-types) | Buffer chunks until a part is complete, then transform the part |
-| [`filterUIMessageStream`](#filteruimessagestream) | [UIMessageChunk](https://github.com/vercel/ai/blob/main/packages/ai/src/ui-message-stream/ui-message-chunks.ts) | Filter chunks by part type with `includeParts`/`excludeParts` helpers |
+| [`filterUIMessageStream`](#filteruimessagestream) | [UIMessageChunk](https://github.com/vercel/ai/blob/main/packages/ai/src/ui-message-stream/ui-message-chunks.ts) | Filter chunks while streaming to the client |
 
 ## Usage
 
@@ -199,15 +199,18 @@ type MyUIMessage = UIMessage<
   MyTools
 >;
 
+// Use MyUIMessage type when creating the UI message stream
+const uiStream = result.toUIMessageStream<MyUIMessage>();
+
 // Type-safe filtering with autocomplete
 const stream = filterUIMessageStream(
-  result.toUIMessageStream<MyUIMessage>(),
+  uiStream,
   includeParts(['text', 'tool-weather']) // Autocomplete works!
 );
 
 // Type-safe chunk mapping
 const stream = mapUIMessageStream(
-  result.toUIMessageStream<MyUIMessage>(),
+  uiStream,
   ({ chunk, part }) => {
     // part.type is typed based on MyUIMessage
     return chunk;
