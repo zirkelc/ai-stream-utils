@@ -1,9 +1,4 @@
-import type {
-  AsyncIterableStream,
-  InferUIMessageChunk,
-  UIMessage,
-  UIMessageChunk,
-} from 'ai';
+import type { AsyncIterableStream, InferUIMessageChunk, UIMessage } from 'ai';
 import { createAsyncIterableStream } from './create-async-iterable-stream.js';
 import {
   buildPartialPart,

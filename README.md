@@ -55,6 +55,7 @@ const tools = {
     execute: ({ location }) => ({
       location,
       temperature: 72 + Math.floor(Math.random() * 21) - 10,
+      unit: "C",
     }),
   }),
 };
@@ -65,10 +66,15 @@ const result = streamText({
   tools,
 });
 
-// Filter out reasoning chunks
+// Filter out tool-call chunks by part type
 const stream = mapUIMessageStream(
   result.toUIMessageStream<MyUIMessage>(),
-  ({ chunk, part }) => part.type === 'reasoning' ? null : chunk
+  ({ chunk, part }) => {
+    if (part.type === "tool-weather") {
+      return null;
+    }
+    return chunk;
+  }
 );
 
 // Transform text chunks to uppercase
