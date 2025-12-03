@@ -7,11 +7,10 @@ settings:
 importers:
 
   .:
-    dependencies:
+    devDependencies:
       '@ai-sdk/openai':
         specifier: ^2.0.76
         version: 2.0.76(zod@4.1.12)
-    devDependencies:
       '@ai-sdk/provider-utils':
         specifier: ^3.0.17
         version: 3.0.17(zod@4.1.12)
