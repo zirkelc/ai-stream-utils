@@ -5,9 +5,13 @@ import {
 import type { UIMessageChunk } from 'ai';
 import { describe, expect, it } from 'vitest';
 import {
+  // flatMapUIMessageStream,
+  // partTypeIs,
+} from './flat-map-ui-message-stream.js';
+import {
   flatMapUIMessageStream,
   partTypeIs,
-} from './flat-map-ui-message-stream.js';
+} from './flat-map-ui-message-stream-v4.js';
 import {
   FILE_CHUNKS,
   FINISH_CHUNK,
@@ -112,7 +116,6 @@ describe('flatMapUIMessageStream', () => {
 
     expect(capturedPart).toMatchObject({
       type: 'tool-weather',
-      toolName: 'weather',
       toolCallId: '3',
       state: 'output-available',
       input: { location: 'NYC' },

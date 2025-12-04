@@ -92,7 +92,7 @@ export function partTypeIs<
   const partTypes = Array.isArray(type) ? type : [type];
 
   return (part: InferPartialUIMessagePart<UI_MESSAGE>): boolean =>
-    partTypes.includes(part.type as PART_TYPE);
+    partTypes.includes(part.type as unknown as PART_TYPE);
 }
 
 /**

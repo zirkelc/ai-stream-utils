@@ -28,4 +28,4 @@ export type InferUIMessagePartType<UI_MESSAGE extends UIMessage> =
 export type InferPartialUIMessagePart<UI_MESSAGE extends UIMessage> = {
   /** The part type (e.g., 'text', 'reasoning', 'tool-weather', 'file') */
   type: InferUIMessagePartType<UI_MESSAGE>;
-} & Partial<InferUIMessagePart<UI_MESSAGE>>;
+} & Partial<Omit<InferUIMessagePart<UI_MESSAGE>, 'type'>>;
