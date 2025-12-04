@@ -178,3 +178,104 @@ export const FILE_CHUNKS: MyUIMessageChunk[] = [
   },
   { type: 'finish-step' },
 ];
+
+// ============================================================================
+// Parts - Corresponding to chunk sets above
+// ============================================================================
+
+/**
+ * Text part corresponding to TEXT_CHUNKS.
+ * Represents completed text with accumulated content.
+ */
+export const TEXT_PART: MyUIMessagePart = {
+  type: 'text',
+  text: 'Hello World',
+  state: 'done',
+};
+
+/**
+ * Reasoning part corresponding to REASONING_CHUNKS.
+ * Represents completed reasoning with accumulated content.
+ */
+export const REASONING_PART: MyUIMessagePart = {
+  type: 'reasoning',
+  text: 'Thinking...',
+  state: 'done',
+};
+
+/**
+ * Tool part corresponding to TOOL_CHUNKS.
+ * Represents a completed tool invocation with output.
+ * Note: Static tool parts don't have toolName - it's derived from the type.
+ */
+export const TOOL_PART: MyUIMessagePart = {
+  type: 'tool-weather',
+  toolCallId: '3',
+  state: 'output-available',
+  input: { location: 'NYC' },
+  output: { location: 'NYC', temperature: 65 },
+};
+
+/**
+ * Dynamic tool part corresponding to DYNAMIC_TOOL_CHUNKS.
+ * Represents a completed dynamic tool invocation with output.
+ */
+export const DYNAMIC_TOOL_PART: MyUIMessagePart = {
+  type: 'dynamic-tool',
+  toolCallId: '4',
+  toolName: 'calculator',
+  state: 'output-available',
+  input: { expression: '2+2' },
+  output: { result: 4 },
+};
+
+/**
+ * Tool error part corresponding to TOOL_ERROR_CHUNKS.
+ * Represents a failed tool invocation.
+ * Note: Using dynamic-tool type since 'tool-failed' is not a registered tool.
+ */
+export const TOOL_ERROR_PART: MyUIMessagePart = {
+  type: 'dynamic-tool',
+  toolCallId: '5',
+  toolName: 'failed',
+  state: 'output-error',
+  input: {},
+  errorText: 'Execution failed',
+};
+
+/**
+ * Source URL part corresponding to first part in SOURCE_CHUNKS.
+ */
+export const SOURCE_URL_PART: MyUIMessagePart = {
+  type: 'source-url',
+  sourceId: 'source-1',
+  url: 'https://example.com',
+  title: 'Example Source',
+};
+
+/**
+ * Source document part corresponding to second part in SOURCE_CHUNKS.
+ */
+export const SOURCE_DOCUMENT_PART: MyUIMessagePart = {
+  type: 'source-document',
+  sourceId: 'source-2',
+  mediaType: 'application/pdf',
+  title: 'Document Title',
+};
+
+/**
+ * Data part corresponding to DATA_CHUNKS.
+ */
+export const DATA_PART: MyUIMessagePart = {
+  type: 'data-weather',
+  data: { location: 'NYC', temperature: 65 },
+};
+
+/**
+ * File part corresponding to FILE_CHUNKS.
+ */
+export const FILE_PART: MyUIMessagePart = {
+  type: 'file',
+  url: 'https://example.com/file.pdf',
+  mediaType: 'application/pdf',
+};

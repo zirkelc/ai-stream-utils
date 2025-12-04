@@ -7,14 +7,13 @@ import { describe, expect, it } from 'vitest';
 import {
   flatMapUIMessageStream,
   partTypeIs,
-} from './flat-map-ui-message-stream-v4.js';
-import {
-  // flatMapUIMessageStream,
-  // partTypeIs,
 } from './flat-map-ui-message-stream-v5.js';
 import {
+  ABORT_CHUNK,
+  ERROR_CHUNK,
   FILE_CHUNKS,
   FINISH_CHUNK,
+  MESSAGE_METADATA_CHUNK,
   type MyUIMessage,
   type MyUIMessageChunk,
   REASONING_CHUNKS,
@@ -35,7 +34,16 @@ describe('flatMapUIMessageStream', () => {
 
     const result = await convertAsyncIterableToArray(mappedStream);
 
-    expect(result).toEqual([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+    // Parts are re-serialized, so deltas are combined and providerMetadata is added
+    expect(result).toEqual([
+      START_CHUNK,
+      { type: 'start-step' },
+      { type: 'text-start', id: '1', providerMetadata: undefined },
+      { type: 'text-delta', id: '1', delta: 'Hello World' },
+      { type: 'text-end', id: '1', providerMetadata: undefined },
+      { type: 'finish-step' },
+      FINISH_CHUNK,
+    ]);
   });
 
   it('should filter out parts by returning null', async () => {
@@ -52,8 +60,16 @@ describe('flatMapUIMessageStream', () => {
 
     const result = await convertAsyncIterableToArray(mappedStream);
 
-    // Should not include reasoning chunks
-    expect(result).toEqual([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+    // Should not include reasoning chunks, text is re-serialized
+    expect(result).toEqual([
+      START_CHUNK,
+      { type: 'start-step' },
+      { type: 'text-start', id: '1', providerMetadata: undefined },
+      { type: 'text-delta', id: '1', delta: 'Hello World' },
+      { type: 'text-end', id: '1', providerMetadata: undefined },
+      { type: 'finish-step' },
+      FINISH_CHUNK,
+    ]);
   });
 
   it('should transform parts', async () => {
@@ -97,7 +113,7 @@ describe('flatMapUIMessageStream', () => {
     expect(fileChunks.length).toBe(1);
   });
 
-  it('should reconstruct tool parts correctly', async () => {
+  it('should provide complete tool part', async () => {
     const stream = convertArrayToReadableStream([
       START_CHUNK,
       ...TOOL_CHUNKS,
@@ -114,6 +130,7 @@ describe('flatMapUIMessageStream', () => {
 
     await convertAsyncIterableToArray(mappedStream);
 
+    // Part should have all tool properties populated
     expect(capturedPart).toMatchObject({
       type: 'tool-weather',
       toolCallId: '3',
@@ -123,23 +140,51 @@ describe('flatMapUIMessageStream', () => {
     });
   });
 
-  it('should always pass through meta chunks immediately', async () => {
-    const ERROR_CHUNK: MyUIMessageChunk = {
-      type: 'error',
-      errorText: 'Test error',
-    };
-
+  it('should provide complete text part', async () => {
     const stream = convertArrayToReadableStream([
       START_CHUNK,
-      ERROR_CHUNK,
+      ...TEXT_CHUNKS,
       FINISH_CHUNK,
     ]);
 
+    let capturedPart: unknown;
+    const mappedStream = flatMapUIMessageStream(stream, ({ part }) => {
+      if (part.type === 'text') {
+        capturedPart = part;
+      }
+      return part;
+    });
+
+    await convertAsyncIterableToArray(mappedStream);
+
+    // Part should have accumulated text
+    expect(capturedPart).toMatchObject({
+      type: 'text',
+      text: 'Hello World',
+    });
+  });
+
+  it('should always pass through meta chunks', async () => {
+    const stream = convertArrayToReadableStream([
+      START_CHUNK,
+      MESSAGE_METADATA_CHUNK,
+      ERROR_CHUNK,
+      ABORT_CHUNK,
+      FINISH_CHUNK,
+    ]);
+
+    // Even when returning null for everything, meta chunks pass through
     const mappedStream = flatMapUIMessageStream(stream, () => null);
 
     const result = await convertAsyncIterableToArray(mappedStream);
 
-    expect(result).toEqual([START_CHUNK, ERROR_CHUNK, FINISH_CHUNK]);
+    expect(result).toEqual([
+      START_CHUNK,
+      MESSAGE_METADATA_CHUNK,
+      ERROR_CHUNK,
+      ABORT_CHUNK,
+      FINISH_CHUNK,
+    ]);
   });
 
   it('should not emit start-step if all content is filtered out', async () => {

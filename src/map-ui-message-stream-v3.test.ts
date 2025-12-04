@@ -8,6 +8,7 @@ import { mapUIMessageStream } from './map-ui-message-stream-v3.js';
 import {
   ABORT_CHUNK,
   ERROR_CHUNK,
+  FILE_CHUNKS,
   FINISH_CHUNK,
   MESSAGE_METADATA_CHUNK,
   REASONING_CHUNKS,
@@ -72,6 +73,26 @@ describe('mapUIMessageStream', () => {
     ]);
   });
 
+  it('should handle single-chunk parts (file)', async () => {
+    const stream = convertArrayToReadableStream([
+      START_CHUNK,
+      ...FILE_CHUNKS,
+      FINISH_CHUNK,
+    ]);
+
+    const mappedStream = mapUIMessageStream(stream, ({ chunk, part }) => {
+      if (part.type === 'file') {
+        expect(chunk.type).toBe('file');
+      }
+      return chunk;
+    });
+
+    const result = await convertAsyncIterableToArray(mappedStream);
+
+    const fileChunks = result.filter((c) => c.type === 'file');
+    expect(fileChunks.length).toBe(1);
+  });
+
   it('should always pass through meta chunks', async () => {
     const stream = convertArrayToReadableStream([
       START_CHUNK,
@@ -112,48 +133,31 @@ describe('mapUIMessageStream', () => {
     expect(result).toEqual([START_CHUNK, FINISH_CHUNK]);
   });
 
-  it('should provide correct part.type for tool chunks', async () => {
+  it('should provide complete tool part', async () => {
     const stream = convertArrayToReadableStream([
       START_CHUNK,
       ...TOOL_CHUNKS,
       FINISH_CHUNK,
     ]);
 
-    const partTypes: string[] = [];
+    let capturedPart: unknown;
     const mappedStream = mapUIMessageStream(stream, ({ chunk, part }) => {
-      if (!['start', 'finish', 'step-start'].includes(part.type)) {
-        partTypes.push(part.type);
+      if (part.type === 'tool-weather') {
+        capturedPart = part;
       }
       return chunk;
     });
 
     await convertAsyncIterableToArray(mappedStream);
 
-    // All tool chunks should have the same part type
-    expect(partTypes.every((t) => t === 'tool-weather')).toBe(true);
-  });
-
-  it('should provide part type for text chunks', async () => {
-    const stream = convertArrayToReadableStream([
-      START_CHUNK,
-      ...TEXT_CHUNKS,
-      FINISH_CHUNK,
-    ]);
-
-    const partTypes: string[] = [];
-    const mappedStream = mapUIMessageStream(stream, ({ chunk, part }) => {
-      if (part.type === 'text') {
-        partTypes.push(part.type);
-      }
-      return chunk;
+    // Part should have all tool properties populated
+    expect(capturedPart).toMatchObject({
+      type: 'tool-weather',
+      toolCallId: '3',
+      state: 'output-available',
+      input: { location: 'NYC' },
+      output: { temperature: 65 },
     });
-
-    await convertAsyncIterableToArray(mappedStream);
-
-    // All text chunks should have part type 'text'
-    // Note: AI SDK's readUIMessageStream doesn't expose id on parts
-    expect(partTypes.length).toBe(4); // text-start, 2x text-delta, text-end
-    expect(partTypes.every((t) => t === 'text')).toBe(true);
   });
 
   it('should provide index and chunks array in context', async () => {

@@ -20,9 +20,6 @@ export {
 } from './map-ui-message-stream.js';
 export type {
   InferPartialUIMessagePart,
-  InferUIMessageData,
-  InferUIMessageMetadata,
   InferUIMessagePart,
   InferUIMessagePartType,
-  InferUIMessageTools,
 } from './types.js';

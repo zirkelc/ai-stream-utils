@@ -1,30 +1,13 @@
 import { convertAsyncIteratorToReadableStream } from '@ai-sdk/provider-utils';
-import type {
-  AsyncIterableStream,
-  FileUIPart,
-  InferUIMessageChunk,
-  ReasoningUIPart,
-  SourceDocumentUIPart,
-  SourceUrlUIPart,
-  TextUIPart,
-  UIMessage,
-} from 'ai';
-import {
-  getToolOrDynamicToolName,
-  isDataUIPart,
-  isToolOrDynamicToolUIPart,
-} from 'ai';
+import type { AsyncIterableStream, InferUIMessageChunk, UIMessage } from 'ai';
 import { createAsyncIterableStream } from './create-async-iterable-stream.js';
+import { serializePartToChunks } from './serialize-part-to-chunks.js';
 import {
   isMetaChunk,
   isStepEndChunk,
   isStepStartChunk,
 } from './stream-utils.js';
-import type {
-  InferPartialUIMessagePart,
-  InferUIMessagePart,
-  InferUIMessagePartType,
-} from './types.js';
+import type { InferUIMessagePart, InferUIMessagePartType } from './types.js';
 import { createUIMessageStreamReader } from './ui-message-stream-reader.js';
 
 /**
@@ -64,13 +47,13 @@ export type FlatMapUIMessageStreamFn<
 
 /**
  * Predicate function to determine which parts should be buffered.
- * Receives the partial part from readUIMessageStream.
+ * Receives the part from readUIMessageStream (may still be streaming).
  * Returns true to buffer the part for transformation, false to pass through immediately.
  */
 export type FlatMapUIMessageStreamPredicate<
   UI_MESSAGE extends UIMessage,
   PART extends InferUIMessagePart<UI_MESSAGE> = InferUIMessagePart<UI_MESSAGE>,
-> = (part: InferPartialUIMessagePart<UI_MESSAGE>) => boolean;
+> = (part: InferUIMessagePart<UI_MESSAGE>) => boolean;
 
 /**
  * Creates a predicate that matches parts by their type.
@@ -86,7 +69,7 @@ export function partTypeIs<
 > {
   const partTypes = Array.isArray(type) ? type : [type];
   // Cast through unknown since part.type may not exactly overlap with PART_TYPE
-  return (part: InferPartialUIMessagePart<UI_MESSAGE>): boolean =>
+  return (part: InferUIMessagePart<UI_MESSAGE>): boolean =>
     partTypes.includes(part.type as unknown as PART_TYPE);
 }
 
@@ -161,7 +144,6 @@ export function flatMapUIMessageStream<
   // State for step boundary handling
   let bufferedStartStep: InferUIMessageChunk<UI_MESSAGE> | undefined;
   let stepStartEmitted = false;
-  let stepHasContent = false;
 
   /**
    * Generator that yields chunks with step boundary handling.
@@ -169,8 +151,7 @@ export function flatMapUIMessageStream<
   async function* emitChunks(
     chunk: InferUIMessageChunk<UI_MESSAGE>,
   ): AsyncGenerator<InferUIMessageChunk<UI_MESSAGE>> {
-    if (bufferedStartStep && !stepHasContent) {
-      stepHasContent = true;
+    if (bufferedStartStep) {
       yield bufferedStartStep;
       stepStartEmitted = true;
       bufferedStartStep = undefined;
@@ -180,6 +161,7 @@ export function flatMapUIMessageStream<
 
   /**
    * Flush buffered part: apply flatMapFn and yield chunks.
+   * Always uses serializePartToChunks which includes step boundaries.
    */
   async function* flushBufferedPart(
     completedPart: InferUIMessagePart<UI_MESSAGE>,
@@ -193,16 +175,18 @@ export function flatMapUIMessageStream<
     );
 
     if (result !== null) {
-      const chunksToEmit =
-        result === completedPart
-          ? bufferedChunks
-          : serializePartToChunks(result, bufferedChunks);
+      // Always use serializePartToChunks - it includes step boundaries
+      const chunksToEmit = serializePartToChunks(result, bufferedChunks);
 
       for (const chunk of chunksToEmit) {
-        yield* emitChunks(chunk);
+        yield chunk;
       }
     }
 
+    // Clear step state - serializePartToChunks provides its own boundaries,
+    // so we suppress the input stream's finish-step
+    bufferedStartStep = undefined;
+    stepStartEmitted = false;
     bufferedChunks = [];
   }
 
@@ -230,7 +214,6 @@ export function flatMapUIMessageStream<
         // Handle step boundaries specially
         if (isStepStartChunk(chunk)) {
           bufferedStartStep = chunk;
-          stepHasContent = false;
           await streamReader.enqueue(chunk);
           continue;
         }
@@ -253,16 +236,12 @@ export function flatMapUIMessageStream<
         }
 
         // Get the current part (last part)
-        const currentPart = message.parts[
-          message.parts.length - 1
-        ] as InferUIMessagePart<UI_MESSAGE>;
+        const currentPart = message.parts[message.parts.length - 1]!;
 
         // Detect new part (part count increased)
         if (message.parts.length > lastPartCount) {
-          // Check predicate on the partial part from AI SDK
-          const shouldBuffer =
-            !predicate ||
-            predicate(currentPart as InferPartialUIMessagePart<UI_MESSAGE>);
+          // Check predicate on the part from AI SDK
+          const shouldBuffer = !predicate || predicate(currentPart);
 
           if (shouldBuffer) {
             isBufferingCurrentPart = true;
@@ -310,147 +289,4 @@ export function flatMapUIMessageStream<
 
   const outputStream = convertAsyncIteratorToReadableStream(processChunks());
   return createAsyncIterableStream(outputStream);
-}
-
-/**
- * Extracts the part ID from a list of chunks belonging to the same part.
- */
-function getPartId<UI_MESSAGE extends UIMessage>(
-  chunks: InferUIMessageChunk<UI_MESSAGE>[],
-): string {
-  const chunk = chunks[0];
-  if (!chunk) return 'unknown';
-  if ('id' in chunk && chunk.id) return chunk.id;
-  if ('toolCallId' in chunk && chunk.toolCallId) return chunk.toolCallId;
-  return 'unknown';
-}
-
-/**
- * Serializes a UIMessagePart back to chunks.
- */
-function serializePartToChunks<UI_MESSAGE extends UIMessage>(
-  part: InferUIMessagePart<UI_MESSAGE>,
-  originalChunks: InferUIMessageChunk<UI_MESSAGE>[],
-): InferUIMessageChunk<UI_MESSAGE>[] {
-  if (part.type === 'file') {
-    const filePart = part as FileUIPart;
-    return [
-      {
-        type: 'file',
-        mediaType: filePart.mediaType,
-        url: filePart.url,
-        providerMetadata: filePart.providerMetadata,
-      } as InferUIMessageChunk<UI_MESSAGE>,
-    ];
-  }
-
-  if (part.type === 'source-url') {
-    const sourceUrlPart = part as SourceUrlUIPart;
-    return [
-      {
-        type: 'source-url',
-        sourceId: sourceUrlPart.sourceId,
-        url: sourceUrlPart.url,
-        title: sourceUrlPart.title,
-        providerMetadata: sourceUrlPart.providerMetadata,
-      } as InferUIMessageChunk<UI_MESSAGE>,
-    ];
-  }
-
-  if (part.type === 'source-document') {
-    const sourceDocumentPart = part as SourceDocumentUIPart;
-    return [
-      {
-        type: 'source-document',
-        sourceId: sourceDocumentPart.sourceId,
-        mediaType: sourceDocumentPart.mediaType,
-        title: sourceDocumentPart.title,
-        filename: sourceDocumentPart.filename,
-        providerMetadata: sourceDocumentPart.providerMetadata,
-      } as InferUIMessageChunk<UI_MESSAGE>,
-    ];
-  }
-
-  if (isDataUIPart(part)) {
-    return [
-      { type: part.type, data: part.data } as InferUIMessageChunk<UI_MESSAGE>,
-    ];
-  }
-
-  const id = getPartId(originalChunks);
-
-  if (part.type === 'text') {
-    const textPart = part as TextUIPart;
-    return [
-      { type: 'text-start', id, providerMetadata: textPart.providerMetadata },
-      { type: 'text-delta', id, delta: textPart.text },
-      { type: 'text-end', id, providerMetadata: textPart.providerMetadata },
-    ] as InferUIMessageChunk<UI_MESSAGE>[];
-  }
-
-  if (part.type === 'reasoning') {
-    const reasoningPart = part as ReasoningUIPart;
-    return [
-      {
-        type: 'reasoning-start',
-        id,
-        providerMetadata: reasoningPart.providerMetadata,
-      },
-      { type: 'reasoning-delta', id, delta: reasoningPart.text },
-      {
-        type: 'reasoning-end',
-        id,
-        providerMetadata: reasoningPart.providerMetadata,
-      },
-    ] as InferUIMessageChunk<UI_MESSAGE>[];
-  }
-
-  if (isToolOrDynamicToolUIPart(part)) {
-    const dynamic = part.type === 'dynamic-tool';
-
-    const chunks: InferUIMessageChunk<UI_MESSAGE>[] = [
-      {
-        type: 'tool-input-start',
-        toolCallId: part.toolCallId,
-        toolName: getToolOrDynamicToolName(part),
-        dynamic,
-        providerExecuted: part.providerExecuted,
-      } as InferUIMessageChunk<UI_MESSAGE>,
-    ];
-
-    if (part.state === 'input-available' || part.state === 'output-available') {
-      chunks.push({
-        type: 'tool-input-available',
-        toolCallId: part.toolCallId,
-        toolName: getToolOrDynamicToolName(part),
-        input: part.input,
-        dynamic,
-        providerExecuted: part.providerExecuted,
-        providerMetadata: part.callProviderMetadata,
-      } as InferUIMessageChunk<UI_MESSAGE>);
-    }
-
-    if (part.state === 'output-available') {
-      chunks.push({
-        type: 'tool-output-available',
-        toolCallId: part.toolCallId,
-        output: part.output,
-        dynamic,
-        providerExecuted: part.providerExecuted,
-        preliminary: part.preliminary,
-      } as InferUIMessageChunk<UI_MESSAGE>);
-    } else if (part.state === 'output-error') {
-      chunks.push({
-        type: 'tool-output-error',
-        toolCallId: part.toolCallId,
-        errorText: part.errorText,
-        dynamic,
-        providerExecuted: part.providerExecuted,
-      } as InferUIMessageChunk<UI_MESSAGE>);
-    }
-
-    return chunks;
-  }
-
-  return originalChunks;
 }

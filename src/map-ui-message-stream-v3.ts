@@ -6,7 +6,7 @@ import {
   isStepEndChunk,
   isStepStartChunk,
 } from './stream-utils.js';
-import type { InferPartialUIMessagePart } from './types.js';
+import type { InferUIMessagePart } from './types.js';
 import { createUIMessageStreamReader } from './ui-message-stream-reader.js';
 
 /**
@@ -16,10 +16,10 @@ export type MapInput<UI_MESSAGE extends UIMessage> = {
   /** The current chunk */
   chunk: InferUIMessageChunk<UI_MESSAGE>;
   /**
-   * A partial representation of the part this chunk belongs to.
+   * The assembled part this chunk belongs to (from readUIMessageStream).
    * Use `part.type` to determine the part type.
    */
-  part: InferPartialUIMessagePart<UI_MESSAGE>;
+  part: InferUIMessagePart<UI_MESSAGE>;
 };
 
 /**
@@ -97,7 +97,6 @@ export function mapUIMessageStream<UI_MESSAGE extends UIMessage>(
   // State for step boundary handling
   let bufferedStartStep: InferUIMessageChunk<UI_MESSAGE> | undefined;
   let stepStartEmitted = false;
-  let stepHasContent = false;
 
   // Track all chunks and current index for context
   const allChunks: InferUIMessageChunk<UI_MESSAGE>[] = [];
@@ -109,8 +108,7 @@ export function mapUIMessageStream<UI_MESSAGE extends UIMessage>(
   async function* emitChunks(
     chunk: InferUIMessageChunk<UI_MESSAGE>,
   ): AsyncGenerator<InferUIMessageChunk<UI_MESSAGE>> {
-    if (bufferedStartStep && !stepHasContent) {
-      stepHasContent = true;
+    if (bufferedStartStep) {
       yield bufferedStartStep;
       stepStartEmitted = true;
       bufferedStartStep = undefined;
@@ -146,7 +144,6 @@ export function mapUIMessageStream<UI_MESSAGE extends UIMessage>(
         // Step boundaries - special handling
         if (isStepStartChunk(chunk)) {
           bufferedStartStep = chunk;
-          stepHasContent = false;
           await streamReader.enqueue(chunk);
           continue;
         }
@@ -168,14 +165,14 @@ export function mapUIMessageStream<UI_MESSAGE extends UIMessage>(
           break;
         }
 
-        // Get the current partial part from AI SDK (last part)
+        // Get the current part from AI SDK (last part)
         const currentPart = message.parts[message.parts.length - 1]!;
 
         // Apply map function
         const result = mapFn(
           {
             chunk,
-            part: currentPart as unknown as InferPartialUIMessagePart<UI_MESSAGE>,
+            part: currentPart,
           },
           { index, chunks: allChunks },
         );
