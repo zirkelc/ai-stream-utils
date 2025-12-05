@@ -99,14 +99,16 @@ export function mapUIMessageStream<UI_MESSAGE extends UIMessage>(
    * Generator that yields chunks with step boundary handling.
    */
   async function* emitChunks(
-    chunk: InferUIMessageChunk<UI_MESSAGE>,
+    chunks: InferUIMessageChunk<UI_MESSAGE>[],
   ): AsyncGenerator<InferUIMessageChunk<UI_MESSAGE>> {
     if (bufferedStartStep) {
       yield bufferedStartStep;
       stepStartEmitted = true;
       bufferedStartStep = undefined;
     }
-    yield chunk;
+    for (const chunk of chunks) {
+      yield chunk;
+    }
   }
 
   /**
@@ -163,7 +165,7 @@ export function mapUIMessageStream<UI_MESSAGE extends UIMessage>(
 
       // If result is not null, emit with step handling
       if (result !== null) {
-        yield* emitChunks(result);
+        yield* emitChunks([result]);
       }
     }
   }

@@ -28,33 +28,16 @@ function getPartId<UI_MESSAGE extends UIMessage>(
 }
 
 /**
- * Serializes a UIMessagePart back to chunks, including step boundaries.
+ * Serializes a UIMessagePart back to chunks (without step boundaries).
  *
  * This function converts a complete part (e.g., TextUIPart, ToolUIPart)
- * back into the chunk format used by UIMessageStream, wrapped with
- * start-step and finish-step boundaries.
+ * back into the chunk format used by UIMessageStream.
  *
  * @param part - The part to serialize
  * @param originalChunks - Original chunks for extracting IDs (for text/reasoning parts)
- * @returns Array of chunks representing the part, including step boundaries
+ * @returns Array of chunks representing the part
  */
 export function serializePartToChunks<UI_MESSAGE extends UIMessage>(
-  part: InferUIMessagePart<UI_MESSAGE>,
-  originalChunks: InferUIMessageChunk<UI_MESSAGE>[],
-): InferUIMessageChunk<UI_MESSAGE>[] {
-  const contentChunks = serializePartContentChunks(part, originalChunks);
-
-  return [
-    { type: 'start-step' } as InferUIMessageChunk<UI_MESSAGE>,
-    ...contentChunks,
-    { type: 'finish-step' } as InferUIMessageChunk<UI_MESSAGE>,
-  ];
-}
-
-/**
- * Serializes a UIMessagePart to content chunks (without step boundaries).
- */
-function serializePartContentChunks<UI_MESSAGE extends UIMessage>(
   part: InferUIMessagePart<UI_MESSAGE>,
   originalChunks: InferUIMessageChunk<UI_MESSAGE>[],
 ): InferUIMessageChunk<UI_MESSAGE>[] {

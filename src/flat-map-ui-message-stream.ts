@@ -175,19 +175,22 @@ export function flatMapUIMessageStream<
    * Generator that yields chunks with step boundary handling.
    */
   async function* emitChunks(
-    chunk: InferUIMessageChunk<UI_MESSAGE>,
+    chunks: InferUIMessageChunk<UI_MESSAGE>[],
   ): AsyncGenerator<InferUIMessageChunk<UI_MESSAGE>> {
     if (bufferedStartStep) {
       yield bufferedStartStep;
       stepStartEmitted = true;
       bufferedStartStep = undefined;
     }
-    yield chunk;
+    for (const chunk of chunks) {
+      yield chunk;
+    }
   }
 
   /**
    * Flush buffered part: apply flatMapFn and yield chunks.
-   * Always uses serializePartToChunks which includes step boundaries.
+   * Uses serializePartContentChunks (without step boundaries) and delegates
+   * step boundary handling to emitChunks.
    */
   async function* flushBufferedPart(
     completedPart: InferUIMessagePart<UI_MESSAGE>,
@@ -201,18 +204,10 @@ export function flatMapUIMessageStream<
     );
 
     if (result !== null) {
-      // Always use serializePartToChunks - it includes step boundaries
       const chunksToEmit = serializePartToChunks(result, bufferedChunks);
-
-      for (const chunk of chunksToEmit) {
-        yield chunk;
-      }
+      yield* emitChunks(chunksToEmit);
     }
 
-    // Clear step state - serializePartToChunks provides its own boundaries,
-    // so we suppress the input stream's finish-step
-    bufferedStartStep = undefined;
-    stepStartEmitted = false;
     bufferedChunks = [];
   }
 
@@ -272,7 +267,7 @@ export function flatMapUIMessageStream<
         } else {
           isBufferingCurrentPart = false;
           isStreamingCurrentPart = true;
-          yield* emitChunks(chunk);
+          yield* emitChunks([chunk]);
 
           // Single-chunk parts complete immediately
           if (isPartComplete(currentPart)) {
@@ -291,7 +286,7 @@ export function flatMapUIMessageStream<
         }
       } else if (isStreamingCurrentPart) {
         // Continue streaming current part
-        yield* emitChunks(chunk);
+        yield* emitChunks([chunk]);
 
         if (isPartComplete(currentPart)) {
           isStreamingCurrentPart = false;

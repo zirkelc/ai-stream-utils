@@ -480,6 +480,12 @@ describe('flatMapUIMessageStream', () => {
       const textDeltas = result.filter((c) => c.type === 'text-delta');
       expect(textDeltas.length).toBe(1);
       expect((textDeltas[0] as { delta: string }).delta).toBe('HELLO');
+
+      // Step boundaries should be balanced (1 start-step, 1 finish-step)
+      const startSteps = result.filter((c) => c.type === 'start-step');
+      const finishSteps = result.filter((c) => c.type === 'finish-step');
+      expect(startSteps.length).toBe(1);
+      expect(finishSteps.length).toBe(1);
     });
   });
 });
