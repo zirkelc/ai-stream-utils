@@ -19,7 +19,6 @@ export {
   mapUIMessageStream,
 } from './map-ui-message-stream.js';
 export type {
-  InferPartialUIMessagePart,
   InferUIMessagePart,
   InferUIMessagePartType,
 } from './types.js';

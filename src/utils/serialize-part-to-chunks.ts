@@ -12,7 +12,7 @@ import {
   isDataUIPart,
   isToolOrDynamicToolUIPart,
 } from 'ai';
-import type { InferUIMessagePart } from './types.js';
+import type { InferUIMessagePart } from '../types.js';
 
 /**
  * Extracts the part ID from a list of chunks belonging to the same part.
