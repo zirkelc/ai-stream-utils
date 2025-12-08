@@ -1,7 +1,6 @@
 import { openai } from '@ai-sdk/openai';
 import {
   type InferUITools,
-  readUIMessageStream,
   stepCountIs,
   streamText,
   tool,
@@ -9,16 +8,9 @@ import {
 } from 'ai';
 import { z } from 'zod';
 import {
-  excludeParts,
-  filterUIMessageStream,
-} from '../src/filter-ui-message-stream.js';
-import {
   flatMapUIMessageStream,
   partTypeIs,
-} from '../src/flat-map-ui-message-stream.js';
-import { mapUIMessageStream } from '../src/map-ui-message-stream.js';
-
-process.env.OPENAI_API_KEY = '';
+} from '../src/flat-map-ui-message-stream';
 
 export type MyMetadata = { id: string };
 export type MyDataPart = { weather: { location: string; temperature: number } };
@@ -52,22 +44,9 @@ const result = streamText({
 
 const uiMessageStream = result.toUIMessageStream<MyUIMessage>();
 
-const filteredStream = filterUIMessageStream(
-  uiMessageStream,
-  excludeParts(['reasoning']),
-);
-
-// Map: Transform text chunks to uppercase
-const mappedStream = mapUIMessageStream(filteredStream, ({ chunk }) => {
-  if (chunk.type === 'text-delta') {
-    return { ...chunk, delta: chunk.delta.toUpperCase() };
-  }
-  return chunk;
-});
-
-// FlatMap: Buffer tool-call chunks until part is complete, then transform the part
+// FlatMap: Buffer tool-call chunks until part is complete, then convert to Fahrenheit
 const flatMappedStream = flatMapUIMessageStream(
-  mappedStream,
+  uiMessageStream,
   partTypeIs('tool-weather'),
   ({ part }) => {
     if (part.type === 'tool-weather' && part.state === 'output-available') {
@@ -86,10 +65,14 @@ const flatMappedStream = flatMapUIMessageStream(
   },
 );
 
-for await (const message of readUIMessageStream({
-  stream: flatMappedStream,
-})) {
-  for (const part of message.parts) {
-    console.log(part);
-  }
+for await (const chunk of flatMappedStream) {
+  console.log(chunk);
 }
+
+// for await (const message of readUIMessageStream({
+//   stream: flatMappedStream,
+// })) {
+//   for (const part of message.parts) {
+//     console.log(part);
+//   }
+// }
