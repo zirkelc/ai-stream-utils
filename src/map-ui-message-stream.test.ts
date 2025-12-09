@@ -160,58 +160,6 @@ describe('mapUIMessageStream', () => {
     });
   });
 
-  it('should provide index and chunks array in context', async () => {
-    const stream = convertArrayToReadableStream([
-      START_CHUNK,
-      ...TEXT_CHUNKS,
-      FINISH_CHUNK,
-    ]);
-
-    const indices: number[] = [];
-    const chunkCounts: number[] = [];
-    const mappedStream = mapUIMessageStream(
-      stream,
-      ({ chunk }, { index, chunks }) => {
-        indices.push(index);
-        chunkCounts.push(chunks.length);
-        return chunk;
-      },
-    );
-
-    await convertAsyncIterableToArray(mappedStream);
-
-    // The map function is only called for content chunks (text-start, 2x text-delta, text-end)
-    // Meta chunks (start, finish) and step chunks (start-step, finish-step) pass through automatically
-    // But the index and chunks array include ALL chunks
-    // Stream: start(0), start-step(1), text-start(2), text-delta(3), text-delta(4), text-end(5), finish-step(6), finish(7)
-    // Map called for indices: 2, 3, 4, 5
-    expect(indices).toEqual([2, 3, 4, 5]);
-    // Chunks array includes all chunks up to and including current
-    expect(chunkCounts).toEqual([3, 4, 5, 6]);
-  });
-
-  it('should allow accessing previous chunks', async () => {
-    const stream = convertArrayToReadableStream([
-      START_CHUNK,
-      ...TEXT_CHUNKS,
-      FINISH_CHUNK,
-    ]);
-
-    let lastChunksSnapshot: UIMessageChunk[] = [];
-    const mappedStream = mapUIMessageStream(stream, ({ chunk }, { chunks }) => {
-      lastChunksSnapshot = [...chunks];
-      return chunk;
-    });
-
-    await convertAsyncIterableToArray(mappedStream);
-
-    // Last time map was called was for text-end (index 5)
-    // At that point, chunks array has: start, start-step, text-start, text-delta, text-delta, text-end
-    expect(lastChunksSnapshot.length).toBe(6);
-    expect(lastChunksSnapshot[0]?.type).toBe('start');
-    expect(lastChunksSnapshot[5]?.type).toBe('text-end');
-  });
-
   it('should provide partial part with accumulated text', async () => {
     const stream = convertArrayToReadableStream([
       START_CHUNK,

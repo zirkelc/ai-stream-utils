@@ -13,7 +13,6 @@ export {
   partTypeIs,
 } from './flat-map-ui-message-stream.js';
 export {
-  type MapContext,
   type MapInput,
   type MapUIMessageStreamFn,
   mapUIMessageStream,

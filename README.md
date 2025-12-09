@@ -87,15 +87,6 @@ const stream = mapUIMessageStream(
     return chunk;
   }
 );
-
-// Access chunk history and index
-const stream = mapUIMessageStream(
-  result.toUIMessageStream<MyUIMessage>(),
-  ({ chunk }, { index, chunks }) => {
-    console.log(`Chunk ${index}, total seen: ${chunks.length}`);
-    return chunk;
-  }
-);
 ```
 
 ### `flatMapUIMessageStream`
@@ -170,11 +161,11 @@ const stream = filterUIMessageStream(
 // Custom filter function
 const stream = filterUIMessageStream(
   result.toUIMessageStream<MyUIMessage>(),
-  ({ part }, { index }) => {
+  ({ part, chunk }) => {
     // Include text parts
     if (part.type === 'text') return true;
-    // Include only first 5 parts
-    if (index < 5) return true;
+    // Include specific chunk types
+    if (chunk.type === 'tool-input-available') return true;
     return false;
   }
 );
@@ -272,17 +263,11 @@ function mapUIMessageStream<UI_MESSAGE extends UIMessage>(
 
 type MapUIMessageStreamFn<UI_MESSAGE extends UIMessage> = (
   input: MapInput<UI_MESSAGE>,
-  context: MapContext<UI_MESSAGE>,
 ) => InferUIMessageChunk<UI_MESSAGE> | null;
 
 type MapInput<UI_MESSAGE extends UIMessage> = {
   chunk: InferUIMessageChunk<UI_MESSAGE>;
   part: InferUIMessagePart<UI_MESSAGE>;
-};
-
-type MapContext<UI_MESSAGE extends UIMessage> = {
-  index: number;
-  chunks: InferUIMessageChunk<UI_MESSAGE>[];
 };
 ```
 

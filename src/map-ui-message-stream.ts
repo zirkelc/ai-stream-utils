@@ -23,23 +23,11 @@ export type MapInput<UI_MESSAGE extends UIMessage> = {
 };
 
 /**
- * Context provided to the chunk map function (similar to Array.map callback).
- */
-export type MapContext<UI_MESSAGE extends UIMessage> = {
-  /** The index of the current chunk in the stream (0-based) */
-  index: number;
-  /** All chunks seen so far (including the current one) */
-  chunks: InferUIMessageChunk<UI_MESSAGE>[];
-};
-
-/**
  * Map function for chunk-level transformation.
- * Similar to Array.map, receives the input object and context.
  * Return the chunk (possibly transformed) to include it, or null to filter it out.
  */
 export type MapUIMessageStreamFn<UI_MESSAGE extends UIMessage> = (
   input: MapInput<UI_MESSAGE>,
-  context: MapContext<UI_MESSAGE>,
 ) => InferUIMessageChunk<UI_MESSAGE> | null;
 
 /**
@@ -72,15 +60,6 @@ export type MapUIMessageStreamFn<UI_MESSAGE extends UIMessage> = (
  *     return chunk;
  *   }
  * );
- *
- * // Access previous chunks and index
- * const stream = mapUIMessageStream(
- *   inputStream,
- *   ({ chunk }, { index, chunks }) => {
- *     console.log(`Processing chunk ${index} of ${chunks.length}`);
- *     return chunk;
- *   }
- * );
  * ```
  */
 export function mapUIMessageStream<UI_MESSAGE extends UIMessage>(
@@ -90,10 +69,6 @@ export function mapUIMessageStream<UI_MESSAGE extends UIMessage>(
   // State for step boundary handling
   let bufferedStartStep: InferUIMessageChunk<UI_MESSAGE> | undefined;
   let stepStartEmitted = false;
-
-  // Track all chunks and current index for context
-  const allChunks: InferUIMessageChunk<UI_MESSAGE>[] = [];
-  let currentIndex = 0;
 
   /**
    * Generator that yields chunks with step boundary handling.
@@ -121,10 +96,6 @@ export function mapUIMessageStream<UI_MESSAGE extends UIMessage>(
       chunk,
       message,
     } of createUIMessageStreamReader<UI_MESSAGE>(stream)) {
-      // Track chunks for context
-      allChunks.push(chunk);
-      const index = currentIndex++;
-
       // Meta chunks pass through immediately
       if (isMetaChunk(chunk)) {
         yield chunk;
@@ -155,13 +126,10 @@ export function mapUIMessageStream<UI_MESSAGE extends UIMessage>(
       const currentPart = message.parts[message.parts.length - 1]!;
 
       // Apply map function
-      const result = mapFn(
-        {
-          chunk,
-          part: currentPart,
-        },
-        { index, chunks: allChunks },
-      );
+      const result = mapFn({
+        chunk,
+        part: currentPart,
+      });
 
       // If result is not null, emit with step handling
       if (result !== null) {

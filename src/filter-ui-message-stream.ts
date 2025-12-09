@@ -1,18 +1,13 @@
 import type { AsyncIterableStream, InferUIMessageChunk, UIMessage } from 'ai';
-import {
-  type MapContext,
-  type MapInput,
-  mapUIMessageStream,
-} from './map-ui-message-stream.js';
+import { type MapInput, mapUIMessageStream } from './map-ui-message-stream.js';
 import type { InferUIMessagePartType } from './types.js';
 
 /**
- * Filter function that receives the same input/context as mapUIMessageStream.
+ * Filter function that receives the same input as mapUIMessageStream.
  * Return true to include the chunk, false to filter it out.
  */
 export type FilterUIMessageStreamPredicate<UI_MESSAGE extends UIMessage> = (
   input: MapInput<UI_MESSAGE>,
-  context: MapContext<UI_MESSAGE>,
 ) => boolean;
 
 /**
@@ -55,8 +50,8 @@ export function excludeParts<UI_MESSAGE extends UIMessage>(
  * This is a convenience wrapper around `mapUIMessageStream` that provides
  * a simpler API for filtering chunks.
  *
- * The filter function receives `{ chunk, part }` and `{ index, chunks }` and returns
- * a boolean indicating whether to include the chunk.
+ * The filter function receives `{ chunk, part }` and returns a boolean indicating
+ * whether to include the chunk.
  *
  * Use the `includeParts()` and `excludeParts()` helper functions for common filtering patterns.
  *
@@ -82,19 +77,13 @@ export function excludeParts<UI_MESSAGE extends UIMessage>(
  *   result.toUIMessageStream(),
  *   excludeParts(['reasoning', 'tool-calculator'])
  * );
- *
- * // Filter with context - access index and previous chunks
- * const stream = filterUIMessageStream(
- *   result.toUIMessageStream(),
- *   ({ part }, { index }) => part.type === 'text' && index < 10
- * );
  * ```
  */
 export function filterUIMessageStream<UI_MESSAGE extends UIMessage>(
   stream: ReadableStream<InferUIMessageChunk<UI_MESSAGE>>,
   predicate: FilterUIMessageStreamPredicate<UI_MESSAGE>,
 ): AsyncIterableStream<InferUIMessageChunk<UI_MESSAGE>> {
-  return mapUIMessageStream(stream, (input, context) => {
-    return predicate(input, context) ? input.chunk : null;
+  return mapUIMessageStream(stream, (input) => {
+    return predicate(input) ? input.chunk : null;
   });
 }
