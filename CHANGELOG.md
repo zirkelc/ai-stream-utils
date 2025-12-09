@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/zirkelc/ai-stream-utils/compare/v1.0.0...v1.1.0) (2025-12-09)
+
+
+### Features
+
+* remove chunk buffering in map and filter functions ([f652d35](https://github.com/zirkelc/ai-stream-utils/commit/f652d35537133a92ede46e57461c6a1ce9deba9b))
+
 ## 1.0.0 (2025-12-05)
 
 
