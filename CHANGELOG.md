@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/zirkelc/ai-stream-utils/compare/v1.1.0...v1.2.0) (2025-12-18)
+
+
+### Features
+
+* allow returning multiple chunks from map function ([bff5bc5](https://github.com/zirkelc/ai-stream-utils/commit/bff5bc5e10f18eaa4adfb36f93453876530c8050))
+
 ## [1.1.0](https://github.com/zirkelc/ai-stream-utils/compare/v1.0.0...v1.1.0) (2025-12-09)
 
 
