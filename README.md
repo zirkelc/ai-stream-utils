@@ -93,37 +93,47 @@ const stream = mapUIMessageStream(
   }
 );
 
-// Buffer text deltas and split into word-by-word chunks (smooth streaming)
+// Smooth streaming: buffer text deltas and re-emit as word chunks
+const WORD_REGEX = /\S+\s+/m; // Matches word + trailing whitespace
+
 let buffer = '';
-let textStartChunk: UIMessageChunk | null = null;
+let currentId = '';
+
 const stream = mapUIMessageStream(
   result.toUIMessageStream<MyUIMessage>(),
   ({ chunk }) => {
-    if (chunk.type === 'text-start') {
-      textStartChunk = chunk;
-      return []; // Buffer, don't emit yet
-    }
-    if (chunk.type === 'text-delta') {
-      buffer += chunk.delta;
-      return []; // Buffer, don't emit yet
-    }
-    if (chunk.type === 'text-end') {
-      // Emit buffered content as word chunks
-      const words = buffer.split(' ');
-      const wordChunks = words.map((word, i) => ({
-        type: 'text-delta' as const,
-        id: chunk.id,
-        delta: i === 0 ? word : ` ${word}`,
-      }));
-      buffer = '';
-      const result = [...wordChunks, chunk];
-      if (textStartChunk) {
-        result.unshift(textStartChunk);
-        textStartChunk = null;
+    // Non-text-delta: flush buffer, pass through
+    if (chunk.type !== 'text-delta') {
+      if (buffer.length > 0) {
+        const flushed = { type: 'text-delta' as const, id: currentId, delta: buffer };
+        buffer = '';
+        return [flushed, chunk];
       }
-      return result;
+      return chunk;
     }
-    return chunk;
+
+    // Handle id change: flush old buffer first
+    if (chunk.id !== currentId && buffer.length > 0) {
+      const flushed = { type: 'text-delta' as const, id: currentId, delta: buffer };
+      buffer = chunk.delta;
+      currentId = chunk.id;
+      return [flushed];
+    }
+
+    // Accumulate text into buffer
+    buffer += chunk.delta;
+    currentId = chunk.id;
+
+    // Extract word chunks matching the regex
+    const chunks: UIMessageChunk[] = [];
+    let match: RegExpExecArray | null;
+    while ((match = WORD_REGEX.exec(buffer)) !== null) {
+      const text = buffer.slice(0, match.index) + match[0];
+      chunks.push({ type: 'text-delta', id: currentId, delta: text });
+      buffer = buffer.slice(text.length);
+    }
+
+    return chunks; // Empty array suppresses original chunk
   }
 );
 ```
