@@ -4,6 +4,7 @@ import type { InferUIMessagePart } from './types.js';
 import { createAsyncIterableStream } from './utils/create-async-iterable-stream.js';
 import { createUIMessageStreamReader } from './utils/create-ui-message-stream-reader.js';
 import {
+  asArray,
   isMetaChunk,
   isStepEndChunk,
   isStepStartChunk,
@@ -24,18 +25,22 @@ export type MapInput<UI_MESSAGE extends UIMessage> = {
 
 /**
  * Map function for chunk-level transformation.
- * Return the chunk (possibly transformed) to include it, or null to filter it out.
+ * Return:
+ * - A single chunk (possibly transformed) to include it
+ * - An array of chunks to emit multiple chunks
+ * - An empty array or null to filter out the chunk
  */
 export type MapUIMessageStreamFn<UI_MESSAGE extends UIMessage> = (
   input: MapInput<UI_MESSAGE>,
-) => InferUIMessageChunk<UI_MESSAGE> | null;
+) => InferUIMessageChunk<UI_MESSAGE> | InferUIMessageChunk<UI_MESSAGE>[] | null;
 
 /**
  * Maps/filters a UIMessageStream at the chunk level using readUIMessageStream.
  *
  * This function processes each chunk as it arrives and allows you to:
  * - Transform chunks by returning a modified chunk
- * - Filter out chunks by returning null
+ * - Filter out chunks by returning null or an empty array
+ * - Emit multiple chunks by returning an array
  *
  * Meta chunks (start, finish, abort, message-metadata, error) always pass through.
  * Step boundaries (start-step, finish-step) are handled automatically:
@@ -56,6 +61,40 @@ export type MapUIMessageStreamFn<UI_MESSAGE extends UIMessage> = (
  *   ({ chunk, part }) => {
  *     if (chunk.type === 'text-delta') {
  *       return { ...chunk, delta: chunk.delta.toUpperCase() };
+ *     }
+ *     return chunk;
+ *   }
+ * );
+ *
+ * // Buffer text deltas and split into word-by-word chunks (smooth streaming)
+ * let buffer = '';
+ * let textStartChunk = null;
+ * const stream = mapUIMessageStream(
+ *   inputStream,
+ *   ({ chunk }) => {
+ *     if (chunk.type === 'text-start') {
+ *       textStartChunk = chunk;
+ *       return []; // Buffer, don't emit yet
+ *     }
+ *     if (chunk.type === 'text-delta') {
+ *       buffer += chunk.delta;
+ *       return []; // Buffer, don't emit yet
+ *     }
+ *     if (chunk.type === 'text-end') {
+ *       // Emit buffered content as word chunks
+ *       const words = buffer.split(' ');
+ *       const wordChunks = words.map((word, i) => ({
+ *         type: 'text-delta' as const,
+ *         id: chunk.id,
+ *         delta: i === 0 ? word : ` ${word}`,
+ *       }));
+ *       buffer = '';
+ *       const result = [...wordChunks, chunk];
+ *       if (textStartChunk) {
+ *         result.unshift(textStartChunk);
+ *         textStartChunk = null;
+ *       }
+ *       return result;
  *     }
  *     return chunk;
  *   }
@@ -131,9 +170,12 @@ export function mapUIMessageStream<UI_MESSAGE extends UIMessage>(
         part: currentPart,
       });
 
-      // If result is not null, emit with step handling
-      if (result !== null) {
-        yield* emitChunks([result]);
+      // Normalize result to array
+      const chunks = asArray(result);
+
+      // If result has chunks, emit with step handling
+      if (chunks.length > 0) {
+        yield* emitChunks(chunks);
       }
     }
   }

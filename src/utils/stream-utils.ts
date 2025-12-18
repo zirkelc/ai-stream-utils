@@ -62,3 +62,19 @@ export function isPartComplete<UI_MESSAGE extends UIMessage>(
     part.state === 'output-error'
   );
 }
+
+/**
+ * Normalizes a value to an array.
+ * - null -> empty array
+ * - array -> array as-is
+ * - single value -> array with one element
+ */
+export function asArray<T>(value: T | T[] | null): T[] {
+  if (value === null) {
+    return [];
+  }
+  if (Array.isArray(value)) {
+    return value;
+  }
+  return [value];
+}
