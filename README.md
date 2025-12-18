@@ -40,7 +40,12 @@ npm install ai-stream-utils
 
 ### `mapUIMessageStream`
 
-Transform or filter individual chunks as they stream through. The map function receives the chunk and the assembled part it belongs to.
+Transform or filter individual chunks as they stream through. The map function receives the chunk and the current partial part. The part represents a different state of the same UI message as it is being completed.
+
+The map function can return:
+- A single chunk to include it
+- An array of chunks to emit multiple chunks
+- An empty array or `null` to filter out the chunk
 
 ```typescript
 import { mapUIMessageStream } from 'ai-stream-utils';
@@ -83,6 +88,40 @@ const stream = mapUIMessageStream(
   ({ chunk, part }) => {
     if (chunk.type === 'text-delta') {
       return { ...chunk, delta: chunk.delta.toUpperCase() };
+    }
+    return chunk;
+  }
+);
+
+// Buffer text deltas and split into word-by-word chunks (smooth streaming)
+let buffer = '';
+let textStartChunk: UIMessageChunk | null = null;
+const stream = mapUIMessageStream(
+  result.toUIMessageStream<MyUIMessage>(),
+  ({ chunk }) => {
+    if (chunk.type === 'text-start') {
+      textStartChunk = chunk;
+      return []; // Buffer, don't emit yet
+    }
+    if (chunk.type === 'text-delta') {
+      buffer += chunk.delta;
+      return []; // Buffer, don't emit yet
+    }
+    if (chunk.type === 'text-end') {
+      // Emit buffered content as word chunks
+      const words = buffer.split(' ');
+      const wordChunks = words.map((word, i) => ({
+        type: 'text-delta' as const,
+        id: chunk.id,
+        delta: i === 0 ? word : ` ${word}`,
+      }));
+      buffer = '';
+      const result = [...wordChunks, chunk];
+      if (textStartChunk) {
+        result.unshift(textStartChunk);
+        textStartChunk = null;
+      }
+      return result;
     }
     return chunk;
   }
@@ -263,7 +302,7 @@ function mapUIMessageStream<UI_MESSAGE extends UIMessage>(
 
 type MapUIMessageStreamFn<UI_MESSAGE extends UIMessage> = (
   input: MapInput<UI_MESSAGE>,
-) => InferUIMessageChunk<UI_MESSAGE> | null;
+) => InferUIMessageChunk<UI_MESSAGE> | InferUIMessageChunk<UI_MESSAGE>[] | null;
 
 type MapInput<UI_MESSAGE extends UIMessage> = {
   chunk: InferUIMessageChunk<UI_MESSAGE>;
