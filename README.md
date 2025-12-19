@@ -144,6 +144,11 @@ Buffer all chunks for a part until it's complete, then transform the complete pa
 
 When a predicate is provided (e.g., `partTypeIs('text')`), only matching parts are buffered for transformation. Non-matching parts stream through immediately without buffering, preserving real-time streaming behavior.
 
+The flatMap function can return:
+- A single part (possibly transformed) to include it
+- An array of parts to emit multiple parts
+- An empty array or `null` to filter out the part
+
 ```typescript
 import { flatMapUIMessageStream, partTypeIs } from 'ai-stream-utils';
 
@@ -159,6 +164,35 @@ const stream = flatMapUIMessageStream(
   ({ part }) => {
     if (part.type === 'text') {
       return { ...part, text: part.text.toUpperCase() };
+    }
+    return part;
+  }
+);
+
+// Transform one part into multiple parts
+const stream = flatMapUIMessageStream(
+  result.toUIMessageStream<MyUIMessage>(),
+  ({ part }) => {
+    if (part.type === 'text') {
+      return [
+        { type: 'text', text: 'Prefix: ' },
+        part,
+      ];
+    }
+    return part;
+  }
+);
+
+// Transform a part into a different part type
+const stream = flatMapUIMessageStream(
+  result.toUIMessageStream<MyUIMessage>(),
+  ({ part }) => {
+    if (part.type === 'text') {
+      // Transform text into reasoning + text
+      return [
+        { type: 'reasoning', text: 'Thinking about: ' + part.text },
+        part,
+      ];
     }
     return part;
   }
@@ -339,7 +373,7 @@ function flatMapUIMessageStream<UI_MESSAGE extends UIMessage, PART extends Infer
 type FlatMapUIMessageStreamFn<UI_MESSAGE extends UIMessage, PART = InferUIMessagePart<UI_MESSAGE>> = (
   input: FlatMapInput<UI_MESSAGE, PART>,
   context: FlatMapContext<UI_MESSAGE>,
-) => PART | null;
+) => InferUIMessagePart<UI_MESSAGE> | InferUIMessagePart<UI_MESSAGE>[] | null;
 
 type FlatMapInput<UI_MESSAGE extends UIMessage, PART = InferUIMessagePart<UI_MESSAGE>> = {
   part: PART;

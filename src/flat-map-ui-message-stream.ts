@@ -5,6 +5,7 @@ import { createAsyncIterableStream } from './utils/create-async-iterable-stream.
 import { createUIMessageStreamReader } from './utils/create-ui-message-stream-reader.js';
 import { serializePartToChunks } from './utils/serialize-part-to-chunks.js';
 import {
+  asArray,
   isMetaChunk,
   isPartComplete,
   isStepEndChunk,
@@ -35,8 +36,9 @@ export type FlatMapContext<UI_MESSAGE extends UIMessage> = {
 /**
  * FlatMap function for part-level transformation.
  * Return:
- * - The part (possibly transformed) to include it
- * - null to filter out the part
+ * - A single part (possibly transformed) to include it
+ * - An array of parts to emit multiple parts
+ * - An empty array or null to filter out the part
  */
 export type FlatMapUIMessageStreamFn<
   UI_MESSAGE extends UIMessage,
@@ -44,7 +46,7 @@ export type FlatMapUIMessageStreamFn<
 > = (
   input: FlatMapInput<UI_MESSAGE, PART>,
   context: FlatMapContext<UI_MESSAGE>,
-) => PART | null;
+) => InferUIMessagePart<UI_MESSAGE> | InferUIMessagePart<UI_MESSAGE>[] | null;
 
 /**
  * Predicate function to determine which parts should be buffered.
@@ -114,6 +116,20 @@ export function partTypeIs<
  *   inputStream,
  *   partTypeIs('text'),
  *   ({ part }) => ({ ...part, text: part.text.toUpperCase() })
+ * );
+ *
+ * // Transform one part into multiple parts
+ * const stream = flatMapUIMessageStream(
+ *   inputStream,
+ *   ({ part }) => {
+ *     if (part.type === 'text') {
+ *       return [
+ *         { type: 'text', text: 'Prefix: ' },
+ *         part,
+ *       ];
+ *     }
+ *     return part;
+ *   }
  * );
  *
  * // Access previous parts and index
@@ -203,8 +219,10 @@ export function flatMapUIMessageStream<
       { index: allParts.length - 1, parts: allParts },
     );
 
-    if (result !== null) {
-      const chunksToEmit = serializePartToChunks(result, bufferedChunks);
+    // Normalize to array and emit chunks for each part
+    const parts = asArray(result);
+    for (const part of parts) {
+      const chunksToEmit = serializePartToChunks(part, bufferedChunks);
       yield* emitChunks(chunksToEmit);
     }
 

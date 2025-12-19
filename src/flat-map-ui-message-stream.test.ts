@@ -488,4 +488,169 @@ describe('flatMapUIMessageStream', () => {
       expect(finishSteps.length).toBe(1);
     });
   });
+
+  describe('array', () => {
+    it('should emit multiple parts when returning an array', async () => {
+      const stream = convertArrayToReadableStream([
+        START_CHUNK,
+        ...TEXT_CHUNKS,
+        FINISH_CHUNK,
+      ]);
+
+      const mappedStream = flatMapUIMessageStream(stream, ({ part }) => {
+        if (part.type === 'text') {
+          // Return multiple text parts
+          return [
+            { type: 'text' as const, text: '[PREFIX] ' },
+            part,
+            { type: 'text' as const, text: ' [SUFFIX]' },
+          ];
+        }
+        return part;
+      });
+
+      const result = await convertAsyncIterableToArray(mappedStream);
+
+      // Should have 3 text-delta chunks (one for each part)
+      const textDeltas = result.filter((c) => c.type === 'text-delta');
+      expect(textDeltas).toHaveLength(3);
+      expect(textDeltas[0]!.delta).toBe('[PREFIX] ');
+      expect(textDeltas[1]!.delta).toBe('Hello World');
+      expect(textDeltas[2]!.delta).toBe(' [SUFFIX]');
+    });
+
+    it('should filter out part when returning empty array', async () => {
+      const stream = convertArrayToReadableStream([
+        START_CHUNK,
+        ...TEXT_CHUNKS,
+        ...REASONING_CHUNKS,
+        FINISH_CHUNK,
+      ]);
+
+      const mappedStream = flatMapUIMessageStream(stream, ({ part }) => {
+        // Return empty array for reasoning (same as returning null)
+        return part.type === 'reasoning' ? [] : part;
+      });
+
+      const result = await convertAsyncIterableToArray(mappedStream);
+
+      // Should not include reasoning chunks
+      const reasoningChunks = result.filter((c) =>
+        c.type.startsWith('reasoning'),
+      );
+      expect(reasoningChunks).toHaveLength(0);
+
+      // Text should still be present
+      const textDeltas = result.filter((c) => c.type === 'text-delta');
+      expect(textDeltas).toHaveLength(1);
+    });
+
+    it('should handle single part in array same as returning part directly', async () => {
+      const stream = convertArrayToReadableStream([
+        START_CHUNK,
+        ...TEXT_CHUNKS,
+        FINISH_CHUNK,
+      ]);
+
+      const mappedStream = flatMapUIMessageStream(stream, ({ part }) => {
+        // Return part in array - should work same as returning part directly
+        return [part];
+      });
+
+      const result = await convertAsyncIterableToArray(mappedStream);
+
+      // Should produce same output as identity flatMap
+      const textDeltas = result.filter((c) => c.type === 'text-delta');
+      expect(textDeltas).toHaveLength(1);
+      expect(textDeltas[0]!.delta).toBe('Hello World');
+    });
+
+    it('should not emit step boundary when returning empty array for all content', async () => {
+      const stream = convertArrayToReadableStream([
+        START_CHUNK,
+        ...REASONING_CHUNKS,
+        FINISH_CHUNK,
+      ]);
+
+      const mappedStream = flatMapUIMessageStream(stream, () => {
+        // Filter all parts by returning empty array
+        return [];
+      });
+
+      const result = await convertAsyncIterableToArray(mappedStream);
+
+      // Should not include step boundaries since all content was filtered
+      expect(result).toEqual([START_CHUNK, FINISH_CHUNK]);
+    });
+
+    it('should allow returning different part types', async () => {
+      const stream = convertArrayToReadableStream([
+        START_CHUNK,
+        ...TEXT_CHUNKS,
+        FINISH_CHUNK,
+      ]);
+
+      const mappedStream = flatMapUIMessageStream(stream, ({ part }) => {
+        if (part.type === 'text') {
+          // Transform text into reasoning + text
+          return [
+            {
+              type: 'reasoning' as const,
+              text: 'Thinking about: ' + part.text,
+            },
+            part,
+          ];
+        }
+        return part;
+      });
+
+      const result = await convertAsyncIterableToArray(mappedStream);
+
+      // Should have both reasoning and text chunks
+      const reasoningDeltas = result.filter(
+        (c) => c.type === 'reasoning-delta',
+      );
+      const textDeltas = result.filter((c) => c.type === 'text-delta');
+
+      expect(reasoningDeltas).toHaveLength(1);
+      expect(reasoningDeltas[0]!.delta).toBe('Thinking about: Hello World');
+      expect(textDeltas).toHaveLength(1);
+      expect(textDeltas[0]!.delta).toBe('Hello World');
+    });
+
+    it('should handle array return with predicate', async () => {
+      const stream = convertArrayToReadableStream([
+        START_CHUNK,
+        ...TEXT_CHUNKS,
+        ...REASONING_CHUNKS,
+        FINISH_CHUNK,
+      ]);
+
+      const mappedStream = flatMapUIMessageStream(
+        stream,
+        partTypeIs('text'),
+        ({ part }) => {
+          // Return multiple parts for text
+          return [
+            { type: 'text' as const, text: '>> ' },
+            { ...part, text: part.text.toUpperCase() },
+          ];
+        },
+      );
+
+      const result = await convertAsyncIterableToArray(mappedStream);
+
+      // Text should be transformed into multiple parts
+      const textDeltas = result.filter((c) => c.type === 'text-delta');
+      expect(textDeltas).toHaveLength(2);
+      expect(textDeltas[0]!.delta).toBe('>> ');
+      expect(textDeltas[1]!.delta).toBe('HELLO WORLD');
+
+      // Reasoning should pass through unchanged
+      const reasoningDeltas = result.filter(
+        (c) => c.type === 'reasoning-delta',
+      );
+      expect(reasoningDeltas).toHaveLength(2);
+    });
+  });
 });
