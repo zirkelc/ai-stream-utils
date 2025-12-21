@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.3.0](https://github.com/zirkelc/ai-stream-utils/compare/v1.2.0...v1.3.0) (2025-12-21)
+
+
+### Features
+
+* allow retuning multiple parts from flatmap ([4ca0ea1](https://github.com/zirkelc/ai-stream-utils/commit/4ca0ea19f96ae59b1f880f7fe23795ef2ace5074))
+
+
+### Bug Fixes
+
+* clinet-side tools without execute function were never flushed ([81e838b](https://github.com/zirkelc/ai-stream-utils/commit/81e838b06250feaa899d2e11c5d169e16ad466ac))
+* lint ([8367768](https://github.com/zirkelc/ai-stream-utils/commit/8367768866e1246a17cadf95abf5415d59087d34))
+
 ## [1.2.0](https://github.com/zirkelc/ai-stream-utils/compare/v1.1.0...v1.2.0) (2025-12-18)
 
 
