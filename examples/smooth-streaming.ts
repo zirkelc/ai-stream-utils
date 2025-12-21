@@ -59,9 +59,10 @@ function smoothUIMessageStream(
     currentId = chunk.id;
 
     const chunks: UIMessageChunk[] = [];
-    let match;
+    let match: RegExpExecArray | null = null;
 
     // Split text matching the regex into new chunks
+    // biome-ignore lint/suspicious/noAssignInExpressions: okay to assign in while loop
     while ((match = regex.exec(buffer)) !== null) {
       const text = buffer.slice(0, match.index) + match[0];
       chunks.push({ type: 'text-delta', id: currentId, delta: text });
