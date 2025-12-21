@@ -15,10 +15,10 @@ import {
   SOURCE_URL_PART,
   TEXT_CHUNKS,
   TEXT_PART,
-  TOOL_CHUNKS,
   TOOL_ERROR_CHUNKS,
   TOOL_ERROR_PART,
   TOOL_PART,
+  TOOL_SERVER_CHUNKS,
 } from './test-utils.js';
 
 describe('serializePartToChunks', () => {
@@ -46,7 +46,10 @@ describe('serializePartToChunks', () => {
   });
 
   it('should serialize tool part to chunks', () => {
-    const result = serializePartToChunks<MyUIMessage>(TOOL_PART, TOOL_CHUNKS);
+    const result = serializePartToChunks<MyUIMessage>(
+      TOOL_PART,
+      TOOL_SERVER_CHUNKS,
+    );
 
     // Tool serialization produces: tool-input-start, tool-input-available, tool-output-available
     expect(result).toHaveLength(3);

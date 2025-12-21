@@ -19,7 +19,8 @@ import {
   REASONING_CHUNKS,
   START_CHUNK,
   TEXT_CHUNKS,
-  TOOL_CHUNKS,
+  TOOL_CLIENT_CHUNKS,
+  TOOL_SERVER_CHUNKS,
 } from './utils/test-utils.js';
 
 describe('flatMapUIMessageStream', () => {
@@ -113,10 +114,10 @@ describe('flatMapUIMessageStream', () => {
     expect(fileChunks.length).toBe(1);
   });
 
-  it('should provide complete tool part', async () => {
+  it('should handle server-side tool (with execute function)', async () => {
     const stream = convertArrayToReadableStream([
       START_CHUNK,
-      ...TOOL_CHUNKS,
+      ...TOOL_SERVER_CHUNKS,
       FINISH_CHUNK,
     ]);
 
@@ -128,7 +129,7 @@ describe('flatMapUIMessageStream', () => {
       return part;
     });
 
-    await convertAsyncIterableToArray(mappedStream);
+    const result = await convertAsyncIterableToArray(mappedStream);
 
     // Part should have all tool properties populated
     expect(capturedPart).toMatchObject({
@@ -138,6 +139,40 @@ describe('flatMapUIMessageStream', () => {
       input: { location: 'NYC' },
       output: { temperature: 65 },
     });
+
+    // Tool chunks should be present in output
+    const toolChunks = result.filter((c) => c.type.startsWith('tool-'));
+    expect(toolChunks.length).toBeGreaterThan(0);
+  });
+
+  it('should handle client-side tool (without execute function)', async () => {
+    const stream = convertArrayToReadableStream([
+      START_CHUNK,
+      ...TOOL_CLIENT_CHUNKS,
+      FINISH_CHUNK,
+    ]);
+
+    let capturedPart: unknown;
+    const mappedStream = flatMapUIMessageStream(stream, ({ part }) => {
+      if (part.type === 'tool-weather') {
+        capturedPart = part;
+      }
+      return part;
+    });
+
+    const result = await convertAsyncIterableToArray(mappedStream);
+
+    // Part should be captured with input-available state
+    expect(capturedPart).toMatchObject({
+      type: 'tool-weather',
+      toolCallId: '6',
+      state: 'input-available',
+      input: { location: 'NYC' },
+    });
+
+    // Tool chunks should be present in output
+    const toolChunks = result.filter((c) => c.type.startsWith('tool-'));
+    expect(toolChunks.length).toBeGreaterThan(0);
   });
 
   it('should provide complete text part', async () => {
@@ -351,7 +386,7 @@ describe('flatMapUIMessageStream', () => {
     it('should pass through tool parts when predicate only matches text', async () => {
       const stream = convertArrayToReadableStream([
         START_CHUNK,
-        ...TOOL_CHUNKS,
+        ...TOOL_SERVER_CHUNKS,
         ...TEXT_CHUNKS,
         FINISH_CHUNK,
       ]);

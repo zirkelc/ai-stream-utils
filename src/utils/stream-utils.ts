@@ -1,5 +1,4 @@
-import type { UIMessage, UIMessageChunk } from 'ai';
-import type { InferUIMessagePart } from '../types.js';
+import type { UIMessageChunk } from 'ai';
 
 /**
  * Checks if a chunk is a control/meta chunk that should always pass through.
@@ -44,23 +43,6 @@ export function isStepStartChunk(chunk: UIMessageChunk): boolean {
  */
 export function isStepEndChunk(chunk: UIMessageChunk): boolean {
   return chunk.type === 'finish-step';
-}
-
-/**
- * Checks if a part is complete based on its state.
- * Single-chunk parts (file, source-url, etc.) are always complete.
- * Multi-chunk parts (text, reasoning, tool) are complete when their state is terminal.
- */
-export function isPartComplete<UI_MESSAGE extends UIMessage>(
-  part: InferUIMessagePart<UI_MESSAGE>,
-): boolean {
-  if (part.type === 'step-start') return false;
-  if (!('state' in part)) return true; // Single-chunk parts (file, source-url, etc.)
-  return (
-    part.state === 'done' ||
-    part.state === 'output-available' ||
-    part.state === 'output-error'
-  );
 }
 
 /**

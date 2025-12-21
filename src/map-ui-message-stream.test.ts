@@ -14,7 +14,7 @@ import {
   REASONING_CHUNKS,
   START_CHUNK,
   TEXT_CHUNKS,
-  TOOL_CHUNKS,
+  TOOL_SERVER_CHUNKS,
 } from './utils/test-utils.js';
 
 describe('mapUIMessageStream', () => {
@@ -136,7 +136,7 @@ describe('mapUIMessageStream', () => {
   it('should provide complete tool part', async () => {
     const stream = convertArrayToReadableStream([
       START_CHUNK,
-      ...TOOL_CHUNKS,
+      ...TOOL_SERVER_CHUNKS,
       FINISH_CHUNK,
     ]);
 

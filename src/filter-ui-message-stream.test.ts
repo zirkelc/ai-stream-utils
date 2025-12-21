@@ -23,7 +23,7 @@ import {
   SOURCE_CHUNKS,
   START_CHUNK,
   TEXT_CHUNKS,
-  TOOL_CHUNKS,
+  TOOL_SERVER_CHUNKS,
 } from './utils/test-utils.js';
 
 describe('filterUIMessageStream', () => {
@@ -132,7 +132,7 @@ describe('filterUIMessageStream', () => {
   it('should filter chunks using filter function', async () => {
     const stream = convertArrayToReadableStream([
       START_CHUNK,
-      ...TOOL_CHUNKS,
+      ...TOOL_SERVER_CHUNKS,
       ...TEXT_CHUNKS,
       FINISH_CHUNK,
     ]);
@@ -242,7 +242,7 @@ describe('filterUIMessageStream', () => {
           START_CHUNK,
           ...TEXT_CHUNKS,
           ...REASONING_CHUNKS,
-          ...TOOL_CHUNKS,
+          ...TOOL_SERVER_CHUNKS,
           ...DYNAMIC_TOOL_CHUNKS,
           ...SOURCE_CHUNKS,
           ...FILE_CHUNKS,
@@ -269,7 +269,7 @@ describe('filterUIMessageStream', () => {
           START_CHUNK,
           ...TEXT_CHUNKS,
           ...REASONING_CHUNKS,
-          ...TOOL_CHUNKS,
+          ...TOOL_SERVER_CHUNKS,
           ...DYNAMIC_TOOL_CHUNKS,
           ...SOURCE_CHUNKS,
           ...FILE_CHUNKS,
@@ -296,7 +296,7 @@ describe('filterUIMessageStream', () => {
           START_CHUNK,
           ...TEXT_CHUNKS,
           ...REASONING_CHUNKS,
-          ...TOOL_CHUNKS,
+          ...TOOL_SERVER_CHUNKS,
           ...DYNAMIC_TOOL_CHUNKS,
           ...SOURCE_CHUNKS,
           ...FILE_CHUNKS,

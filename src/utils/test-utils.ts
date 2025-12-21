@@ -76,7 +76,8 @@ export const REASONING_CHUNKS: MyUIMessageChunk[] = [
   { type: 'finish-step' },
 ];
 
-export const TOOL_CHUNKS: MyUIMessageChunk[] = [
+// Tool chunks with output (server-side tool with execute function)
+export const TOOL_SERVER_CHUNKS: MyUIMessageChunk[] = [
   { type: 'start-step' },
   {
     type: 'tool-input-start',
@@ -98,6 +99,23 @@ export const TOOL_CHUNKS: MyUIMessageChunk[] = [
     type: 'tool-output-available',
     toolCallId: '3',
     output: { temperature: 65 },
+  },
+  { type: 'finish-step' },
+];
+
+// Tool chunks without output (client-side tool without execute function)
+export const TOOL_CLIENT_CHUNKS: MyUIMessageChunk[] = [
+  { type: 'start-step' },
+  {
+    type: 'tool-input-start',
+    toolCallId: '6',
+    toolName: 'weather',
+  },
+  {
+    type: 'tool-input-available',
+    toolCallId: '6',
+    toolName: 'weather',
+    input: { location: 'NYC' },
   },
   { type: 'finish-step' },
 ];

@@ -7,7 +7,6 @@ import { serializePartToChunks } from './utils/serialize-part-to-chunks.js';
 import {
   asArray,
   isMetaChunk,
-  isPartComplete,
   isStepEndChunk,
   isStepStartChunk,
 } from './utils/stream-utils.js';
@@ -176,15 +175,32 @@ export function flatMapUIMessageStream<
       ? [args[0], undefined, args[1]]
       : [args[0], args[1], args[2]];
 
-  // State for tracking parts
+  /**
+   * Mode for processing the current part.
+   * - 'buffering': predicate matched, collecting chunks to transform later
+   * - 'streaming': predicate didn't match, passing chunks through immediately
+   */
+  type PartMode = 'buffering' | 'streaming';
+
+  /** Tracks the number of parts seen so far. Used to detect when a new part starts. */
   let lastPartCount = 0;
-  let isBufferingCurrentPart = false;
-  let isStreamingCurrentPart = false;
+
+  /** Current processing mode for the active part. Undefined when no part is being processed. */
+  let currentMode: PartMode | undefined;
+
+  /** Chunks collected while buffering a part. Passed to serializePartToChunks for re-serialization. */
   let bufferedChunks: InferUIMessageChunk<UI_MESSAGE>[] = [];
+
+  /** The part currently being buffered. Needed to flush on step end when message is unavailable. */
+  let lastBufferedPart: InferUIMessagePart<UI_MESSAGE> | undefined;
+
+  /** All completed parts. Passed to flatMapFn as context.parts. */
   const allParts: InferUIMessagePart<UI_MESSAGE>[] = [];
 
-  // State for step boundary handling
+  /** Buffered start-step chunk. Only emitted if content follows (prevents orphan step boundaries). */
   let bufferedStartStep: InferUIMessageChunk<UI_MESSAGE> | undefined;
+
+  /** Tracks if start-step was emitted, so we know to emit the matching finish-step. */
   let stepStartEmitted = false;
 
   /**
@@ -193,6 +209,8 @@ export function flatMapUIMessageStream<
   async function* emitChunks(
     chunks: InferUIMessageChunk<UI_MESSAGE>[],
   ): AsyncGenerator<InferUIMessageChunk<UI_MESSAGE>> {
+    // Emit the buffered start-step before any content.
+    // This ensures start-step is only emitted when content actually follows.
     if (bufferedStartStep) {
       yield bufferedStartStep;
       stepStartEmitted = true;
@@ -211,7 +229,7 @@ export function flatMapUIMessageStream<
   async function* flushBufferedPart(
     completedPart: InferUIMessagePart<UI_MESSAGE>,
   ): AsyncGenerator<InferUIMessageChunk<UI_MESSAGE>> {
-    isBufferingCurrentPart = false;
+    currentMode = undefined;
     allParts.push(completedPart);
 
     const result = flatMapFn(
@@ -227,6 +245,7 @@ export function flatMapUIMessageStream<
     }
 
     bufferedChunks = [];
+    lastBufferedPart = undefined;
   }
 
   /**
@@ -239,77 +258,88 @@ export function flatMapUIMessageStream<
       chunk,
       message,
     } of createUIMessageStreamReader<UI_MESSAGE>(inputStream)) {
-      // Handle meta chunks - pass through immediately
+      // Meta chunks (start, finish, abort, error, message-metadata) always pass through unchanged.
       if (isMetaChunk(chunk)) {
         yield chunk;
         continue;
       }
 
-      // Handle step boundaries specially
+      // Buffer start-step instead of emitting immediately.
+      // It will only be emitted when content follows (via emitChunks).
       if (isStepStartChunk(chunk)) {
         bufferedStartStep = chunk;
         continue;
       }
 
+      // Step is ending. Flush any pending buffered part and emit finish-step if start-step was emitted.
       if (isStepEndChunk(chunk)) {
+        // Part was still being buffered (e.g., tool without execute function). Flush it now.
+        if (currentMode === 'buffering' && lastBufferedPart) {
+          yield* flushBufferedPart(lastBufferedPart);
+        }
+
+        // Only emit finish-step if we emitted the corresponding start-step.
         if (stepStartEmitted) {
           yield chunk;
           stepStartEmitted = false;
         }
         bufferedStartStep = undefined;
+        currentMode = undefined;
         continue;
       }
 
-      // Content chunks - message should always be defined here
+      // Content chunks should always have a message from readUIMessageStream.
+      // If not, the stream reader behavior has changed unexpectedly.
       if (!message) {
-        break;
+        throw new Error(
+          'Unexpected: received content chunk but message is undefined',
+        );
       }
 
-      // Get the current part (last part)
-      const currentPart = message.parts[message.parts.length - 1]!;
+      // Content chunks should always have a corresponding part in the message.
+      // If not, the AI SDK behavior has changed unexpectedly.
+      const currentPart = message.parts[message.parts.length - 1];
+      if (!currentPart) {
+        throw new Error(
+          'Unexpected: received content chunk but message has no parts',
+        );
+      }
 
-      // Detect new part (part count increased)
+      // New part started (part count increased). Previous part is now complete.
       if (message.parts.length > lastPartCount) {
-        // Check predicate on the part from AI SDK
+        // Previous part was buffered. Flush it before starting the new one.
+        if (currentMode === 'buffering' && lastBufferedPart) {
+          yield* flushBufferedPart(lastBufferedPart);
+        }
+        // Previous part was streamed. Add it to allParts for context tracking.
+        if (currentMode === 'streaming' && lastPartCount > 0) {
+          const previousPart = message.parts[lastPartCount - 1];
+          if (previousPart) {
+            allParts.push(previousPart);
+          }
+        }
+
         const shouldBuffer = !predicate || predicate(currentPart);
 
+        // Predicate matched (or no predicate). Buffer this part for transformation.
         if (shouldBuffer) {
-          isBufferingCurrentPart = true;
-          isStreamingCurrentPart = false;
+          currentMode = 'buffering';
           bufferedChunks = [chunk];
-
-          // Single-chunk parts are complete immediately
-          if (isPartComplete(currentPart)) {
-            yield* flushBufferedPart(currentPart);
-          }
+          lastBufferedPart = currentPart;
+          // Predicate didn't match. Stream this part through immediately.
         } else {
-          isBufferingCurrentPart = false;
-          isStreamingCurrentPart = true;
+          currentMode = 'streaming';
           yield* emitChunks([chunk]);
-
-          // Single-chunk parts complete immediately
-          if (isPartComplete(currentPart)) {
-            isStreamingCurrentPart = false;
-            allParts.push(currentPart); // Track for context
-          }
         }
 
         lastPartCount = message.parts.length;
-      } else if (isBufferingCurrentPart) {
-        // Continue buffering current part
+        // Same part, still buffering. Add chunk to buffer and update lastBufferedPart.
+      } else if (currentMode === 'buffering') {
         bufferedChunks.push(chunk);
-
-        if (isPartComplete(currentPart)) {
-          yield* flushBufferedPart(currentPart);
-        }
-      } else if (isStreamingCurrentPart) {
-        // Continue streaming current part
+        lastBufferedPart = currentPart;
+        // Same part, still streaming. Pass chunk through immediately.
+      } else if (currentMode === 'streaming') {
         yield* emitChunks([chunk]);
-
-        if (isPartComplete(currentPart)) {
-          isStreamingCurrentPart = false;
-          allParts.push(currentPart);
-        }
       }
     }
   }

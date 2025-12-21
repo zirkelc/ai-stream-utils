@@ -11,7 +11,7 @@ import {
   REASONING_CHUNKS,
   START_CHUNK,
   TEXT_CHUNKS,
-  TOOL_CHUNKS,
+  TOOL_SERVER_CHUNKS,
 } from './test-utils.js';
 
 describe('createUIMessageStreamReader', () => {
@@ -164,7 +164,7 @@ describe('createUIMessageStreamReader', () => {
   it('should provide correct part type for tool chunks', async () => {
     const stream = convertArrayToReadableStream([
       START_CHUNK,
-      ...TOOL_CHUNKS,
+      ...TOOL_SERVER_CHUNKS,
       FINISH_CHUNK,
     ]);
 

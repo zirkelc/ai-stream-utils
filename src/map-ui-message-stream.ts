@@ -105,8 +105,10 @@ export function mapUIMessageStream<UI_MESSAGE extends UIMessage>(
   stream: ReadableStream<InferUIMessageChunk<UI_MESSAGE>>,
   mapFn: MapUIMessageStreamFn<UI_MESSAGE>,
 ): AsyncIterableStream<InferUIMessageChunk<UI_MESSAGE>> {
-  // State for step boundary handling
+  /** Buffered start-step chunk. Only emitted if content follows (prevents orphan step boundaries). */
   let bufferedStartStep: InferUIMessageChunk<UI_MESSAGE> | undefined;
+
+  /** Tracks if start-step was emitted, so we know to emit the matching finish-step. */
   let stepStartEmitted = false;
 
   /**
@@ -115,6 +117,8 @@ export function mapUIMessageStream<UI_MESSAGE extends UIMessage>(
   async function* emitChunks(
     chunks: InferUIMessageChunk<UI_MESSAGE>[],
   ): AsyncGenerator<InferUIMessageChunk<UI_MESSAGE>> {
+    // Emit the buffered start-step before any content.
+    // This ensures start-step is only emitted when content actually follows.
     if (bufferedStartStep) {
       yield bufferedStartStep;
       stepStartEmitted = true;
@@ -135,18 +139,20 @@ export function mapUIMessageStream<UI_MESSAGE extends UIMessage>(
       chunk,
       message,
     } of createUIMessageStreamReader<UI_MESSAGE>(stream)) {
-      // Meta chunks pass through immediately
+      // Meta chunks (start, finish, abort, error, message-metadata) always pass through unchanged.
       if (isMetaChunk(chunk)) {
         yield chunk;
         continue;
       }
 
-      // Step boundaries - special handling
+      // Buffer start-step instead of emitting immediately.
+      // It will only be emitted when content follows (via emitChunks).
       if (isStepStartChunk(chunk)) {
         bufferedStartStep = chunk;
         continue;
       }
 
+      // Step is ending. Only emit finish-step if we emitted the corresponding start-step.
       if (isStepEndChunk(chunk)) {
         if (stepStartEmitted) {
           yield chunk;
@@ -156,24 +162,32 @@ export function mapUIMessageStream<UI_MESSAGE extends UIMessage>(
         continue;
       }
 
-      // Content chunks - message should always be defined here
+      // Content chunks should always have a message from readUIMessageStream.
+      // If not, the stream reader behavior has changed unexpectedly.
       if (!message) {
-        break;
+        throw new Error(
+          'Unexpected: received content chunk but message is undefined',
+        );
       }
 
-      // Get the current part from AI SDK (last part)
-      const currentPart = message.parts[message.parts.length - 1]!;
+      // Content chunks should always have a corresponding part in the message.
+      // If not, the AI SDK behavior has changed unexpectedly.
+      const currentPart = message.parts[message.parts.length - 1];
+      if (!currentPart) {
+        throw new Error(
+          'Unexpected: received content chunk but message has no parts',
+        );
+      }
 
-      // Apply map function
+      // Apply the user's mapFn with the chunk and current part.
       const result = mapFn({
         chunk,
         part: currentPart,
       });
 
-      // Normalize result to array
       const chunks = asArray(result);
 
-      // If result has chunks, emit with step handling
+      // If mapFn returned chunks, emit them (with step boundary handling).
       if (chunks.length > 0) {
         yield* emitChunks(chunks);
       }
