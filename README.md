@@ -30,193 +30,54 @@ npm install ai-stream-utils
 
 ## Overview
 
-| Function | Object | Use Case |
-|----------|-------------|----------|
-| [`mapUIMessageStream`](#mapuimessagestream) | [UIMessageChunk](https://github.com/vercel/ai/blob/main/packages/ai/src/ui-message-stream/ui-message-chunks.ts) | Transform chunks while streaming to the client |
-| [`flatMapUIMessageStream`](#flatmapuimessagestream) | [UIMessagePart](https://ai-sdk.dev/docs/reference/ai-sdk-core/ui-message#uimessagepart-types) | Buffer chunks until a part is complete, then transform the part |
-| [`filterUIMessageStream`](#filteruimessagestream) | [UIMessageChunk](https://github.com/vercel/ai/blob/main/packages/ai/src/ui-message-stream/ui-message-chunks.ts) | Filter chunks while streaming to the client |
+| Function | Input | Returns | Use Case |
+|----------|-------------|---------|----------|
+| [`mapUIMessageStream`](#mapuimessagestream) | [UIMessageChunk](https://github.com/vercel/ai/blob/main/packages/ai/src/ui-message-stream/ui-message-chunks.ts) | `chunk \| chunk[] \| null` | Transform or filter chunks in real-time (e.g., smooth streaming) |
+| [`flatMapUIMessageStream`](#flatmapuimessagestream) | [UIMessagePart](https://ai-sdk.dev/docs/reference/ai-sdk-core/ui-message#uimessagepart-types) | `part \| part[] \| null` | Buffer until complete, then transform (e.g., redact tool output) |
+| [`filterUIMessageStream`](#filteruimessagestream) | [UIMessageChunk](https://github.com/vercel/ai/blob/main/packages/ai/src/ui-message-stream/ui-message-chunks.ts) | `boolean` | Include/exclude parts by type (e.g., hide reasoning) |
 
 ## Usage
 
 ### `mapUIMessageStream`
 
-Transform or filter individual chunks as they stream through. The map function receives the chunk and the current partial part. The part represents a different state of the same UI message as it is being completed.
-
-The map function can return:
-- A single chunk to include it
-- An array of chunks to emit multiple chunks
-- An empty array or `null` to filter out the chunk
+The `mapUIMessageStream` function operates on chunks and can be used to transform or filter individual chunks as they stream through. It receives the current chunk and the partial part representing all already processed chunks.
 
 ```typescript
 import { mapUIMessageStream } from 'ai-stream-utils';
-import { streamText } from 'ai';
 
-const tools = {
-  weather: tool({
-    description: 'Get the weather in a location',
-    inputSchema: z.object({
-      location: z.string().describe('The location to get the weather for'),
-    }),
-    execute: ({ location }) => ({
-      location,
-      temperature: 72 + Math.floor(Math.random() * 21) - 10,
-      unit: "C",
-    }),
-  }),
-};
-
-const result = streamText({
-  model,
-  prompt: 'What is the weather in Tokyo?',
-  tools,
-});
-
-// Filter out tool-call chunks by part type
 const stream = mapUIMessageStream(
   result.toUIMessageStream<MyUIMessage>(),
   ({ chunk, part }) => {
-    if (part.type === "tool-weather") {
-      return null;
-    }
-    return chunk;
-  }
-);
-
-// Transform text chunks to uppercase
-const stream = mapUIMessageStream(
-  result.toUIMessageStream<MyUIMessage>(),
-  ({ chunk, part }) => {
+    // Transform: modify the chunk
     if (chunk.type === 'text-delta') {
       return { ...chunk, delta: chunk.delta.toUpperCase() };
     }
+    // Filter: return null to exclude chunks
+    if (part.type === 'tool-weather') {
+      return null;
+    }
     return chunk;
-  }
-);
-
-// Smooth streaming: buffer text deltas and re-emit as word chunks
-const WORD_REGEX = /\S+\s+/m; // Matches word + trailing whitespace
-
-let buffer = '';
-let currentId = '';
-
-const stream = mapUIMessageStream(
-  result.toUIMessageStream<MyUIMessage>(),
-  ({ chunk }) => {
-    // Non-text-delta: flush buffer, pass through
-    if (chunk.type !== 'text-delta') {
-      if (buffer.length > 0) {
-        const flushed = { type: 'text-delta' as const, id: currentId, delta: buffer };
-        buffer = '';
-        return [flushed, chunk];
-      }
-      return chunk;
-    }
-
-    // Handle id change: flush old buffer first
-    if (chunk.id !== currentId && buffer.length > 0) {
-      const flushed = { type: 'text-delta' as const, id: currentId, delta: buffer };
-      buffer = chunk.delta;
-      currentId = chunk.id;
-      return [flushed];
-    }
-
-    // Accumulate text into buffer
-    buffer += chunk.delta;
-    currentId = chunk.id;
-
-    // Extract word chunks matching the regex
-    const chunks: UIMessageChunk[] = [];
-    let match: RegExpExecArray | null;
-    while ((match = WORD_REGEX.exec(buffer)) !== null) {
-      const text = buffer.slice(0, match.index) + match[0];
-      chunks.push({ type: 'text-delta', id: currentId, delta: text });
-      buffer = buffer.slice(text.length);
-    }
-
-    return chunks; // Empty array suppresses original chunk
   }
 );
 ```
 
 ### `flatMapUIMessageStream`
 
-Buffer all chunks for a part until it's complete, then transform the complete part. This is useful when you need access to the full part content before deciding how to transform it.
-
-When a predicate is provided (e.g., `partTypeIs('text')`), only matching parts are buffered for transformation. Non-matching parts stream through immediately without buffering, preserving real-time streaming behavior.
-
-The flatMap function can return:
-- A single part (possibly transformed) to include it
-- An array of parts to emit multiple parts
-- An empty array or `null` to filter out the part
+The `flatMapUIMessageStream` function operates on parts. It buffers all chunks of a particular type (e.g. text parts) until the part is complete and then transforms or filters the complete part. The optional predicate `partTypeIs()` can be used to selectively buffer only specific parts while streaming others through immediately.
 
 ```typescript
 import { flatMapUIMessageStream, partTypeIs } from 'ai-stream-utils';
 
-// Filter out reasoning parts
 const stream = flatMapUIMessageStream(
   result.toUIMessageStream<MyUIMessage>(),
-  ({ part }) => part.type === 'reasoning' ? null : part
-);
-
-// Transform text content
-const stream = flatMapUIMessageStream(
-  result.toUIMessageStream<MyUIMessage>(),
+  // Predicate to only buffer tool-weather parts and pass through other parts
+  partTypeIs('tool-weather'),
   ({ part }) => {
-    if (part.type === 'text') {
-      return { ...part, text: part.text.toUpperCase() };
+    // Transform: modify the complete part
+    if (part.state === 'output-available') {
+      return { ...part, output: { ...part.output, temperature: toFahrenheit(part.output.temperature) } };
     }
-    return part;
-  }
-);
-
-// Transform one part into multiple parts
-const stream = flatMapUIMessageStream(
-  result.toUIMessageStream<MyUIMessage>(),
-  ({ part }) => {
-    if (part.type === 'text') {
-      return [
-        { type: 'text', text: 'Prefix: ' },
-        part,
-      ];
-    }
-    return part;
-  }
-);
-
-// Transform a part into a different part type
-const stream = flatMapUIMessageStream(
-  result.toUIMessageStream<MyUIMessage>(),
-  ({ part }) => {
-    if (part.type === 'text') {
-      // Transform text into reasoning + text
-      return [
-        { type: 'reasoning', text: 'Thinking about: ' + part.text },
-        part,
-      ];
-    }
-    return part;
-  }
-);
-
-// Buffer only specific parts, pass through others immediately
-const stream = flatMapUIMessageStream(
-  result.toUIMessageStream<MyUIMessage>(),
-  partTypeIs('text'),
-  ({ part }) => ({ ...part, text: part.text.toUpperCase() })
-);
-
-// Buffer multiple part types
-const stream = flatMapUIMessageStream(
-  result.toUIMessageStream<MyUIMessage>(),
-  partTypeIs(['text', 'reasoning']),
-  ({ part }) => part // part is typed as TextUIPart | ReasoningUIPart
-);
-
-// Access part history
-const stream = flatMapUIMessageStream(
-  result.toUIMessageStream<MyUIMessage>(),
-  ({ part }, { index, parts }) => {
-    console.log(`Part ${index}, previous parts:`, parts.slice(0, -1));
+    // Filter: return null to exclude parts
     return part;
   }
 );
@@ -224,7 +85,7 @@ const stream = flatMapUIMessageStream(
 
 ### `filterUIMessageStream`
 
-Filter individual chunks as they stream through. This is a convenience wrapper around `mapUIMessageStream` that provides a simpler API for filtering chunks by part type. Use the `includeParts()` and `excludeParts()` helper functions for common patterns, or provide a custom filter function.
+The `filterUIMessageStream` function is a convenience function around `mapUIMessageStream` with a simpler API to filter chunks by part type. It provides the  `includeParts()` and `excludeParts()` predicates for common patterns.
 
 ```typescript
 import { filterUIMessageStream, includeParts, excludeParts } from 'ai-stream-utils';
@@ -245,13 +106,208 @@ const stream = filterUIMessageStream(
 const stream = filterUIMessageStream(
   result.toUIMessageStream<MyUIMessage>(),
   ({ part, chunk }) => {
-    // Include text parts
     if (part.type === 'text') return true;
-    // Include specific chunk types
     if (chunk.type === 'tool-input-available') return true;
     return false;
   }
 );
+```
+
+## Examples
+
+### Smooth Streaming
+
+Buffers multiple text chunks into a string, splits at word boundaries and re-emits each word as a separate chunk for smoother UI rendering. See [examples/smooth-streaming.ts](./examples/smooth-streaming.ts) for the full implementation.
+
+```typescript
+import { mapUIMessageStream } from 'ai-stream-utils';
+
+const WORD_REGEX = /\S+\s+/m;
+let buffer = '';
+
+const smoothedStream = mapUIMessageStream(
+  result.toUIMessageStream(),
+  ({ chunk }) => {
+    if (chunk.type !== 'text-delta') {
+      // Flush buffer on non-text chunks
+      if (buffer.length > 0) {
+        const flushed = { type: 'text-delta' as const, id: chunk.id, delta: buffer };
+        buffer = '';
+        return [flushed, chunk];
+      }
+      return chunk;
+    }
+
+    // Append the text delta to the buffer
+    buffer += chunk.delta;
+    const chunks = [];
+    
+    let match;
+    while ((match = WORD_REGEX.exec(buffer)) !== null) {
+      chunks.push({ type: 'text-delta', id: chunk.id, delta: buffer.slice(0, match.index + match[0].length) });
+      buffer = buffer.slice(match.index + match[0].length);
+    }
+    // Emit the word-by-word chunks
+    return chunks;
+  }
+);
+
+// Output: word-by-word streaming
+// { type: 'text-delta', delta: 'Why ' }
+// { type: 'text-delta', delta: "don't " }
+// { type: 'text-delta', delta: 'scientists ' }
+```
+
+### Redacting Sensitive Data
+
+Buffer tool calls until complete, then redact sensitive fields before streaming to the client. See [examples/order-lookup.ts](./examples/order-lookup.ts) for the full example.
+
+```typescript
+import { flatMapUIMessageStream, partTypeIs } from 'ai-stream-utils';
+
+const tools = {
+  lookupOrder: tool({
+    description: 'Look up order details by order ID',
+    inputSchema: z.object({
+      orderId: z.string().describe('The order ID to look up'),
+    }),
+    execute: ({ orderId }) => ({
+      orderId,
+      status: 'shipped',
+      items: ['iPhone 15'],
+      total: 1299.99,
+      email: 'customer@example.com',        // Sensitive
+      address: '123 Main St, SF, CA 94102', // Sensitive
+    }),
+  }),
+};
+
+const result = streamText({
+  model: openai('gpt-4o'),
+  prompt: 'Where is my order #12345?',
+  tools,
+});
+
+// Buffer tool-lookupOrder parts, stream text parts immediately
+const redactedStream = flatMapUIMessageStream(
+  result.toUIMessageStream<MyUIMessage>(),
+  partTypeIs('tool-lookupOrder'),
+  ({ part }) => {
+    if (part.state === 'output-available') {
+      return {
+        ...part,
+        output: {
+          ...part.output,
+          email: '[REDACTED]',
+          address: '[REDACTED]',
+        },
+      };
+    }
+    return part;
+  },
+);
+
+// Text streams immediately, tool output is redacted:
+// { type: 'text-delta', delta: 'Let me look that up...' }
+// { type: 'tool-output-available', output: { orderId: '12345', email: '[REDACTED]', address: '[REDACTED]' } }
+```
+
+### Conditional Part Injection
+
+Inspect previously streamed parts to conditionally inject new parts. This example creates a text part from a tool call message if the model didn't generate one. See [examples/ask-permission.ts](./examples/ask-permission.ts) for the full example.
+
+```typescript
+import { flatMapUIMessageStream, partTypeIs } from 'ai-stream-utils';
+
+const tools = {
+  askForPermission: tool({
+    description: 'Ask for permission to access current location',
+    inputSchema: z.object({
+      message: z.string().describe('The message to ask for permission'),
+    }),
+  }),
+};
+
+const result = streamText({
+  model: openai('gpt-4o'),
+  prompt: 'Is it sunny today?',
+  tools,
+});
+
+// Buffer askForPermission tool calls, check if text was already generated
+const stream = flatMapUIMessageStream(
+  result.toUIMessageStream<MyUIMessage>(),
+  partTypeIs('tool-askForPermission'),
+  (current, context) => {
+    if (current.part.state === 'input-available') {
+      // Check if a text part was already streamed
+      const hasTextPart = context.parts.some((p) => p.type === 'text');
+      
+      if (!hasTextPart) {
+        // Inject a text part from the tool call message
+        return [
+          { type: 'text', text: current.part.input.message },
+          current.part,
+        ];
+      }
+    }
+    return current.part;
+  },
+);
+
+// If model only generated tool call, we inject the text:
+// { type: 'text', text: 'May I access your location?' }
+// { type: 'tool-askForPermission', input: { message: 'May I access your location?' } }
+```
+
+### Transform Tool Output
+
+Transform tool outputs on-the-fly, such as converting temperature units. See [examples/weather.ts](./examples/weather.ts) for the full example.
+
+```typescript
+import { flatMapUIMessageStream, partTypeIs } from 'ai-stream-utils';
+
+const toFahrenheit = (celsius: number) => (celsius * 9) / 5 + 32;
+
+const tools = {
+  weather: tool({
+    description: 'Get the weather in a location',
+    inputSchema: z.object({ location: z.string() }),
+    execute: ({ location }) => ({
+      location,
+      temperature: 22, // Celsius from API
+      unit: 'C',
+    }),
+  }),
+};
+
+const result = streamText({
+  model: openai('gpt-4o'),
+  prompt: 'What is the weather in Tokyo?',
+  tools,
+});
+
+// Convert Celsius to Fahrenheit before streaming to client
+const stream = flatMapUIMessageStream(
+  result.toUIMessageStream<MyUIMessage>(),
+  partTypeIs('tool-weather'),
+  ({ part }) => {
+    if (part.state === 'output-available') {
+      return {
+        ...part,
+        output: {
+          ...part.output,
+          temperature: toFahrenheit(part.output.temperature),
+          unit: 'F',
+        },
+      };
+    }
+    return part;
+  },
+);
+
+// Output is converted:
+// { type: 'tool-output-available', output: { location: 'Tokyo', temperature: 71.6, unit: 'F' } }
 ```
 
 ## Type Safety
