@@ -1,18 +1,49 @@
 import type {
-  FileUIPart,
   InferUIMessageChunk,
-  ReasoningUIPart,
   SourceDocumentUIPart,
   SourceUrlUIPart,
-  TextUIPart,
+  StepStartUIPart,
+  UIDataTypes,
   UIMessage,
+  UIMessagePart,
+  UITools,
 } from 'ai';
 import {
   getToolOrDynamicToolName,
   isDataUIPart,
+  isFileUIPart,
+  isReasoningUIPart,
+  isTextUIPart,
   isToolOrDynamicToolUIPart,
 } from 'ai';
 import type { InferUIMessagePart } from '../types.js';
+
+/**
+ * Type guard to check if a message part is a source-url part.
+ */
+function isSourceUrlUIPart(
+  part: UIMessagePart<UIDataTypes, UITools>,
+): part is SourceUrlUIPart {
+  return part.type === 'source-url';
+}
+
+/**
+ * Type guard to check if a message part is a source-document part.
+ */
+function isSourceDocumentUIPart(
+  part: UIMessagePart<UIDataTypes, UITools>,
+): part is SourceDocumentUIPart {
+  return part.type === 'source-document';
+}
+
+/**
+ * Type guard to check if a message part is a step-start part.
+ */
+function isStepStartUIPart(
+  part: UIMessagePart<UIDataTypes, UITools>,
+): part is StepStartUIPart {
+  return part.type === 'step-start';
+}
 
 /**
  * Extracts the part ID from a list of chunks belonging to the same part.
@@ -41,41 +72,43 @@ export function serializePartToChunks<UI_MESSAGE extends UIMessage>(
   part: InferUIMessagePart<UI_MESSAGE>,
   originalChunks: InferUIMessageChunk<UI_MESSAGE>[],
 ): InferUIMessageChunk<UI_MESSAGE>[] {
-  if (part.type === 'file') {
-    const filePart = part as FileUIPart;
+  // Handle step-start parts (v6+)
+  if (isStepStartUIPart(part)) {
+    return originalChunks;
+  }
+
+  if (isFileUIPart(part)) {
     return [
       {
         type: 'file',
-        mediaType: filePart.mediaType,
-        url: filePart.url,
-        providerMetadata: filePart.providerMetadata,
+        mediaType: part.mediaType,
+        url: part.url,
+        providerMetadata: part.providerMetadata,
       } as InferUIMessageChunk<UI_MESSAGE>,
     ];
   }
 
-  if (part.type === 'source-url') {
-    const sourceUrlPart = part as SourceUrlUIPart;
+  if (isSourceUrlUIPart(part)) {
     return [
       {
         type: 'source-url',
-        sourceId: sourceUrlPart.sourceId,
-        url: sourceUrlPart.url,
-        title: sourceUrlPart.title,
-        providerMetadata: sourceUrlPart.providerMetadata,
+        sourceId: part.sourceId,
+        url: part.url,
+        title: part.title,
+        providerMetadata: part.providerMetadata,
       } as InferUIMessageChunk<UI_MESSAGE>,
     ];
   }
 
-  if (part.type === 'source-document') {
-    const sourceDocumentPart = part as SourceDocumentUIPart;
+  if (isSourceDocumentUIPart(part)) {
     return [
       {
         type: 'source-document',
-        sourceId: sourceDocumentPart.sourceId,
-        mediaType: sourceDocumentPart.mediaType,
-        title: sourceDocumentPart.title,
-        filename: sourceDocumentPart.filename,
-        providerMetadata: sourceDocumentPart.providerMetadata,
+        sourceId: part.sourceId,
+        mediaType: part.mediaType,
+        title: part.title,
+        filename: part.filename,
+        providerMetadata: part.providerMetadata,
       } as InferUIMessageChunk<UI_MESSAGE>,
     ];
   }
@@ -88,34 +121,32 @@ export function serializePartToChunks<UI_MESSAGE extends UIMessage>(
 
   const id = getPartId(originalChunks);
 
-  if (part.type === 'text') {
-    const textPart = part as TextUIPart;
+  if (isTextUIPart(part)) {
     return [
-      { type: 'text-start', id, providerMetadata: textPart.providerMetadata },
-      { type: 'text-delta', id, delta: textPart.text },
-      { type: 'text-end', id, providerMetadata: textPart.providerMetadata },
+      { type: 'text-start', id, providerMetadata: part.providerMetadata },
+      { type: 'text-delta', id, delta: part.text },
+      { type: 'text-end', id, providerMetadata: part.providerMetadata },
     ] as InferUIMessageChunk<UI_MESSAGE>[];
   }
 
-  if (part.type === 'reasoning') {
-    const reasoningPart = part as ReasoningUIPart;
+  if (isReasoningUIPart(part)) {
     return [
       {
         type: 'reasoning-start',
         id,
-        providerMetadata: reasoningPart.providerMetadata,
+        providerMetadata: part.providerMetadata,
       },
-      { type: 'reasoning-delta', id, delta: reasoningPart.text },
+      { type: 'reasoning-delta', id, delta: part.text },
       {
         type: 'reasoning-end',
         id,
-        providerMetadata: reasoningPart.providerMetadata,
+        providerMetadata: part.providerMetadata,
       },
     ] as InferUIMessageChunk<UI_MESSAGE>[];
   }
 
   if (isToolOrDynamicToolUIPart(part)) {
-    const dynamic = part.type === 'dynamic-tool';
+    const dynamic = (part.type as string) === 'dynamic-tool';
 
     const chunks: InferUIMessageChunk<UI_MESSAGE>[] = [
       {
