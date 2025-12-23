@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.1](https://github.com/zirkelc/ai-stream-utils/compare/v1.3.0...v1.3.1) (2025-12-23)
+
+
+### Bug Fixes
+
+* add support for AI SDK v6 ([5e67112](https://github.com/zirkelc/ai-stream-utils/commit/5e67112c81ab941058331ff71818e4e277327c7d))
+
 ## [1.3.0](https://github.com/zirkelc/ai-stream-utils/compare/v1.2.0...v1.3.0) (2025-12-21)
 
 
