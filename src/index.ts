@@ -17,6 +17,10 @@ export {
   type MapUIMessageStreamFn,
   mapUIMessageStream,
 } from './map-ui-message-stream.js';
+export {
+  pipeUIMessageStream,
+  type UIMessageStreamPipeline,
+} from './pipe-ui-message-stream.js';
 export type {
   InferUIMessagePart,
   InferUIMessagePartType,
