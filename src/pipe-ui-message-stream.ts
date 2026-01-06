@@ -9,6 +9,7 @@ import {
 } from './map-ui-message-stream.js';
 import type {
   ExcludePart,
+  ExtractChunkForPart,
   ExtractPart,
   InferUIMessagePart,
   InferUIMessagePartType,
@@ -33,13 +34,13 @@ export type PartTypePredicate<
  * ============================================================================ */
 
 /**
- * Input for match pipeline operations (typed to specific part)
+ * Input for match pipeline operations (typed to specific part and chunk)
  */
 export type MatchPipelineInput<
   UI_MESSAGE extends UIMessage,
   PART extends InferUIMessagePart<UI_MESSAGE>,
 > = {
-  chunk: InferUIMessageChunk<UI_MESSAGE>;
+  chunk: ExtractChunkForPart<UI_MESSAGE, PART>;
   part: PART;
 };
 
@@ -190,13 +191,13 @@ export class MatchPipeline<
  * ============================================================================ */
 
 /**
- * Input for pipeline map operations with narrowed part type.
+ * Input for pipeline map operations with narrowed part and chunk types.
  */
 export type PipelineMapInput<
   UI_MESSAGE extends UIMessage,
   PART extends InferUIMessagePart<UI_MESSAGE>,
 > = {
-  chunk: InferUIMessageChunk<UI_MESSAGE>;
+  chunk: ExtractChunkForPart<UI_MESSAGE, PART>;
   part: PART;
 };
 

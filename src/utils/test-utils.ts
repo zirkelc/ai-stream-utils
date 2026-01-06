@@ -19,6 +19,51 @@ export type MyUIMessageChunk = InferUIMessageChunk<MyUIMessage>;
 
 export type MyUIMessagePart = InferUIMessagePart<MyUIMessage>;
 
+/* Part type aliases */
+export type TextPart = Extract<MyUIMessagePart, { type: 'text' }>;
+export type ReasoningPart = Extract<MyUIMessagePart, { type: 'reasoning' }>;
+export type ToolWeatherPart = Extract<
+  MyUIMessagePart,
+  { type: 'tool-weather' }
+>;
+export type DynamicToolPart = Extract<
+  MyUIMessagePart,
+  { type: 'dynamic-tool' }
+>;
+export type SourceUrlPart = Extract<MyUIMessagePart, { type: 'source-url' }>;
+export type SourceDocumentPart = Extract<
+  MyUIMessagePart,
+  { type: 'source-document' }
+>;
+export type DataWeatherPart = Extract<
+  MyUIMessagePart,
+  { type: 'data-weather' }
+>;
+export type FilePart = Extract<MyUIMessagePart, { type: 'file' }>;
+export type StepStartPart = Extract<MyUIMessagePart, { type: 'step-start' }>;
+
+/* Chunk type aliases */
+export type TextChunk = Extract<
+  MyUIMessageChunk,
+  { type: 'text-start' | 'text-delta' | 'text-end' }
+>;
+export type ReasoningChunk = Extract<
+  MyUIMessageChunk,
+  { type: 'reasoning-start' | 'reasoning-delta' | 'reasoning-end' }
+>;
+export type ToolChunk = Extract<MyUIMessageChunk, { type: `tool-${string}` }>;
+export type SourceUrlChunk = Extract<MyUIMessageChunk, { type: 'source-url' }>;
+export type SourceDocumentChunk = Extract<
+  MyUIMessageChunk,
+  { type: 'source-document' }
+>;
+export type DataWeatherChunk = Extract<
+  MyUIMessageChunk,
+  { type: 'data-weather' }
+>;
+export type FileChunk = Extract<MyUIMessageChunk, { type: 'file' }>;
+export type StartStepChunk = Extract<MyUIMessageChunk, { type: 'start-step' }>;
+
 const weatherTool = tool({
   description: 'Get the weather in a location',
   inputSchema: z.object({
