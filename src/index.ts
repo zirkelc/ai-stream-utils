@@ -1,5 +1,7 @@
 export {
   excludeParts,
+  type FilterPredicate,
+  /** @deprecated Use `FilterPredicate` instead */
   type FilterUIMessageStreamPredicate,
   filterUIMessageStream,
   includeParts,
@@ -18,12 +20,15 @@ export {
   mapUIMessageStream,
 } from './map-ui-message-stream.js';
 export {
+  isNotPartType,
+  isPartType,
   type MatchPipeline,
   type MatchPipelineFilterPredicate,
   type MatchPipelineInput,
   type MatchPipelineMapFn,
-  matchPartType,
   type PartTypePredicate,
+  type PipelineMapFn,
+  type PipelineMapInput,
   pipeUIMessageStream,
   type UIMessageStreamPipeline,
 } from './pipe-ui-message-stream.js';

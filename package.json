@@ -18,6 +18,7 @@
     "prepublishOnly": "pnpm build",
     "build": "tsdown",
     "test": "vitest",
+    "benchmark": "pnpm vitest bench --run",
     "lint": "biome check . --write",
     "prepare": "husky"
   },
