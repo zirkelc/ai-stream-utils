@@ -4,14 +4,17 @@ import {
 } from '@ai-sdk/provider-utils/test';
 import { describe, expect, it } from 'vitest';
 import { excludeParts, includeParts } from './filter-ui-message-stream.js';
-import { partTypeIs } from './flat-map-ui-message-stream.js';
-import { pipeUIMessageStream } from './pipe-ui-message-stream.js';
+import {
+  matchPartType,
+  pipeUIMessageStream,
+} from './pipe-ui-message-stream.js';
 import {
   FINISH_CHUNK,
   type MyUIMessage,
   REASONING_CHUNKS,
   START_CHUNK,
   TEXT_CHUNKS,
+  TOOL_SERVER_CHUNKS,
 } from './utils/test-utils.js';
 
 describe(`pipeUIMessageStream`, () => {
@@ -80,70 +83,6 @@ describe(`pipeUIMessageStream`, () => {
       expect(textDeltas).toEqual([
         { type: `text-delta`, id: `1`, delta: `HELLO` },
         { type: `text-delta`, id: `1`, delta: ` WORLD` },
-      ]);
-    });
-
-    it(`should apply single flatMap operation`, async () => {
-      /* Arrange */
-      const stream = convertArrayToReadableStream([
-        START_CHUNK,
-        ...TEXT_CHUNKS,
-        ...REASONING_CHUNKS,
-        FINISH_CHUNK,
-      ]);
-
-      /* Act */
-      const result = await convertAsyncIterableToArray(
-        pipeUIMessageStream<MyUIMessage>(stream)
-          .flatMap(({ part }) => {
-            if (part.type === `reasoning`) return null;
-            return part;
-          })
-          .toStream(),
-      );
-
-      /* Assert */
-      /* flatMap buffers entire parts, so text deltas are combined */
-      expect(result.length).toBe(7);
-      expect(result[0]).toEqual(START_CHUNK);
-      expect(result[result.length - 1]).toEqual(FINISH_CHUNK);
-
-      const textDeltas = result.filter((c) => c.type === `text-delta`);
-      expect(textDeltas.length).toBe(1);
-      expect(textDeltas[0]).toMatchObject({
-        type: `text-delta`,
-        delta: `Hello World`,
-      });
-
-      /* Reasoning chunks should be filtered out */
-      const reasoningChunks = result.filter((c) =>
-        c.type.startsWith(`reasoning`),
-      );
-      expect(reasoningChunks.length).toBe(0);
-    });
-
-    it(`should apply flatMap with predicate`, async () => {
-      /* Arrange */
-      const stream = convertArrayToReadableStream([
-        START_CHUNK,
-        ...TEXT_CHUNKS,
-        FINISH_CHUNK,
-      ]);
-
-      /* Act */
-      const result = await convertAsyncIterableToArray(
-        pipeUIMessageStream<MyUIMessage>(stream)
-          .flatMap(partTypeIs(`text`), ({ part }) => ({
-            ...part,
-            text: part.text.toUpperCase(),
-          }))
-          .toStream(),
-      );
-
-      /* Assert */
-      const textDeltas = result.filter((c) => c.type === `text-delta`);
-      expect(textDeltas).toEqual([
-        { type: `text-delta`, id: `1`, delta: `HELLO WORLD` },
       ]);
     });
   });
@@ -229,8 +168,207 @@ describe(`pipeUIMessageStream`, () => {
         { type: `text-delta`, id: `1`, delta: ` WORLD` },
       ]);
     });
+  });
 
-    it(`should apply filter, map, and flatMap together`, async () => {
+  describe(`match operations`, () => {
+    it(`should apply match with map to specific part type`, async () => {
+      /* Arrange */
+      const stream = convertArrayToReadableStream([
+        START_CHUNK,
+        ...TEXT_CHUNKS,
+        ...REASONING_CHUNKS,
+        FINISH_CHUNK,
+      ]);
+
+      /* Act */
+      const result = await convertAsyncIterableToArray(
+        pipeUIMessageStream<MyUIMessage>(stream)
+          .match(matchPartType(`text`), (pipe) =>
+            pipe.map(({ chunk }) => {
+              if (chunk.type === `text-delta`) {
+                return { ...chunk, delta: chunk.delta.toUpperCase() };
+              }
+              return chunk;
+            }),
+          )
+          .toStream(),
+      );
+
+      /* Assert */
+      /* Text chunks should be transformed */
+      const textDeltas = result.filter((c) => c.type === `text-delta`);
+      expect(textDeltas).toEqual([
+        { type: `text-delta`, id: `1`, delta: `HELLO` },
+        { type: `text-delta`, id: `1`, delta: ` WORLD` },
+      ]);
+
+      /* Reasoning chunks should pass through unchanged */
+      const reasoningDeltas = result.filter(
+        (c) => c.type === `reasoning-delta`,
+      );
+      expect(reasoningDeltas).toEqual([
+        { type: `reasoning-delta`, id: `2`, delta: `Think` },
+        { type: `reasoning-delta`, id: `2`, delta: `ing...` },
+      ]);
+    });
+
+    it(`should apply match with filter to specific part type`, async () => {
+      /* Arrange */
+      const stream = convertArrayToReadableStream([
+        START_CHUNK,
+        ...TEXT_CHUNKS,
+        ...REASONING_CHUNKS,
+        FINISH_CHUNK,
+      ]);
+
+      /* Act */
+      const result = await convertAsyncIterableToArray(
+        pipeUIMessageStream<MyUIMessage>(stream)
+          .match(matchPartType(`text`), (pipe) =>
+            pipe.filter(({ chunk }) => chunk.type !== `text-start`),
+          )
+          .toStream(),
+      );
+
+      /* Assert */
+      /* text-start should be filtered out */
+      const textStarts = result.filter((c) => c.type === `text-start`);
+      expect(textStarts.length).toBe(0);
+
+      /* Other text chunks should remain */
+      const textDeltas = result.filter((c) => c.type === `text-delta`);
+      expect(textDeltas.length).toBe(2);
+
+      /* Reasoning chunks should pass through unchanged */
+      const reasoningStarts = result.filter(
+        (c) => c.type === `reasoning-start`,
+      );
+      expect(reasoningStarts.length).toBe(1);
+    });
+
+    it(`should chain filter and map within match`, async () => {
+      /* Arrange */
+      const stream = convertArrayToReadableStream([
+        START_CHUNK,
+        ...TEXT_CHUNKS,
+        ...REASONING_CHUNKS,
+        FINISH_CHUNK,
+      ]);
+
+      /* Act */
+      const result = await convertAsyncIterableToArray(
+        pipeUIMessageStream<MyUIMessage>(stream)
+          .match(matchPartType(`text`), (pipe) =>
+            pipe
+              .filter(({ chunk }) => chunk.type !== `text-end`)
+              .map(({ chunk }) => {
+                if (chunk.type === `text-delta`) {
+                  return { ...chunk, delta: chunk.delta.toUpperCase() };
+                }
+                return chunk;
+              }),
+          )
+          .toStream(),
+      );
+
+      /* Assert */
+      /* text-end should be filtered out, but text-start and text-delta remain */
+      const textEnds = result.filter((c) => c.type === `text-end`);
+      expect(textEnds.length).toBe(0);
+
+      const textDeltas = result.filter((c) => c.type === `text-delta`);
+      expect(textDeltas).toEqual([
+        { type: `text-delta`, id: `1`, delta: `HELLO` },
+        { type: `text-delta`, id: `1`, delta: ` WORLD` },
+      ]);
+
+      /* text-start should still be present */
+      const textStarts = result.filter((c) => c.type === `text-start`);
+      expect(textStarts.length).toBe(1);
+    });
+
+    it(`should apply multiple match operations for different part types`, async () => {
+      /* Arrange */
+      const stream = convertArrayToReadableStream([
+        START_CHUNK,
+        ...TEXT_CHUNKS,
+        ...REASONING_CHUNKS,
+        FINISH_CHUNK,
+      ]);
+
+      /* Act */
+      const result = await convertAsyncIterableToArray(
+        pipeUIMessageStream<MyUIMessage>(stream)
+          .match(matchPartType(`text`), (pipe) =>
+            pipe.map(({ chunk }) => {
+              if (chunk.type === `text-delta`) {
+                return { ...chunk, delta: `[TEXT] ${chunk.delta}` };
+              }
+              return chunk;
+            }),
+          )
+          .match(matchPartType(`reasoning`), (pipe) =>
+            pipe.map(({ chunk }) => {
+              if (chunk.type === `reasoning-delta`) {
+                return { ...chunk, delta: `[REASONING] ${chunk.delta}` };
+              }
+              return chunk;
+            }),
+          )
+          .toStream(),
+      );
+
+      /* Assert */
+      const textDeltas = result.filter((c) => c.type === `text-delta`);
+      expect(textDeltas).toEqual([
+        { type: `text-delta`, id: `1`, delta: `[TEXT] Hello` },
+        { type: `text-delta`, id: `1`, delta: `[TEXT]  World` },
+      ]);
+
+      const reasoningDeltas = result.filter(
+        (c) => c.type === `reasoning-delta`,
+      );
+      expect(reasoningDeltas).toEqual([
+        { type: `reasoning-delta`, id: `2`, delta: `[REASONING] Think` },
+        { type: `reasoning-delta`, id: `2`, delta: `[REASONING] ing...` },
+      ]);
+    });
+
+    it(`should match with array of part types`, async () => {
+      /* Arrange */
+      const stream = convertArrayToReadableStream([
+        START_CHUNK,
+        ...TEXT_CHUNKS,
+        ...REASONING_CHUNKS,
+        ...TOOL_SERVER_CHUNKS,
+        FINISH_CHUNK,
+      ]);
+
+      /* Act */
+      const result = await convertAsyncIterableToArray(
+        pipeUIMessageStream<MyUIMessage>(stream)
+          .match(matchPartType([`text`, `reasoning`]), (pipe) =>
+            pipe.filter(() => false),
+          )
+          .toStream(),
+      );
+
+      /* Assert */
+      /* Text and reasoning should be filtered out */
+      const textChunks = result.filter((c) => c.type.startsWith(`text`));
+      expect(textChunks.length).toBe(0);
+
+      const reasoningChunks = result.filter((c) =>
+        c.type.startsWith(`reasoning`),
+      );
+      expect(reasoningChunks.length).toBe(0);
+
+      /* Tool chunks should remain */
+      const toolChunks = result.filter((c) => c.type.startsWith(`tool`));
+      expect(toolChunks.length).toBe(4);
+    });
+
+    it(`should combine filter, map, and match`, async () => {
       /* Arrange */
       const stream = convertArrayToReadableStream([
         START_CHUNK,
@@ -243,27 +381,64 @@ describe(`pipeUIMessageStream`, () => {
       const result = await convertAsyncIterableToArray(
         pipeUIMessageStream<MyUIMessage>(stream)
           .filter(includeParts([`text`, `reasoning`]))
-          .map(({ chunk }) => {
-            if (chunk.type === `text-delta`) {
-              return { ...chunk, delta: chunk.delta.toUpperCase() };
-            }
-            return chunk;
-          })
-          .flatMap(({ part }) => {
-            if (part.type === `reasoning`) return null;
-            return part;
-          })
+          .match(matchPartType(`text`), (pipe) =>
+            pipe.map(({ chunk }) => {
+              if (chunk.type === `text-delta`) {
+                return { ...chunk, delta: chunk.delta.toUpperCase() };
+              }
+              return chunk;
+            }),
+          )
+          .filter(excludeParts([`reasoning`]))
           .toStream(),
       );
 
       /* Assert */
-      /* Note: flatMap buffers the entire part, so we get single text-delta with full text */
       const textDeltas = result.filter((c) => c.type === `text-delta`);
-      expect(textDeltas.length).toBe(1);
-      expect(textDeltas[0]).toMatchObject({
-        type: `text-delta`,
-        delta: `HELLO WORLD`,
-      });
+      expect(textDeltas).toEqual([
+        { type: `text-delta`, id: `1`, delta: `HELLO` },
+        { type: `text-delta`, id: `1`, delta: ` WORLD` },
+      ]);
+
+      /* Reasoning should be filtered out by the second filter */
+      const reasoningChunks = result.filter((c) =>
+        c.type.startsWith(`reasoning`),
+      );
+      expect(reasoningChunks.length).toBe(0);
+    });
+
+    it(`should provide typed part in match callback`, async () => {
+      /* Arrange */
+      const stream = convertArrayToReadableStream([
+        START_CHUNK,
+        ...TEXT_CHUNKS,
+        ...TOOL_SERVER_CHUNKS,
+        FINISH_CHUNK,
+      ]);
+
+      const toolInputs: Array<{ location?: string }> = [];
+
+      /* Act */
+      await convertAsyncIterableToArray(
+        pipeUIMessageStream<MyUIMessage>(stream)
+          .match(matchPartType(`tool-weather`), (pipe) =>
+            pipe.map(({ chunk, part }) => {
+              /* part should be typed as tool-weather part */
+              /* input is only available after tool-input-available chunk */
+              if (part.input && part.input.location) {
+                toolInputs.push(part.input);
+              }
+              return chunk;
+            }),
+          )
+          .toStream(),
+      );
+
+      /* Assert */
+      /* Input should be captured when tool-input-available or later chunks arrive */
+      expect(toolInputs.length).toBeGreaterThan(0);
+      /* The last captured input should have the location */
+      expect(toolInputs[toolInputs.length - 1]).toEqual({ location: `NYC` });
     });
   });
 

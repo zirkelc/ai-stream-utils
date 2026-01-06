@@ -18,6 +18,12 @@ export {
   mapUIMessageStream,
 } from './map-ui-message-stream.js';
 export {
+  type MatchPipeline,
+  type MatchPipelineFilterPredicate,
+  type MatchPipelineInput,
+  type MatchPipelineMapFn,
+  matchPartType,
+  type PartTypePredicate,
   pipeUIMessageStream,
   type UIMessageStreamPipeline,
 } from './pipe-ui-message-stream.js';
