@@ -310,6 +310,75 @@ const stream = flatMapUIMessageStream(
 // { type: 'tool-output-available', output: { location: 'Tokyo', temperature: 71.6, unit: 'F' } }
 ```
 
+## Stream Utilities
+
+Helper functions for converting between streams, arrays, and async iterables.
+
+| Function | Converts | To |
+|----------|----------|-----|
+| `createAsyncIterableStream` | `ReadableStream<T>` | `AsyncIterableStream<T>` |
+| `convertArrayToStream` | `Array<T>` | `ReadableStream<T>` |
+| `convertAsyncIterableToStream` | `AsyncIterable<T>` | `ReadableStream<T>` |
+| `convertAsyncIterableToArray` | `AsyncIterable<T>` | `Promise<Array<T>>` |
+| `convertStreamToArray` | `ReadableStream<T>` | `Promise<Array<T>>` |
+
+### `createAsyncIterableStream`
+
+Adds async iterator protocol to a `ReadableStream`, enabling `for await...of` loops.
+
+```typescript
+import { createAsyncIterableStream } from 'ai-stream-utils/utils';
+
+const asyncStream = createAsyncIterableStream(readableStream);
+for await (const chunk of asyncStream) {
+  console.log(chunk);
+}
+```
+
+### `convertArrayToStream`
+
+Converts an array to a `ReadableStream` that emits each element.
+
+```typescript
+import { convertArrayToStream } from 'ai-stream-utils/utils';
+
+const stream = convertArrayToStream([1, 2, 3]);
+```
+
+### `convertAsyncIterableToStream`
+
+Converts an async iterable (e.g., async generator) to a `ReadableStream`.
+
+```typescript
+import { convertAsyncIterableToStream } from 'ai-stream-utils/utils';
+
+async function* generator() {
+  yield 1;
+  yield 2;
+}
+const stream = convertAsyncIterableToStream(generator());
+```
+
+### `convertAsyncIterableToArray`
+
+Collects all values from an async iterable into an array.
+
+```typescript
+import { convertAsyncIterableToArray } from 'ai-stream-utils/utils';
+
+const array = await convertAsyncIterableToArray(asyncIterable);
+```
+
+### `convertStreamToArray`
+
+Consumes a `ReadableStream` and collects all chunks into an array.
+
+```typescript
+import { convertStreamToArray } from 'ai-stream-utils/utils';
+
+const array = await convertStreamToArray(readableStream);
+```
+
 ## Type Safety
 
 The [`toUIMessageStream()`](https://ai-sdk.dev/docs/reference/ai-sdk-core/stream-text#to-ui-message-stream) from [`streamText()`](https://ai-sdk.dev/docs/reference/ai-sdk-core/stream-text) returns a generic `ReadableStream<UIMessageChunk>`, which means the part types cannot be inferred automatically.

@@ -24,7 +24,7 @@ import {
   START_CHUNK,
   TEXT_CHUNKS,
   TOOL_SERVER_CHUNKS,
-} from './utils/test-utils.js';
+} from './utils/internal/test-utils.js';
 
 describe('filterUIMessageStream', () => {
   it('should filter chunks using include', async () => {

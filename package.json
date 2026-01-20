@@ -3,8 +3,6 @@
   "version": "1.3.1",
   "description": "AI SDK: Filter and transform UI messages while streaming to the client",
   "packageManager": "pnpm@10.0.0",
-  "main": "./dist/index.mjs",
-  "module": "./dist/index.mjs",
   "types": "./dist/index.d.mts",
   "type": "module",
   "files": [
@@ -12,6 +10,7 @@
   ],
   "exports": {
     ".": "./dist/index.mjs",
+    "./utils": "./dist/utils/index.mjs",
     "./package.json": "./package.json"
   },
   "scripts": {
@@ -43,21 +42,21 @@
     "ai": "5.x || 6.x"
   },
   "devDependencies": {
-    "@ai-sdk/openai": "^3.0.0",
-    "@ai-sdk/provider-utils": "^4.0.0",
+    "@ai-sdk/openai": "^3.0.12",
+    "@ai-sdk/provider-utils": "^4.0.8",
     "@arethetypeswrong/cli": "^0.18.2",
-    "@biomejs/biome": "^2.3.10",
+    "@biomejs/biome": "^2.3.11",
     "@total-typescript/tsconfig": "^1.0.4",
-    "@types/node": "^25.0.3",
-    "ai": "^6.0.1",
+    "@types/node": "^25.0.9",
+    "ai": "^6.0.42",
     "husky": "^9.1.7",
-    "msw": "^2.12.4",
+    "msw": "^2.12.7",
     "pkg-pr-new": "^0.0.62",
     "publint": "^0.3.16",
-    "tsdown": "^0.18.1",
+    "tsdown": "0.20.0-beta.4",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.16",
-    "zod": "^4.2.1"
+    "vitest": "^4.0.17",
+    "zod": "^4.3.5"
   }
 }
