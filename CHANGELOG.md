@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://github.com/zirkelc/ai-stream-utils/compare/v1.3.1...v1.4.0) (2026-01-20)
+
+
+### Features
+
+* add stream utils ([8f6f77a](https://github.com/zirkelc/ai-stream-utils/commit/8f6f77a94996a9ef15d2c7f84019e9bd6336bf2a))
+
 ## [1.3.1](https://github.com/zirkelc/ai-stream-utils/compare/v1.3.0...v1.3.1) (2025-12-23)
 
 
