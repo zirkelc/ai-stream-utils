@@ -24,6 +24,7 @@ import {
   START_CHUNK,
   TEXT_CHUNKS,
   TOOL_SERVER_CHUNKS,
+  TOOL_WITH_DATA_CHUNKS,
 } from './utils/internal/test-utils.js';
 
 describe('filterUIMessageStream', () => {
@@ -224,6 +225,53 @@ describe('filterUIMessageStream', () => {
       { type: 'error', errorText: 'Test error' },
       { type: 'finish' },
     ]);
+  });
+
+  it('should handle data-* chunks interleaved with tool chunks', async () => {
+    const stream = convertArrayToReadableStream([
+      START_CHUNK,
+      ...TOOL_WITH_DATA_CHUNKS,
+      FINISH_CHUNK,
+    ]);
+
+    // Filter to include only data-weather (not tool-weather)
+    const filteredStream = filterUIMessageStream<MyUIMessage>(
+      stream,
+      includeParts(['data-weather']),
+    );
+
+    const result = await convertAsyncIterableToArray(filteredStream);
+
+    // Should include data-weather but not tool-weather chunks
+    const dataChunks = result.filter((c) => c.type === 'data-weather');
+    const toolChunks = result.filter((c) => c.type.startsWith('tool-'));
+
+    expect(dataChunks.length).toBe(1);
+    expect(toolChunks.length).toBe(0);
+  });
+
+  it('should filter tool-weather without affecting data-weather', async () => {
+    const stream = convertArrayToReadableStream([
+      START_CHUNK,
+      ...TOOL_WITH_DATA_CHUNKS,
+      FINISH_CHUNK,
+    ]);
+
+    // Exclude tool-weather, data-weather should still pass through
+    const filteredStream = filterUIMessageStream<MyUIMessage>(
+      stream,
+      excludeParts(['tool-weather']),
+    );
+
+    const result = await convertAsyncIterableToArray(filteredStream);
+
+    // data-weather should be present
+    const dataChunks = result.filter((c) => c.type === 'data-weather');
+    expect(dataChunks.length).toBe(1);
+
+    // tool-weather chunks should be filtered out
+    const toolChunks = result.filter((c) => c.type.startsWith('tool-'));
+    expect(toolChunks.length).toBe(0);
   });
 
   describe('should handle each part type', () => {

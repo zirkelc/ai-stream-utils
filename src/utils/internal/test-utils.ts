@@ -187,6 +187,34 @@ export const DATA_CHUNKS: MyUIMessageChunk[] = [
   { type: 'finish-step' },
 ];
 
+/**
+ * Tool chunks with interleaved data chunk.
+ * This simulates a real AI SDK stream where a tool's execute function
+ * writes a data chunk via writer.write() mid-execution.
+ */
+export const TOOL_WITH_DATA_CHUNKS: MyUIMessageChunk[] = [
+  { type: 'start-step' },
+  { type: 'tool-input-start', toolCallId: '10', toolName: 'weather' },
+  {
+    type: 'tool-input-delta',
+    toolCallId: '10',
+    inputTextDelta: '{"location":"Tokyo"}',
+  },
+  { type: 'data-weather', data: { location: 'Tokyo', temperature: 72 } },
+  {
+    type: 'tool-input-available',
+    toolCallId: '10',
+    toolName: 'weather',
+    input: { location: 'Tokyo' },
+  },
+  {
+    type: 'tool-output-available',
+    toolCallId: '10',
+    output: { location: 'Tokyo', temperature: 72 },
+  },
+  { type: 'finish-step' },
+];
+
 export const FILE_CHUNKS: MyUIMessageChunk[] = [
   { type: 'start-step' },
   {

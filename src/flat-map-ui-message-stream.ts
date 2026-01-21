@@ -6,6 +6,7 @@ import { createUIMessageStreamReader } from './utils/internal/create-ui-message-
 import { serializePartToChunks } from './utils/internal/serialize-part-to-chunks.js';
 import {
   asArray,
+  isMessageDataChunk,
   isMetaChunk,
   isStepEndChunk,
   isStepStartChunk,
@@ -257,6 +258,7 @@ export function flatMapUIMessageStream<
     for await (const {
       chunk,
       message,
+      part,
     } of createUIMessageStreamReader<UI_MESSAGE>(inputStream)) {
       // Meta chunks (start, finish, abort, error, message-metadata) always pass through unchanged.
       if (isMetaChunk(chunk)) {
@@ -288,6 +290,30 @@ export function flatMapUIMessageStream<
         continue;
       }
 
+      // Data chunks (data-*) don't produce messages in readUIMessageStream.
+      // They're complete single-chunk "parts", so we process them immediately
+      // by calling flatMapFn with the chunk as the part (it has type and data).
+      if (isMessageDataChunk(chunk)) {
+        // Data chunks have { type: 'data-*', data: {...} } - treat as complete part
+        const dataPart = chunk as unknown as InferUIMessagePart<UI_MESSAGE>;
+        allParts.push(dataPart);
+
+        const result = flatMapFn(
+          { part: dataPart as PART },
+          { index: allParts.length - 1, parts: allParts },
+        );
+
+        // Normalize to array and emit chunks for each part
+        const parts = asArray(result);
+        for (const part of parts) {
+          // For data parts, the part IS the chunk
+          yield* emitChunks([
+            part as unknown as InferUIMessageChunk<UI_MESSAGE>,
+          ]);
+        }
+        continue;
+      }
+
       // Content chunks should always have a message from readUIMessageStream.
       // If not, the stream reader behavior has changed unexpectedly.
       if (!message) {
@@ -296,12 +322,12 @@ export function flatMapUIMessageStream<
         );
       }
 
-      // Content chunks should always have a corresponding part in the message.
-      // If not, the AI SDK behavior has changed unexpectedly.
-      const currentPart = message.parts[message.parts.length - 1];
+      // Content chunks should always have a corresponding part from the reader.
+      // If not, the stream reader behavior has changed unexpectedly.
+      const currentPart = part;
       if (!currentPart) {
         throw new Error(
-          'Unexpected: received content chunk but message has no parts',
+          `Unexpected: received content chunk but part is undefined`,
         );
       }
 
