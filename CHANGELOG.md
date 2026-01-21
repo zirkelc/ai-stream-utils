@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.1](https://github.com/zirkelc/ai-stream-utils/compare/v1.4.0...v1.4.1) (2026-01-21)
+
+
+### Bug Fixes
+
+* package json url ([98e3303](https://github.com/zirkelc/ai-stream-utils/commit/98e33037734c6bc95c6f396203a4a2977e27c098))
+
 ## [1.4.0](https://github.com/zirkelc/ai-stream-utils/compare/v1.3.1...v1.4.0) (2026-01-20)
 
 
