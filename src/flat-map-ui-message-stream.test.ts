@@ -21,7 +21,7 @@ import {
   TEXT_CHUNKS,
   TOOL_CLIENT_CHUNKS,
   TOOL_SERVER_CHUNKS,
-} from './utils/test-utils.js';
+} from './utils/internal/test-utils.js';
 
 describe('flatMapUIMessageStream', () => {
   it('should pass through all parts with identity flatMap', async () => {

@@ -5,7 +5,7 @@ import {
   type UIMessage,
 } from 'ai';
 import { z } from 'zod';
-import type { InferUIMessagePart } from '../types.js';
+import type { InferUIMessagePart } from '../../types.js';
 
 export type MyMetadata = { id: string };
 

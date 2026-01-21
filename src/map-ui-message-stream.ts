@@ -1,10 +1,5 @@
 import { convertAsyncIteratorToReadableStream } from '@ai-sdk/provider-utils';
-import type {
-  AsyncIterableStream,
-  InferUIMessageChunk,
-  UIMessage,
-  UIMessageChunk,
-} from 'ai';
+import type { AsyncIterableStream, InferUIMessageChunk, UIMessage } from 'ai';
 import type { InferUIMessagePart } from './types.js';
 import { createAsyncIterableStream } from './utils/create-async-iterable-stream.js';
 import { fastReadUIMessageStream } from './utils/fast-read-ui-message-stream.js';
@@ -13,7 +8,7 @@ import {
   isMetaChunk,
   isStepEndChunk,
   isStepStartChunk,
-} from './utils/stream-utils.js';
+} from './utils/internal/stream-utils.js';
 
 /**
  * Input object provided to the chunk map function.

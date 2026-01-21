@@ -8,13 +8,14 @@ import type {
 import type { InferUIMessagePart, InferUIMessagePartType } from './types.js';
 import { createAsyncIterableStream } from './utils/create-async-iterable-stream.js';
 import { fastReadUIMessageStream } from './utils/fast-read-ui-message-stream.js';
-import { serializePartToChunks } from './utils/serialize-part-to-chunks.js';
+import { createUIMessageStreamReader } from './utils/internal/create-ui-message-stream-reader.js';
+import { serializePartToChunks } from './utils/internal/serialize-part-to-chunks.js';
 import {
   asArray,
   isMetaChunk,
   isStepEndChunk,
   isStepStartChunk,
-} from './utils/stream-utils.js';
+} from './utils/internal/stream-utils.js';
 
 /**
  * Input object provided to the part flatMap function.
