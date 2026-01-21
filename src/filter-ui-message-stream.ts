@@ -1,5 +1,5 @@
 import type { AsyncIterableStream, InferUIMessageChunk, UIMessage } from 'ai';
-import { type MapInput, mapUIMessageStream } from './map-ui-message-stream.js';
+import { mapUIMessageStream } from './map-ui-message-stream.js';
 import type {
   ExcludePart,
   ExtractPart,
@@ -30,7 +30,7 @@ export type FilterPredicate<
     InferUIMessagePart<UI_MESSAGE> = InferUIMessagePart<UI_MESSAGE>,
 > = ((input: {
   chunk: InferUIMessageChunk<UI_MESSAGE>;
-  part: InferUIMessagePart<UI_MESSAGE>;
+  part: { type: string };
 }) => boolean) & {
   readonly [FilterPredicatePartType]?: NARROWED_PART;
 };
@@ -72,7 +72,7 @@ export function includeParts<
 >(
   includePartTypes: Array<PART_TYPE>,
 ): FilterPredicate<UI_MESSAGE, ExtractPart<UI_MESSAGE, PART_TYPE>> {
-  const predicate = ({ part }: MapInput<UI_MESSAGE>) => {
+  const predicate = ({ part }: { part: { type: string } }) => {
     return includePartTypes.includes(part.type as PART_TYPE);
   };
 
@@ -107,7 +107,7 @@ export function excludeParts<
 >(
   excludePartTypes: Array<PART_TYPE>,
 ): FilterPredicate<UI_MESSAGE, ExcludePart<UI_MESSAGE, PART_TYPE>> {
-  const predicate = ({ part }: MapInput<UI_MESSAGE>) => {
+  const predicate = ({ part }: { part: { type: string } }) => {
     return !excludePartTypes.includes(part.type as PART_TYPE);
   };
 

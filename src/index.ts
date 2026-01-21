@@ -12,7 +12,7 @@ export {
   type FlatMapUIMessageStreamFn,
   type FlatMapUIMessageStreamPredicate,
   flatMapUIMessageStream,
-  partTypeIs,
+  partTypeIs as flatMapPartTypeIs,
 } from './flat-map-ui-message-stream.js';
 export {
   type MapInput,
@@ -20,18 +20,24 @@ export {
   mapUIMessageStream,
 } from './map-ui-message-stream.js';
 export {
-  isNotPartType,
-  isPartType,
-  type MatchPipeline,
-  type MatchPipelineFilterPredicate,
-  type MatchPipelineInput,
-  type MatchPipelineMapFn,
-  type PartTypePredicate,
-  type PipelineMapFn,
-  type PipelineMapInput,
+  type ChunkInput,
+  type ChunkMapFn,
+  type ChunkPredicate,
+  type ChunkTypeGuard,
+  chunkType,
+  type MatchPredicate,
+  type PartInput,
+  type PartMapFn,
+  type PartPredicate,
+  type PartTypeGuard,
+  partType,
   pipeUIMessageStream,
-  type UIMessageStreamPipeline,
+  type ScanOperator,
 } from './pipe-ui-message-stream.js';
+export {
+  type SmoothStreamingOptions,
+  smoothStreaming,
+} from './smooth-streaming.js';
 export type {
   InferUIMessagePart,
   InferUIMessagePartType,

@@ -45,6 +45,7 @@
   },
   "devDependencies": {
     "@ai-sdk/openai": "^3.0.0",
+    "@ai-sdk/provider": "^3.0.4",
     "@ai-sdk/provider-utils": "^4.0.0",
     "@arethetypeswrong/cli": "^0.18.2",
     "@biomejs/biome": "^2.3.10",
@@ -60,5 +61,8 @@
     "typescript": "^5.9.3",
     "vitest": "^4.0.16",
     "zod": "^4.2.1"
+  },
+  "dependencies": {
+    "defu": "^6.1.4"
   }
 }

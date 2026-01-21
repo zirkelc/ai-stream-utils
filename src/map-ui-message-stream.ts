@@ -1,8 +1,13 @@
 import { convertAsyncIteratorToReadableStream } from '@ai-sdk/provider-utils';
-import type { AsyncIterableStream, InferUIMessageChunk, UIMessage } from 'ai';
+import type {
+  AsyncIterableStream,
+  InferUIMessageChunk,
+  UIMessage,
+  UIMessageChunk,
+} from 'ai';
 import type { InferUIMessagePart } from './types.js';
 import { createAsyncIterableStream } from './utils/create-async-iterable-stream.js';
-import { createUIMessageStreamReader } from './utils/create-ui-message-stream-reader.js';
+import { fastReadUIMessageStream } from './utils/fast-read-ui-message-stream.js';
 import {
   asArray,
   isMetaChunk,
@@ -135,10 +140,9 @@ export function mapUIMessageStream<UI_MESSAGE extends UIMessage>(
   async function* processChunks(): AsyncGenerator<
     InferUIMessageChunk<UI_MESSAGE>
   > {
-    for await (const {
-      chunk,
-      message,
-    } of createUIMessageStreamReader<UI_MESSAGE>(stream)) {
+    for await (const { chunk, message } of fastReadUIMessageStream<UI_MESSAGE>(
+      stream,
+    )) {
       // Meta chunks (start, finish, abort, error, message-metadata) always pass through unchanged.
       if (isMetaChunk(chunk)) {
         yield chunk;
@@ -166,7 +170,7 @@ export function mapUIMessageStream<UI_MESSAGE extends UIMessage>(
       // If not, the stream reader behavior has changed unexpectedly.
       if (!message) {
         throw new Error(
-          'Unexpected: received content chunk but message is undefined',
+          `Unexpected: received content chunk but message is undefined`,
         );
       }
 
@@ -175,7 +179,7 @@ export function mapUIMessageStream<UI_MESSAGE extends UIMessage>(
       const currentPart = message.parts[message.parts.length - 1];
       if (!currentPart) {
         throw new Error(
-          'Unexpected: received content chunk but message has no parts',
+          `Unexpected: received content chunk but message has no parts`,
         );
       }
 

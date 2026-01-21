@@ -64,12 +64,33 @@ describe('createUIMessageStreamReader', () => {
     expect(textPart?.text).toBe('Hello World');
   });
 
-  it('should yield undefined message for meta chunks (start, finish, error, abort, message-metadata)', async () => {
+  it('should yield undefined message for meta chunks without content (start without id, finish without metadata, error, abort)', async () => {
+    const stream = convertArrayToReadableStream([
+      { type: 'start' as const } /* no messageId */,
+      { type: 'error' as const, errorText: 'test' },
+      { type: 'abort' as const },
+      { type: 'finish' as const } /* no metadata */,
+    ]);
+
+    const results: Array<{
+      chunk: MyUIMessageChunk;
+      message: MyUIMessage | undefined;
+    }> = [];
+    for await (const {
+      chunk,
+      message,
+    } of createUIMessageStreamReader<MyUIMessage>(stream)) {
+      results.push({ chunk, message });
+    }
+
+    /* Meta chunks without content should have undefined message */
+    expect(results.every((r) => r.message === undefined)).toBe(true);
+  });
+
+  it('should yield undefined message for meta chunks (start, message-metadata, finish) since they are skipped', async () => {
     const stream = convertArrayToReadableStream([
       START_CHUNK,
       MESSAGE_METADATA_CHUNK,
-      ERROR_CHUNK,
-      ABORT_CHUNK,
       FINISH_CHUNK,
     ]);
 
@@ -84,7 +105,8 @@ describe('createUIMessageStreamReader', () => {
       results.push({ chunk, message });
     }
 
-    // All meta chunks should have undefined message
+    /* All meta chunks should have undefined message since they are skipped */
+    expect(results.length).toBe(3);
     expect(results.every((r) => r.message === undefined)).toBe(true);
   });
 

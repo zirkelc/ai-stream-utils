@@ -47,6 +47,7 @@ export type TextChunk = Extract<
   MyUIMessageChunk,
   { type: 'text-start' | 'text-delta' | 'text-end' }
 >;
+export type TextDeltaChunk = Extract<MyUIMessageChunk, { type: 'text-delta' }>;
 export type ReasoningChunk = Extract<
   MyUIMessageChunk,
   { type: 'reasoning-start' | 'reasoning-delta' | 'reasoning-end' }
@@ -93,6 +94,8 @@ const tools = {
 
 export const START_CHUNK: MyUIMessageChunk = { type: 'start' };
 export const FINISH_CHUNK: MyUIMessageChunk = { type: 'finish' };
+export const START_STEP_CHUNK: MyUIMessageChunk = { type: 'start-step' };
+export const FINISH_STEP_CHUNK: MyUIMessageChunk = { type: 'finish-step' };
 export const ABORT_CHUNK: MyUIMessageChunk = { type: 'abort' };
 export const MESSAGE_METADATA_CHUNK: MyUIMessageChunk = {
   type: 'message-metadata',

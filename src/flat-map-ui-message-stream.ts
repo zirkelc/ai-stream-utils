@@ -1,8 +1,13 @@
 import { convertAsyncIteratorToReadableStream } from '@ai-sdk/provider-utils';
-import type { AsyncIterableStream, InferUIMessageChunk, UIMessage } from 'ai';
+import type {
+  AsyncIterableStream,
+  InferUIMessageChunk,
+  UIMessage,
+  UIMessageChunk,
+} from 'ai';
 import type { InferUIMessagePart, InferUIMessagePartType } from './types.js';
 import { createAsyncIterableStream } from './utils/create-async-iterable-stream.js';
-import { createUIMessageStreamReader } from './utils/create-ui-message-stream-reader.js';
+import { fastReadUIMessageStream } from './utils/fast-read-ui-message-stream.js';
 import { serializePartToChunks } from './utils/serialize-part-to-chunks.js';
 import {
   asArray,
@@ -255,9 +260,11 @@ export function flatMapUIMessageStream<
     InferUIMessageChunk<UI_MESSAGE>
   > {
     for await (const {
-      chunk,
+      chunk: rawChunk,
       message,
-    } of createUIMessageStreamReader<UI_MESSAGE>(inputStream)) {
+    } of fastReadUIMessageStream<UI_MESSAGE>(inputStream)) {
+      const chunk = rawChunk as InferUIMessageChunk<UI_MESSAGE>;
+
       // Meta chunks (start, finish, abort, error, message-metadata) always pass through unchanged.
       if (isMetaChunk(chunk)) {
         yield chunk;
@@ -274,7 +281,7 @@ export function flatMapUIMessageStream<
       // Step is ending. Flush any pending buffered part and emit finish-step if start-step was emitted.
       if (isStepEndChunk(chunk)) {
         // Part was still being buffered (e.g., tool without execute function). Flush it now.
-        if (currentMode === 'buffering' && lastBufferedPart) {
+        if (currentMode === `buffering` && lastBufferedPart) {
           yield* flushBufferedPart(lastBufferedPart);
         }
 
@@ -288,11 +295,11 @@ export function flatMapUIMessageStream<
         continue;
       }
 
-      // Content chunks should always have a message from readUIMessageStream.
+      // Content chunks should always have a message from fastReadUIMessageStream.
       // If not, the stream reader behavior has changed unexpectedly.
       if (!message) {
         throw new Error(
-          'Unexpected: received content chunk but message is undefined',
+          `Unexpected: received content chunk but message is undefined`,
         );
       }
 
@@ -301,18 +308,18 @@ export function flatMapUIMessageStream<
       const currentPart = message.parts[message.parts.length - 1];
       if (!currentPart) {
         throw new Error(
-          'Unexpected: received content chunk but message has no parts',
+          `Unexpected: received content chunk but message has no parts`,
         );
       }
 
       // New part started (part count increased). Previous part is now complete.
       if (message.parts.length > lastPartCount) {
         // Previous part was buffered. Flush it before starting the new one.
-        if (currentMode === 'buffering' && lastBufferedPart) {
+        if (currentMode === `buffering` && lastBufferedPart) {
           yield* flushBufferedPart(lastBufferedPart);
         }
         // Previous part was streamed. Add it to allParts for context tracking.
-        if (currentMode === 'streaming' && lastPartCount > 0) {
+        if (currentMode === `streaming` && lastPartCount > 0) {
           const previousPart = message.parts[lastPartCount - 1];
           if (previousPart) {
             allParts.push(previousPart);
@@ -323,22 +330,22 @@ export function flatMapUIMessageStream<
 
         // Predicate matched (or no predicate). Buffer this part for transformation.
         if (shouldBuffer) {
-          currentMode = 'buffering';
+          currentMode = `buffering`;
           bufferedChunks = [chunk];
           lastBufferedPart = currentPart;
           // Predicate didn't match. Stream this part through immediately.
         } else {
-          currentMode = 'streaming';
+          currentMode = `streaming`;
           yield* emitChunks([chunk]);
         }
 
         lastPartCount = message.parts.length;
         // Same part, still buffering. Add chunk to buffer and update lastBufferedPart.
-      } else if (currentMode === 'buffering') {
+      } else if (currentMode === `buffering`) {
         bufferedChunks.push(chunk);
         lastBufferedPart = currentPart;
         // Same part, still streaming. Pass chunk through immediately.
-      } else if (currentMode === 'streaming') {
+      } else if (currentMode === `streaming`) {
         yield* emitChunks([chunk]);
       }
     }
