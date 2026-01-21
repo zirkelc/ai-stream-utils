@@ -16,7 +16,7 @@ import {
   isTextUIPart,
   isToolOrDynamicToolUIPart,
 } from 'ai';
-import type { InferUIMessagePart } from '../types.js';
+import type { InferUIMessagePart } from '../../types.js';
 
 /**
  * Type guard to check if a message part is a source-url part.
