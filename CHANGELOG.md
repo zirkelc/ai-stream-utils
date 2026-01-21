@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.2](https://github.com/zirkelc/ai-stream-utils/compare/v1.4.1...v1.4.2) (2026-01-21)
+
+
+### Bug Fixes
+
+* hanging stream with data chunks interleaved in tool calls ([2200dcf](https://github.com/zirkelc/ai-stream-utils/commit/2200dcf61493a981de2fbb0ab915fab468a65bcc))
+
 ## [1.4.1](https://github.com/zirkelc/ai-stream-utils/compare/v1.4.0...v1.4.1) (2026-01-21)
 
 
