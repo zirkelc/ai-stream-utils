@@ -36,7 +36,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/zirkelc/ai-filter-stream"
+    "url": "git+https://github.com/zirkelc/ai-stream-utils"
   },
   "peerDependencies": {
     "ai": "5.x || 6.x"
