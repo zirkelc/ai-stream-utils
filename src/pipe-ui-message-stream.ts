@@ -9,13 +9,16 @@ import type {
 } from './types.js';
 import { createAsyncIterableStream } from './utils/create-async-iterable-stream.js';
 import { fastReadUIMessageStream } from './utils/fast-read-ui-message-stream.js';
-import { serializePartToChunks } from './utils/serialize-part-to-chunks.js';
+import {
+  getPartTypeFromChunk,
+  type ToolCallIdMap,
+} from './utils/internal/get-part-type-from-chunk.js';
+import { serializePartToChunks } from './utils/internal/serialize-part-to-chunks.js';
 import {
   asArray,
-  isMetaChunk,
   isStepEndChunk,
   isStepStartChunk,
-} from './utils/stream-utils.js';
+} from './utils/internal/stream-utils.js';
 
 /** @internal Symbol for accessing MatchPipeline builder */
 const BUILDER = Symbol(`builder`);
@@ -902,6 +905,9 @@ export class ChunkPipeline<
 /**
  * Creates an internal iterable with part type information from a raw chunk stream.
  * Handles step boundaries (buffering start-step) and meta chunks.
+ *
+ * Part type is derived directly from the chunk's type rather than from message.parts[-1],
+ * which ensures correct association when chunks from different part types are interleaved.
  */
 function createInternalIterable<UI_MESSAGE extends UIMessage>(
   stream: ReadableStream<InferUIMessageChunk<UI_MESSAGE>>,
@@ -910,19 +916,13 @@ function createInternalIterable<UI_MESSAGE extends UIMessage>(
   let bufferedStartStep: InferUIMessageChunk<UI_MESSAGE> | undefined;
   /** Tracks if start-step was emitted, so we know to emit the matching finish-step. */
   let stepStartEmitted = false;
+  /** Tracks toolCallId → partType mapping for tool chunks */
+  const toolCallIdMap: ToolCallIdMap = {};
 
   async function* generateSourceChunks(): AsyncGenerator<
     InternalChunk<UI_MESSAGE>
   > {
-    for await (const { chunk, message } of fastReadUIMessageStream<UI_MESSAGE>(
-      stream,
-    )) {
-      /** Meta chunks pass through with undefined partType */
-      if (isMetaChunk(chunk)) {
-        yield { chunk, partType: undefined };
-        continue;
-      }
-
+    for await (const { chunk } of fastReadUIMessageStream<UI_MESSAGE>(stream)) {
       /** Buffer start-step instead of emitting immediately */
       if (isStepStartChunk(chunk)) {
         bufferedStartStep = chunk;
@@ -939,6 +939,15 @@ function createInternalIterable<UI_MESSAGE extends UIMessage>(
         continue;
       }
 
+      /** Derive part type from chunk type (undefined for meta chunks) */
+      const partType = getPartTypeFromChunk<UI_MESSAGE>(chunk, toolCallIdMap);
+
+      /** Meta chunks pass through with undefined partType */
+      if (partType === undefined) {
+        yield { chunk, partType: undefined };
+        continue;
+      }
+
       /** Content chunk - emit buffered start-step first if present */
       if (bufferedStartStep) {
         yield { chunk: bufferedStartStep, partType: undefined };
@@ -946,21 +955,7 @@ function createInternalIterable<UI_MESSAGE extends UIMessage>(
         bufferedStartStep = undefined;
       }
 
-      /** Get part type from message */
-      if (!message) {
-        throw new Error(
-          `Unexpected: received content chunk but message is undefined`,
-        );
-      }
-
-      const currentPart = message.parts[message.parts.length - 1];
-      if (!currentPart) {
-        throw new Error(
-          `Unexpected: received content chunk but message has no parts`,
-        );
-      }
-
-      yield { chunk, partType: currentPart.type };
+      yield { chunk, partType };
     }
   }
 

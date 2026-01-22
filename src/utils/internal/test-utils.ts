@@ -135,13 +135,13 @@ export const TOOL_SERVER_CHUNKS: MyUIMessageChunk[] = [
   {
     type: 'tool-input-delta',
     toolCallId: '3',
-    inputTextDelta: '{"location"',
+    inputTextDelta: '{"location":"Tokyo"}',
   },
   {
     type: 'tool-input-available',
     toolCallId: '3',
     toolName: 'weather',
-    input: { location: 'NYC' },
+    input: { location: 'Tokyo' },
   },
   {
     type: 'tool-output-available',
@@ -163,7 +163,35 @@ export const TOOL_CLIENT_CHUNKS: MyUIMessageChunk[] = [
     type: 'tool-input-available',
     toolCallId: '6',
     toolName: 'weather',
-    input: { location: 'NYC' },
+    input: { location: 'Tokyo' },
+  },
+  { type: 'finish-step' },
+];
+
+/**
+ * Tool chunks with interleaved data chunk.
+ * This simulates a real AI SDK stream where a tool's execute function
+ * writes a data chunk via writer.write() mid-execution.
+ */
+export const TOOL_WITH_DATA_CHUNKS: MyUIMessageChunk[] = [
+  { type: 'start-step' },
+  { type: 'tool-input-start', toolCallId: '10', toolName: 'weather' },
+  {
+    type: 'tool-input-delta',
+    toolCallId: '10',
+    inputTextDelta: '{"location":"Tokyo"}',
+  },
+  { type: 'data-weather', data: { location: 'Tokyo', temperature: 72 } },
+  {
+    type: 'tool-input-available',
+    toolCallId: '10',
+    toolName: 'weather',
+    input: { location: 'Tokyo' },
+  },
+  {
+    type: 'tool-output-available',
+    toolCallId: '10',
+    output: { location: 'Tokyo', temperature: 72 },
   },
   { type: 'finish-step' },
 ];
@@ -230,7 +258,7 @@ export const DATA_CHUNKS: MyUIMessageChunk[] = [
   { type: 'start-step' },
   {
     type: 'data-weather',
-    data: { location: 'NYC', temperature: 65 },
+    data: { location: 'Tokyo', temperature: 72 },
   },
   { type: 'finish-step' },
 ];
@@ -261,8 +289,8 @@ export const TOOL_PART: MyUIMessagePart = {
   type: 'tool-weather',
   toolCallId: '3',
   state: 'output-available',
-  input: { location: 'NYC' },
-  output: { location: 'NYC', temperature: 65 },
+  input: { location: 'Tokyo' },
+  output: { location: 'Tokyo', temperature: 72 },
 };
 
 export const DYNAMIC_TOOL_PART: MyUIMessagePart = {
@@ -299,7 +327,7 @@ export const SOURCE_DOCUMENT_PART: MyUIMessagePart = {
 
 export const DATA_PART: MyUIMessagePart = {
   type: 'data-weather',
-  data: { location: 'NYC', temperature: 65 },
+  data: { location: 'Tokyo', temperature: 72 },
 };
 
 export const FILE_PART: MyUIMessagePart = {

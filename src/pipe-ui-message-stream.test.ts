@@ -17,7 +17,8 @@ import {
   START_CHUNK,
   TEXT_CHUNKS,
   TOOL_SERVER_CHUNKS,
-} from './utils/test-utils.js';
+  TOOL_WITH_DATA_CHUNKS,
+} from './utils/internal/test-utils.js';
 
 /** Content-only chunks (no step boundaries) for testing toStream() output */
 const TEXT_CONTENT_CHUNKS = TEXT_CHUNKS.filter(
@@ -1134,6 +1135,131 @@ describe(`pipeUIMessageStream`, () => {
         { type: `text-delta`, id: `1`, delta: `World! ` },
         { type: `text-delta`, id: `1`, delta: `How are you?` },
       ]);
+    });
+  });
+
+  describe(`interleaved chunk handling`, () => {
+    it(`should correctly associate chunks when data chunk interleaves tool chunks`, async () => {
+      /* Arrange - TOOL_WITH_DATA_CHUNKS has data chunk between tool-input-delta and tool-input-available */
+      const stream = convertArrayToReadableStream([
+        START_CHUNK,
+        ...TOOL_WITH_DATA_CHUNKS,
+        FINISH_CHUNK,
+      ]);
+
+      const partTypesEncountered: Array<string> = [];
+
+      /* Act */
+      const result = await convertAsyncIterableToArray(
+        pipeUIMessageStream<MyUIMessage>(stream)
+          .map(({ chunk, part }) => {
+            partTypesEncountered.push(`${chunk.type}:${part.type}`);
+            return chunk;
+          })
+          .toStream(),
+      );
+
+      /* Assert - each chunk should be associated with the correct part type */
+      expect(partTypesEncountered).toContain(`tool-input-start:tool-weather`);
+      expect(partTypesEncountered).toContain(`tool-input-delta:tool-weather`);
+      expect(partTypesEncountered).toContain(`data-weather:data-weather`);
+      expect(partTypesEncountered).toContain(
+        `tool-input-available:tool-weather`,
+      );
+      expect(partTypesEncountered).toContain(
+        `tool-output-available:tool-weather`,
+      );
+
+      /* Verify all tool chunks have part type tool-weather, not data-weather */
+      const toolChunksWithWrongPartType = partTypesEncountered.filter(
+        (entry) =>
+          entry.startsWith(`tool-`) && !entry.endsWith(`:tool-weather`),
+      );
+      expect(toolChunksWithWrongPartType.length).toBe(0);
+
+      /* Verify all chunks are present in output */
+      const toolChunks = result.filter((c) => c.type.startsWith(`tool-`));
+      expect(toolChunks.length).toBe(4);
+
+      const dataChunks = result.filter((c) => c.type === `data-weather`);
+      expect(dataChunks.length).toBe(1);
+    });
+
+    it(`should filter tool chunks correctly when data chunk is interleaved`, async () => {
+      /* Arrange */
+      const stream = convertArrayToReadableStream([
+        START_CHUNK,
+        ...TOOL_WITH_DATA_CHUNKS,
+        FINISH_CHUNK,
+      ]);
+
+      /* Act - filter to only data chunks */
+      const result = await convertAsyncIterableToArray(
+        pipeUIMessageStream<MyUIMessage>(stream)
+          .filter(partType(`data-weather`))
+          .toStream(),
+      );
+
+      /* Assert - only data chunk should remain */
+      expect(result.length).toBe(1);
+      expect(result[0]!.type).toBe(`data-weather`);
+    });
+
+    it(`should filter data chunks correctly when interleaved with tool chunks`, async () => {
+      /* Arrange */
+      const stream = convertArrayToReadableStream([
+        START_CHUNK,
+        ...TOOL_WITH_DATA_CHUNKS,
+        FINISH_CHUNK,
+      ]);
+
+      /* Act - filter to only tool chunks */
+      const result = await convertAsyncIterableToArray(
+        pipeUIMessageStream<MyUIMessage>(stream)
+          .filter(partType(`tool-weather`))
+          .toStream(),
+      );
+
+      /* Assert - only tool chunks should remain */
+      expect(result.length).toBe(4);
+      expect(result.every((c) => c.type.startsWith(`tool-`))).toBe(true);
+    });
+
+    it(`should apply match correctly when data chunk is interleaved`, async () => {
+      /* Arrange */
+      const stream = convertArrayToReadableStream([
+        START_CHUNK,
+        ...TOOL_WITH_DATA_CHUNKS,
+        FINISH_CHUNK,
+      ]);
+
+      /* Act - transform only tool chunks */
+      const result = await convertAsyncIterableToArray(
+        pipeUIMessageStream<MyUIMessage>(stream)
+          .match(partType(`tool-weather`), (pipe) =>
+            pipe.map(({ chunk }) => {
+              if (chunk.type === `tool-input-delta`) {
+                return { ...chunk, inputTextDelta: `[MODIFIED]` };
+              }
+              return chunk;
+            }),
+          )
+          .toStream(),
+      );
+
+      /* Assert - tool-input-delta should be modified, data chunk unchanged */
+      const toolInputDelta = result.find((c) => c.type === `tool-input-delta`);
+      expect(toolInputDelta).toEqual({
+        type: `tool-input-delta`,
+        toolCallId: `10`,
+        inputTextDelta: `[MODIFIED]`,
+      });
+
+      const dataChunk = result.find((c) => c.type === `data-weather`);
+      expect(dataChunk).toEqual({
+        type: `data-weather`,
+        data: { location: `Tokyo`, temperature: 72 },
+      });
     });
   });
 });

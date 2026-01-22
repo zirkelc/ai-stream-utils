@@ -1,6 +1,6 @@
-import type { UIMessage } from 'ai';
+import type { InferUIMessageChunk, UIMessage } from 'ai';
 import type { ChunkInput, ScanOperator } from './pipe-ui-message-stream.js';
-import type { InferUIMessageChunk, InferUIMessagePart } from './types.js';
+import type { InferUIMessagePart } from './types.js';
 
 /**
  * State for smooth streaming operator.
