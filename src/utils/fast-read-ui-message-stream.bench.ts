@@ -5,7 +5,7 @@ import {
 import { readUIMessageStream } from 'ai';
 import { bench, describe } from 'vitest';
 import { fastReadUIMessageStream } from './fast-read-ui-message-stream.js';
-import type { MyUIMessage, MyUIMessageChunk } from './test-utils.js';
+import type { MyUIMessage, MyUIMessageChunk } from './internal/test-utils.js';
 
 /* Generate text chunks for benchmarking */
 function createTextChunks(count: number): Array<MyUIMessageChunk> {

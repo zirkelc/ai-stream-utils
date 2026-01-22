@@ -13,7 +13,7 @@ import type {
   TextDeltaChunk,
   TextPart,
   ToolChunk,
-} from './utils/test-utils.js';
+} from './utils/internal/test-utils.js';
 
 /** Mock stream for type tests */
 const mockStream = null as unknown as ReadableStream<MyUIMessageChunk>;

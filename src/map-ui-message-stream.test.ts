@@ -11,10 +11,12 @@ import {
   FILE_CHUNKS,
   FINISH_CHUNK,
   MESSAGE_METADATA_CHUNK,
+  type MyUIMessage,
   REASONING_CHUNKS,
   START_CHUNK,
   TEXT_CHUNKS,
   TOOL_SERVER_CHUNKS,
+  TOOL_WITH_DATA_CHUNKS,
 } from './utils/internal/test-utils.js';
 
 describe('mapUIMessageStream', () => {
@@ -155,9 +157,39 @@ describe('mapUIMessageStream', () => {
       type: 'tool-weather',
       toolCallId: '3',
       state: 'output-available',
-      input: { location: 'NYC' },
-      output: { temperature: 65 },
+      input: { location: 'Tokyo' },
+      output: { temperature: 72 },
     });
+  });
+
+  it('should handle data-* chunks interleaved with tool chunks', async () => {
+    const stream = convertArrayToReadableStream([
+      START_CHUNK,
+      ...TOOL_WITH_DATA_CHUNKS,
+      FINISH_CHUNK,
+    ]);
+
+    const partTypes: string[] = [];
+    const mappedStream = mapUIMessageStream<MyUIMessage>(
+      stream,
+      ({ chunk, part }) => {
+        partTypes.push(part.type);
+        return chunk;
+      },
+    );
+
+    const result = await convertAsyncIterableToArray(mappedStream);
+
+    // All chunks should pass through
+    expect(result).toEqual([
+      START_CHUNK,
+      ...TOOL_WITH_DATA_CHUNKS,
+      FINISH_CHUNK,
+    ]);
+
+    // Part types should correctly identify tool-weather vs data-weather
+    expect(partTypes).toContain('tool-weather');
+    expect(partTypes).toContain('data-weather');
   });
 
   it('should provide partial part with accumulated text', async () => {

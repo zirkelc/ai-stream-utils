@@ -62,12 +62,12 @@ describe('serializePartToChunks', () => {
       type: 'tool-input-available',
       toolCallId: '3',
       toolName: 'weather',
-      input: { location: 'NYC' },
+      input: { location: 'Tokyo' },
     });
     expect(result[2]).toMatchObject({
       type: 'tool-output-available',
       toolCallId: '3',
-      output: { location: 'NYC', temperature: 65 },
+      output: { location: 'Tokyo', temperature: 72 },
     });
   });
 
@@ -156,7 +156,7 @@ describe('serializePartToChunks', () => {
     expect(result).toEqual([
       {
         type: 'data-weather',
-        data: { location: 'NYC', temperature: 65 },
+        data: { location: 'Tokyo', temperature: 72 },
       },
     ]);
   });

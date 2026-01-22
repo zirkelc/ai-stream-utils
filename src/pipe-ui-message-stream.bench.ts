@@ -4,7 +4,10 @@ import {
 } from '@ai-sdk/provider-utils/test';
 import { bench, describe } from 'vitest';
 import { pipeUIMessageStream } from './pipe-ui-message-stream.js';
-import type { MyUIMessage, MyUIMessageChunk } from './utils/test-utils.js';
+import type {
+  MyUIMessage,
+  MyUIMessageChunk,
+} from './utils/internal/test-utils.js';
 
 /* Generate 1,000 text chunks for benchmarking */
 const TEXT_DELTA_CHUNKS: Array<MyUIMessageChunk> = Array.from(

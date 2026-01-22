@@ -21,6 +21,7 @@ import {
   TEXT_CHUNKS,
   TOOL_CLIENT_CHUNKS,
   TOOL_SERVER_CHUNKS,
+  TOOL_WITH_DATA_CHUNKS,
 } from './utils/internal/test-utils.js';
 
 describe('flatMapUIMessageStream', () => {
@@ -136,8 +137,8 @@ describe('flatMapUIMessageStream', () => {
       type: 'tool-weather',
       toolCallId: '3',
       state: 'output-available',
-      input: { location: 'NYC' },
-      output: { temperature: 65 },
+      input: { location: 'Tokyo' },
+      output: { temperature: 72 },
     });
 
     // Tool chunks should be present in output
@@ -167,12 +168,59 @@ describe('flatMapUIMessageStream', () => {
       type: 'tool-weather',
       toolCallId: '6',
       state: 'input-available',
-      input: { location: 'NYC' },
+      input: { location: 'Tokyo' },
     });
 
     // Tool chunks should be present in output
     const toolChunks = result.filter((c) => c.type.startsWith('tool-'));
     expect(toolChunks.length).toBeGreaterThan(0);
+  });
+
+  it('should handle data-* chunks interleaved with tool chunks', async () => {
+    const stream = convertArrayToReadableStream([
+      START_CHUNK,
+      ...TOOL_WITH_DATA_CHUNKS,
+      FINISH_CHUNK,
+    ]);
+
+    let capturedToolPart: unknown;
+    let capturedDataPart: unknown;
+    const mappedStream = flatMapUIMessageStream<MyUIMessage>(
+      stream,
+      ({ part }) => {
+        if (part.type === 'tool-weather') {
+          capturedToolPart = part;
+        }
+        if (part.type === 'data-weather') {
+          capturedDataPart = part;
+        }
+        return part;
+      },
+    );
+
+    const result = await convertAsyncIterableToArray(mappedStream);
+
+    // Tool part should have complete info
+    expect(capturedToolPart).toMatchObject({
+      type: 'tool-weather',
+      toolCallId: '10',
+      state: 'output-available',
+      input: { location: 'Tokyo' },
+      output: { location: 'Tokyo', temperature: 72 },
+    });
+
+    // Data part should be captured
+    expect(capturedDataPart).toMatchObject({
+      type: 'data-weather',
+      data: { location: 'Tokyo', temperature: 72 },
+    });
+
+    // Both tool and data chunks should be in output
+    const toolChunks = result.filter((c) => c.type.startsWith('tool-'));
+    const dataChunks = result.filter((c) => c.type === 'data-weather');
+
+    expect(toolChunks.length).toBeGreaterThan(0);
+    expect(dataChunks.length).toBe(1);
   });
 
   it('should provide complete text part', async () => {

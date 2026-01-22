@@ -26,7 +26,7 @@ import type {
   TextPart,
   ToolChunk,
   ToolWeatherPart,
-} from './utils/test-utils.js';
+} from './utils/internal/test-utils.js';
 
 describe(`types`, () => {
   describe(`PartTypeToChunkTypes`, () => {

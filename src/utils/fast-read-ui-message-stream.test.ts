@@ -19,7 +19,7 @@ import {
   TOOL_CLIENT_CHUNKS,
   TOOL_ERROR_CHUNKS,
   TOOL_SERVER_CHUNKS,
-} from './test-utils.js';
+} from './internal/test-utils.js';
 
 /**
  * Helper to collect all yielded messages by cloning them
@@ -279,10 +279,10 @@ describe(`fastReadUIMessageStream`, () => {
       expect(toolPart).toBeDefined();
       expect((toolPart as { state: string }).state).toBe(`output-available`);
       expect((toolPart as { input: unknown }).input).toEqual({
-        location: `NYC`,
+        location: `Tokyo`,
       });
       expect((toolPart as { output: unknown }).output).toEqual({
-        temperature: 65,
+        temperature: 72,
       });
     });
 
@@ -307,7 +307,7 @@ describe(`fastReadUIMessageStream`, () => {
       expect(toolPart).toBeDefined();
       expect((toolPart as { state: string }).state).toBe(`input-available`);
       expect((toolPart as { input: unknown }).input).toEqual({
-        location: `NYC`,
+        location: `Tokyo`,
       });
     });
 
@@ -475,8 +475,8 @@ describe(`fastReadUIMessageStream`, () => {
       );
       expect(dataPart).toBeDefined();
       expect((dataPart as { data: unknown }).data).toEqual({
-        location: `NYC`,
-        temperature: 65,
+        location: `Tokyo`,
+        temperature: 72,
       });
     });
   });

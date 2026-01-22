@@ -146,7 +146,7 @@ export const TOOL_SERVER_CHUNKS: MyUIMessageChunk[] = [
   {
     type: 'tool-output-available',
     toolCallId: '3',
-    output: { temperature: 65 },
+    output: { temperature: 72 },
   },
   { type: 'finish-step' },
 ];
