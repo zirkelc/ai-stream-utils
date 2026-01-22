@@ -4,10 +4,6 @@ import type { ChunkTypeGuard } from './chunk-type.js';
 import type { PartTypeGuard } from './part-type.js';
 import type { ChunkPredicate, PartInput, PartPredicate } from './types.js';
 
-/* ============================================================================
- * Internal Pipeline Representation
- * ============================================================================ */
-
 /**
  * Internal chunk representation used within the pipeline.
  * Includes the original chunk and the part type (or undefined for meta chunks).
@@ -32,10 +28,6 @@ export type ChunkBuilder<UI_MESSAGE extends UIMessage> = (
 export type PartBuilder<UI_MESSAGE extends UIMessage> = (
   iterable: AsyncIterable<PartInput<InferUIMessagePart<UI_MESSAGE>>>,
 ) => AsyncIterable<PartInput<InferUIMessagePart<UI_MESSAGE>>>;
-
-/* ============================================================================
- * Filter Function Union Types (for implementation signatures)
- * ============================================================================ */
 
 /**
  * Union of all filter function types for ChunkPipeline/MatchPipeline.
@@ -68,10 +60,6 @@ export type PartFilterFn<
 export type MatchFilterFn<UI_MESSAGE extends UIMessage> =
   | ((input: { part: { type: string } }) => boolean)
   | PartTypeGuard<UI_MESSAGE, InferUIMessagePartType<UI_MESSAGE>>;
-
-/* ============================================================================
- * Base Pipeline Interface
- * ============================================================================ */
 
 export interface BasePipeline<UI_MESSAGE extends UIMessage> {
   toStream(): AsyncIterableStream<InferUIMessageChunk<UI_MESSAGE>>;

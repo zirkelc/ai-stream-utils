@@ -1,9 +1,5 @@
 import type { InferUIMessageChunk, UIMessage } from 'ai';
 
-/* ============================================================================
- * Type Guard for Chunk Types
- * ============================================================================ */
-
 /**
  * Type guard predicate for chunk types.
  * Used with `.filter()` to narrow chunk types.
@@ -22,10 +18,6 @@ export type ChunkTypeGuard<
   /** @internal Type brand - never exists at runtime */
   readonly __brand: `ChunkTypeGuard`;
 };
-
-/* ============================================================================
- * Helper Function
- * ============================================================================ */
 
 /**
  * Creates a type guard that narrows by chunk type.

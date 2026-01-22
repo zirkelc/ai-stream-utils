@@ -5,10 +5,6 @@ import type {
   InferUIMessagePartType,
 } from '../types.js';
 
-/* ============================================================================
- * Type Guard for Part Types
- * ============================================================================ */
-
 /**
  * Type guard predicate for part types.
  * Used with `.filter()` and `.match()` to narrow types.
@@ -25,10 +21,6 @@ export type PartTypeGuard<
   /** @internal Type brand - never exists at runtime */
   readonly __brand: `PartTypeGuard`;
 };
-
-/* ============================================================================
- * Helper Function
- * ============================================================================ */
 
 /**
  * Creates a type guard that narrows by part type.

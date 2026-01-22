@@ -12,21 +12,13 @@ import {
   isStepStartChunk,
 } from './utils/internal/stream-utils.js';
 
-/* ============================================================================
- * Re-exports for backward compatibility
- * ============================================================================ */
-
 export { ChunkPipeline } from './pipe/chunk-pipeline.js';
 export type { ChunkTypeGuard } from './pipe/chunk-type.js';
 export { chunkType } from './pipe/chunk-type.js';
-/** Pipeline classes */
 export { MatchPipeline } from './pipe/match-pipeline.js';
 export { PartPipeline } from './pipe/part-pipeline.js';
-/** Type guards */
 export type { PartTypeGuard } from './pipe/part-type.js';
-/** Helper functions */
 export { partType } from './pipe/part-type.js';
-/** Public types */
 export type {
   ChunkInput,
   ChunkMapFn,
@@ -37,10 +29,6 @@ export type {
   PartPredicate,
   ScanOperator,
 } from './pipe/types.js';
-
-/* ============================================================================
- * Internal Stream Creation
- * ============================================================================ */
 
 /**
  * Creates an internal iterable with part type information from a raw chunk stream.
@@ -101,10 +89,6 @@ function createInternalIterable<UI_MESSAGE extends UIMessage>(
 
   return generateSourceChunks();
 }
-
-/* ============================================================================
- * Entry Point
- * ============================================================================ */
 
 /**
  * Creates a type-safe pipeline for UIMessageStream operations.

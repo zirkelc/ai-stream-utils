@@ -29,10 +29,6 @@ import type {
   ScanOperator,
 } from './types.js';
 
-/* ============================================================================
- * Match Result Type
- * ============================================================================ */
-
 /**
  * Result type for match() handler - must return MatchPipeline.
  */
@@ -41,10 +37,6 @@ type MatchResult<
   CHUNK extends InferUIMessageChunk<UI_MESSAGE>,
   PART extends InferUIMessagePart<UI_MESSAGE>,
 > = MatchPipeline<UI_MESSAGE, CHUNK, PART>;
-
-/* ============================================================================
- * ChunkPipeline Class
- * ============================================================================ */
 
 /**
  * Pipeline for chunk-based operations (default).
@@ -70,10 +62,6 @@ export class ChunkPipeline<
       throw new Error(`Pipeline has already been consumed.`);
     }
   }
-
-  /* --------------------------------------------------------------------------
-   * filter() - Remove non-matching chunks
-   * -------------------------------------------------------------------------- */
 
   /**
    * Filter with part type guard - narrows both chunk and part types.
@@ -141,10 +129,6 @@ export class ChunkPipeline<
     return new ChunkPipeline(this.sourceIterable, nextBuilder);
   }
 
-  /* --------------------------------------------------------------------------
-   * map() - Transform chunks
-   * -------------------------------------------------------------------------- */
-
   /**
    * Transform chunks.
    */
@@ -185,10 +169,6 @@ export class ChunkPipeline<
       nextBuilder,
     );
   }
-
-  /* --------------------------------------------------------------------------
-   * scan() - Stateful accumulator
-   * -------------------------------------------------------------------------- */
 
   /**
    * Stateful accumulator with custom emission logic using a ScanOperator object.
@@ -258,10 +238,6 @@ export class ChunkPipeline<
       nextBuilder,
     );
   }
-
-  /* --------------------------------------------------------------------------
-   * match() - Process matching parts in sub-pipeline
-   * -------------------------------------------------------------------------- */
 
   /**
    * Match specific part types and process them in a sub-pipeline.
@@ -351,10 +327,6 @@ export class ChunkPipeline<
     );
   }
 
-  /* --------------------------------------------------------------------------
-   * reduce() - Transform to PartPipeline
-   * -------------------------------------------------------------------------- */
-
   /**
    * Reduce chunks to complete parts.
    */
@@ -382,10 +354,6 @@ export class ChunkPipeline<
 
     return new PartPipeline<UI_MESSAGE, PART>(reducedIterable, (s) => s);
   }
-
-  /* --------------------------------------------------------------------------
-   * Terminal operations
-   * -------------------------------------------------------------------------- */
 
   /**
    * Execute the pipeline and return the resulting stream.

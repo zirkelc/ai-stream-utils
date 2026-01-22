@@ -15,10 +15,6 @@ import type {
 import type { PartTypeGuard } from './part-type.js';
 import type { PartInput, PartMapFn, PartPredicate } from './types.js';
 
-/* ============================================================================
- * PartPipeline Class
- * ============================================================================ */
-
 /**
  * Pipeline for part-based operations (after reduce()).
  * Operations receive complete parts instead of individual chunks.

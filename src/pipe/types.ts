@@ -1,10 +1,6 @@
 import type { InferUIMessageChunk, UIMessage } from 'ai';
 import type { InferUIMessagePart } from '../types.js';
 
-/* ============================================================================
- * Pipeline Input Types
- * ============================================================================ */
-
 /**
  * Input for chunk-based operations.
  * Part only contains the type field for performance - full part is not assembled.
@@ -22,10 +18,6 @@ export type PartInput<PART> = {
   /** @internal Original chunks for serialization */
   chunks: unknown[];
 };
-
-/* ============================================================================
- * Predicate Types
- * ============================================================================ */
 
 /**
  * Predicate for chunk-based operations (filter, collect).
@@ -50,10 +42,6 @@ export type MatchPredicate<_UI_MESSAGE extends UIMessage> = (input: {
   part: { type: string };
 }) => boolean;
 
-/* ============================================================================
- * Map Function Types
- * ============================================================================ */
-
 /**
  * Map function for chunk-based operations (MatchPipeline, ChunkPipeline).
  * Returns transformed chunk(s) or null to remove.
@@ -74,10 +62,6 @@ export type ChunkMapFn<
  * Returns transformed part or null to remove.
  */
 export type PartMapFn<PART> = (input: PartInput<PART>) => PART | null;
-
-/* ============================================================================
- * Scan Operator Types
- * ============================================================================ */
 
 /**
  * Reusable scan operator object.

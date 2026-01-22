@@ -18,10 +18,6 @@ import type { ChunkInput, ChunkMapFn, ChunkPredicate } from './types.js';
 /** @internal Symbol for accessing MatchPipeline builder */
 export const BUILDER = Symbol(`builder`);
 
-/* ============================================================================
- * MatchPipeline Class
- * ============================================================================ */
-
 /**
  * Pipeline for match-specific operations.
  * A pure transform chain (filter/map composition).
