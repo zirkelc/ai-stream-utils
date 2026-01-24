@@ -2,7 +2,7 @@ import type { InferUIMessageChunk, UIMessage } from 'ai';
 import { ChunkPipeline } from './pipe/chunk-pipeline.js';
 import type { InternalChunk } from './pipe/internal-types.js';
 import type { InferUIMessagePart } from './types.js';
-import { fastReadUIMessageStream } from './utils/fast-read-ui-message-stream.js';
+import { createAsyncIterableStream } from './utils/create-async-iterable-stream.js';
 import {
   getPartTypeFromChunk,
   type ToolCallIdMap,
@@ -15,18 +15,18 @@ import {
 export { ChunkPipeline } from './pipe/chunk-pipeline.js';
 export type { ChunkTypeGuard } from './pipe/chunk-type.js';
 export { chunkType } from './pipe/chunk-type.js';
-export { MatchPipeline } from './pipe/match-pipeline.js';
-export { PartPipeline } from './pipe/part-pipeline.js';
+// export { MatchPipeline } from './pipe/match-pipeline.js';
+// export { PartPipeline } from './pipe/part-pipeline.js';
 export type { PartTypeGuard } from './pipe/part-type.js';
 export { partType } from './pipe/part-type.js';
 export type {
   ChunkInput,
   ChunkMapFn,
   ChunkPredicate,
-  MatchPredicate,
-  PartInput,
-  PartMapFn,
-  PartPredicate,
+  // MatchPredicate,
+  // PartInput,
+  // PartMapFn,
+  // PartPredicate,
   ScanOperator,
 } from './pipe/types.js';
 
@@ -37,57 +37,51 @@ export type {
  * Part type is derived directly from the chunk's type rather than from message.parts[-1],
  * which ensures correct association when chunks from different part types are interleaved.
  */
-function createInternalIterable<UI_MESSAGE extends UIMessage>(
+async function* createInternalIterable<UI_MESSAGE extends UIMessage>(
   stream: ReadableStream<InferUIMessageChunk<UI_MESSAGE>>,
-): AsyncIterable<InternalChunk<UI_MESSAGE>> {
+): AsyncGenerator<InternalChunk<UI_MESSAGE>> {
   /** Buffered start-step chunk. Only emitted if content follows. */
   let bufferedStartStep: InferUIMessageChunk<UI_MESSAGE> | undefined;
   /** Tracks if start-step was emitted, so we know to emit the matching finish-step. */
   let stepStartEmitted = false;
   /** Tracks toolCallId → partType mapping for tool chunks */
-  const toolCallIdMap: ToolCallIdMap = {};
+  const toolCallIdMap: ToolCallIdMap = new Map();
 
-  async function* generateSourceChunks(): AsyncGenerator<
-    InternalChunk<UI_MESSAGE>
-  > {
-    for await (const { chunk } of fastReadUIMessageStream<UI_MESSAGE>(stream)) {
-      /** Buffer start-step instead of emitting immediately */
-      if (isStepStartChunk(chunk)) {
-        bufferedStartStep = chunk;
-        continue;
-      }
-
-      /** Step is ending. Only emit if we emitted the corresponding start-step */
-      if (isStepEndChunk(chunk)) {
-        if (stepStartEmitted) {
-          yield { chunk, partType: undefined };
-          stepStartEmitted = false;
-        }
-        bufferedStartStep = undefined;
-        continue;
-      }
-
-      /** Derive part type from chunk type (undefined for meta chunks) */
-      const partType = getPartTypeFromChunk<UI_MESSAGE>(chunk, toolCallIdMap);
-
-      /** Meta chunks pass through with undefined partType */
-      if (partType === undefined) {
-        yield { chunk, partType: undefined };
-        continue;
-      }
-
-      /** Content chunk - emit buffered start-step first if present */
-      if (bufferedStartStep) {
-        yield { chunk: bufferedStartStep, partType: undefined };
-        stepStartEmitted = true;
-        bufferedStartStep = undefined;
-      }
-
-      yield { chunk, partType };
+  for await (const chunk of createAsyncIterableStream(stream)) {
+    /** Buffer start-step instead of emitting immediately */
+    if (isStepStartChunk(chunk)) {
+      bufferedStartStep = chunk;
+      continue;
     }
-  }
 
-  return generateSourceChunks();
+    /** Step is ending. Only emit if we emitted the corresponding start-step */
+    if (isStepEndChunk(chunk)) {
+      if (stepStartEmitted) {
+        yield { chunk, partType: undefined };
+        stepStartEmitted = false;
+      }
+      bufferedStartStep = undefined;
+      continue;
+    }
+
+    /** Derive part type from chunk type (undefined for meta chunks) */
+    const partType = getPartTypeFromChunk<UI_MESSAGE>(chunk, toolCallIdMap);
+
+    /** Meta chunks pass through with undefined partType */
+    if (partType === undefined) {
+      yield { chunk, partType: undefined };
+      continue;
+    }
+
+    /** Content chunk - emit buffered start-step first if present */
+    if (bufferedStartStep) {
+      yield { chunk: bufferedStartStep, partType: undefined };
+      stepStartEmitted = true;
+      bufferedStartStep = undefined;
+    }
+
+    yield { chunk, partType };
+  }
 }
 
 /**

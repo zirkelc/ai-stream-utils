@@ -11,7 +11,7 @@ import type {
   ReasoningChunk,
   TextChunk,
   TextDeltaChunk,
-  TextPart,
+  // TextPart,
   ToolChunk,
 } from './utils/internal/test-utils.js';
 
@@ -113,98 +113,98 @@ describe(`pipeUIMessageStream types`, () => {
     });
   });
 
-  describe(`reduce`, () => {
-    it(`should transform ChunkInput to PartInput with full part`, () => {
-      pipeUIMessageStream<MyUIMessage>(mockStream)
-        .filter(partType(`text`))
-        .reduce()
-        .map(({ part }) => {
-          /** After reduce, part is the full TextPart type */
-          expectTypeOf(part).toEqualTypeOf<TextPart>();
-          return part;
-        });
-    });
+  // describe(`reduce`, () => {
+  //   it(`should transform ChunkInput to PartInput with full part`, () => {
+  //     pipeUIMessageStream<MyUIMessage>(mockStream)
+  //       .filter(partType(`text`))
+  //       .reduce()
+  //       .map(({ part }) => {
+  //         /** After reduce, part is the full TextPart type */
+  //         expectTypeOf(part).toEqualTypeOf<TextPart>();
+  //         return part;
+  //       });
+  //   });
 
-    it(`should allow further narrowing with partType after reduce`, () => {
-      pipeUIMessageStream<MyUIMessage>(mockStream)
-        .filter(partType(`text`, `reasoning`))
-        .reduce()
-        .filter(partType(`text`))
-        .map(({ part }) => {
-          expectTypeOf(part).toEqualTypeOf<TextPart>();
-          return part;
-        });
-    });
+  //   it(`should allow further narrowing with partType after reduce`, () => {
+  //     pipeUIMessageStream<MyUIMessage>(mockStream)
+  //       .filter(partType(`text`, `reasoning`))
+  //       .reduce()
+  //       .filter(partType(`text`))
+  //       .map(({ part }) => {
+  //         expectTypeOf(part).toEqualTypeOf<TextPart>();
+  //         return part;
+  //       });
+  //   });
 
-    it(`should not have chunk property after reduce`, () => {
-      pipeUIMessageStream<MyUIMessage>(mockStream)
-        .filter(partType(`text`))
-        .reduce()
-        .map((input) => {
-          /** After reduce, input only has 'part', not 'chunk' */
-          expectTypeOf(input).toHaveProperty(`part`);
-          // @ts-expect-error - chunk should not exist after reduce
-          input.chunk;
-          return input.part;
-        });
-    });
-  });
+  //   it(`should not have chunk property after reduce`, () => {
+  //     pipeUIMessageStream<MyUIMessage>(mockStream)
+  //       .filter(partType(`text`))
+  //       .reduce()
+  //       .map((input) => {
+  //         /** After reduce, input only has 'part', not 'chunk' */
+  //         expectTypeOf(input).toHaveProperty(`part`);
+  //         // @ts-expect-error - chunk should not exist after reduce
+  //         input.chunk;
+  //         return input.part;
+  //       });
+  //   });
+  // });
 
-  describe(`match with partType`, () => {
-    it(`should narrow part.type and chunk types in sub-pipeline`, () => {
-      pipeUIMessageStream<MyUIMessage>(mockStream).match(
-        partType(`text`),
-        (pipe) =>
-          pipe.map(({ part, chunk }) => {
-            expectTypeOf(part).toEqualTypeOf<{ type: `text` }>();
-            expectTypeOf(chunk).toEqualTypeOf<TextChunk>();
-            return chunk;
-          }),
-      );
-    });
+  // describe(`match with partType`, () => {
+  //   it(`should narrow part.type and chunk types in sub-pipeline`, () => {
+  //     pipeUIMessageStream<MyUIMessage>(mockStream).match(
+  //       partType(`text`),
+  //       (pipe) =>
+  //         pipe.map(({ part, chunk }) => {
+  //           expectTypeOf(part).toEqualTypeOf<{ type: `text` }>();
+  //           expectTypeOf(chunk).toEqualTypeOf<TextChunk>();
+  //           return chunk;
+  //         }),
+  //     );
+  //   });
 
-    it(`should narrow part.type and chunk types for multiple types`, () => {
-      pipeUIMessageStream<MyUIMessage>(mockStream).match(
-        partType(`text`, `reasoning`),
-        (pipe) =>
-          pipe.map(({ part, chunk }) => {
-            expectTypeOf(part).toEqualTypeOf<{ type: `text` | `reasoning` }>();
-            expectTypeOf(chunk).toEqualTypeOf<TextChunk | ReasoningChunk>();
-            return chunk;
-          }),
-      );
-    });
+  //   it(`should narrow part.type and chunk types for multiple types`, () => {
+  //     pipeUIMessageStream<MyUIMessage>(mockStream).match(
+  //       partType(`text`, `reasoning`),
+  //       (pipe) =>
+  //         pipe.map(({ part, chunk }) => {
+  //           expectTypeOf(part).toEqualTypeOf<{ type: `text` | `reasoning` }>();
+  //           expectTypeOf(chunk).toEqualTypeOf<TextChunk | ReasoningChunk>();
+  //           return chunk;
+  //         }),
+  //     );
+  //   });
 
-    it(`should narrow part.type and chunk types for tool parts`, () => {
-      pipeUIMessageStream<MyUIMessage>(mockStream).match(
-        partType(`tool-weather`),
-        (pipe) =>
-          pipe.map(({ part, chunk }) => {
-            expectTypeOf(part).toEqualTypeOf<{ type: `tool-weather` }>();
-            expectTypeOf(chunk).toEqualTypeOf<ToolChunk>();
-            return chunk;
-          }),
-      );
-    });
-  });
+  //   it(`should narrow part.type and chunk types for tool parts`, () => {
+  //     pipeUIMessageStream<MyUIMessage>(mockStream).match(
+  //       partType(`tool-weather`),
+  //       (pipe) =>
+  //         pipe.map(({ part, chunk }) => {
+  //           expectTypeOf(part).toEqualTypeOf<{ type: `tool-weather` }>();
+  //           expectTypeOf(chunk).toEqualTypeOf<ToolChunk>();
+  //           return chunk;
+  //         }),
+  //     );
+  //   });
+  // });
 
-  describe(`chaining`, () => {
-    it(`should preserve main pipeline INPUT after match`, () => {
-      pipeUIMessageStream<MyUIMessage>(mockStream)
-        .match(partType(`text`), (pipe) => pipe.map(({ chunk }) => chunk))
-        .map(({ chunk, part }) => {
-          /** Main pipeline still has ChunkInput with all types */
-          expectTypeOf(chunk).toEqualTypeOf<MyUIMessageChunk>();
-          expectTypeOf(part.type).toBeString();
-          return chunk;
-        });
-    });
+  // describe(`chaining`, () => {
+  //   it(`should preserve main pipeline INPUT after match`, () => {
+  //     pipeUIMessageStream<MyUIMessage>(mockStream)
+  //       .match(partType(`text`), (pipe) => pipe.map(({ chunk }) => chunk))
+  //       .map(({ chunk, part }) => {
+  //         /** Main pipeline still has ChunkInput with all types */
+  //         expectTypeOf(chunk).toEqualTypeOf<MyUIMessageChunk>();
+  //         expectTypeOf(part.type).toBeString();
+  //         return chunk;
+  //       });
+  //   });
 
-    it(`should allow multiple match calls`, () => {
-      pipeUIMessageStream<MyUIMessage>(mockStream)
-        .match(partType(`text`), (pipe) => pipe.map(({ chunk }) => chunk))
-        .match(partType(`reasoning`), (pipe) => pipe.map(({ chunk }) => chunk))
-        .toStream();
-    });
-  });
+  //   it(`should allow multiple match calls`, () => {
+  //     pipeUIMessageStream<MyUIMessage>(mockStream)
+  //       .match(partType(`text`), (pipe) => pipe.map(({ chunk }) => chunk))
+  //       .match(partType(`reasoning`), (pipe) => pipe.map(({ chunk }) => chunk))
+  //       .toStream();
+  //   });
+  // });
 });

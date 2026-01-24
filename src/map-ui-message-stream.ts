@@ -2,7 +2,6 @@ import { convertAsyncIteratorToReadableStream } from '@ai-sdk/provider-utils';
 import type { AsyncIterableStream, InferUIMessageChunk, UIMessage } from 'ai';
 import type { InferUIMessagePart } from './types.js';
 import { createAsyncIterableStream } from './utils/create-async-iterable-stream.js';
-import { fastReadUIMessageStream } from './utils/fast-read-ui-message-stream.js';
 import { createUIMessageStreamReader } from './utils/internal/create-ui-message-stream-reader.js';
 import {
   asArray,

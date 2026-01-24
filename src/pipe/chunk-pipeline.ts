@@ -1,6 +1,6 @@
 import { convertAsyncIteratorToReadableStream } from '@ai-sdk/provider-utils';
 import type { AsyncIterableStream, InferUIMessageChunk, UIMessage } from 'ai';
-import { reduceUIMessageStream } from '../reduce-ui-message-stream.js';
+// import { reduceUIMessageStream } from '../reduce-ui-message-stream.js';
 import type {
   ExtractChunkForPart,
   ExtractPart,
@@ -15,28 +15,28 @@ import type {
   ChunkBuilder,
   ChunkFilterFn,
   InternalChunk,
-  MatchFilterFn,
+  // MatchFilterFn,
 } from './internal-types.js';
-import { BUILDER, MatchPipeline } from './match-pipeline.js';
-import { PartPipeline } from './part-pipeline.js';
+// import { BUILDER, MatchPipeline } from './match-pipeline.js';
+// import { PartPipeline } from './part-pipeline.js';
 import type { PartTypeGuard } from './part-type.js';
 import type {
   ChunkInput,
   ChunkMapFn,
   ChunkPredicate,
-  MatchPredicate,
-  PartInput,
+  // MatchPredicate,
+  // PartInput,
   ScanOperator,
 } from './types.js';
 
-/**
- * Result type for match() handler - must return MatchPipeline.
- */
-type MatchResult<
-  UI_MESSAGE extends UIMessage,
-  CHUNK extends InferUIMessageChunk<UI_MESSAGE>,
-  PART extends InferUIMessagePart<UI_MESSAGE>,
-> = MatchPipeline<UI_MESSAGE, CHUNK, PART>;
+// /**
+//  * Result type for match() handler - must return MatchPipeline.
+//  */
+// type MatchResult<
+//   UI_MESSAGE extends UIMessage,
+//   CHUNK extends InferUIMessageChunk<UI_MESSAGE>,
+//   PART extends InferUIMessagePart<UI_MESSAGE>,
+// > = MatchPipeline<UI_MESSAGE, CHUNK, PART>;
 
 /**
  * Pipeline for chunk-based operations (default).
@@ -239,121 +239,121 @@ export class ChunkPipeline<
     );
   }
 
-  /**
-   * Match specific part types and process them in a sub-pipeline.
-   * Non-matching chunks pass through unchanged.
-   *
-   * @overload With PartTypeGuard (created by partType()) - provides type narrowing
-   * @overload With plain predicate - no type narrowing, sub-pipeline has full types
-   */
-  match<PART_TYPE extends InferUIMessagePartType<UI_MESSAGE>>(
-    predicate: PartTypeGuard<UI_MESSAGE, PART_TYPE>,
-    handler: (
-      subPipeline: MatchPipeline<
-        UI_MESSAGE,
-        ExtractChunkForPart<UI_MESSAGE, ExtractPart<UI_MESSAGE, PART_TYPE>>,
-        ExtractPart<UI_MESSAGE, PART_TYPE>
-      >,
-    ) => MatchResult<
-      UI_MESSAGE,
-      ExtractChunkForPart<UI_MESSAGE, ExtractPart<UI_MESSAGE, PART_TYPE>>,
-      ExtractPart<UI_MESSAGE, PART_TYPE>
-    >,
-  ): ChunkPipeline<UI_MESSAGE, CHUNK, PART>;
-  match(
-    predicate: MatchPredicate<UI_MESSAGE>,
-    handler: (
-      subPipeline: MatchPipeline<
-        UI_MESSAGE,
-        InferUIMessageChunk<UI_MESSAGE>,
-        InferUIMessagePart<UI_MESSAGE>
-      >,
-    ) => MatchResult<
-      UI_MESSAGE,
-      InferUIMessageChunk<UI_MESSAGE>,
-      InferUIMessagePart<UI_MESSAGE>
-    >,
-  ): ChunkPipeline<UI_MESSAGE, CHUNK, PART>;
+  // /**
+  //  * Match specific part types and process them in a sub-pipeline.
+  //  * Non-matching chunks pass through unchanged.
+  //  *
+  //  * @overload With PartTypeGuard (created by partType()) - provides type narrowing
+  //  * @overload With plain predicate - no type narrowing, sub-pipeline has full types
+  //  */
+  // match<PART_TYPE extends InferUIMessagePartType<UI_MESSAGE>>(
+  //   predicate: PartTypeGuard<UI_MESSAGE, PART_TYPE>,
+  //   handler: (
+  //     subPipeline: MatchPipeline<
+  //       UI_MESSAGE,
+  //       ExtractChunkForPart<UI_MESSAGE, ExtractPart<UI_MESSAGE, PART_TYPE>>,
+  //       ExtractPart<UI_MESSAGE, PART_TYPE>
+  //     >,
+  //   ) => MatchResult<
+  //     UI_MESSAGE,
+  //     ExtractChunkForPart<UI_MESSAGE, ExtractPart<UI_MESSAGE, PART_TYPE>>,
+  //     ExtractPart<UI_MESSAGE, PART_TYPE>
+  //   >,
+  // ): ChunkPipeline<UI_MESSAGE, CHUNK, PART>;
+  // match(
+  //   predicate: MatchPredicate<UI_MESSAGE>,
+  //   handler: (
+  //     subPipeline: MatchPipeline<
+  //       UI_MESSAGE,
+  //       InferUIMessageChunk<UI_MESSAGE>,
+  //       InferUIMessagePart<UI_MESSAGE>
+  //     >,
+  //   ) => MatchResult<
+  //     UI_MESSAGE,
+  //     InferUIMessageChunk<UI_MESSAGE>,
+  //     InferUIMessagePart<UI_MESSAGE>
+  //   >,
+  // ): ChunkPipeline<UI_MESSAGE, CHUNK, PART>;
 
-  match<PART_TYPE extends InferUIMessagePartType<UI_MESSAGE>>(
-    predicate: MatchFilterFn<UI_MESSAGE>,
-    handler: (
-      subPipeline: MatchPipeline<UI_MESSAGE, any, any>,
-    ) => MatchResult<UI_MESSAGE, any, any>,
-  ): ChunkPipeline<UI_MESSAGE, CHUNK, PART> {
-    const subPipeline = new MatchPipeline<
-      UI_MESSAGE,
-      ExtractChunkForPart<UI_MESSAGE, ExtractPart<UI_MESSAGE, PART_TYPE>>,
-      ExtractPart<UI_MESSAGE, PART_TYPE>
-    >();
+  // match<PART_TYPE extends InferUIMessagePartType<UI_MESSAGE>>(
+  //   predicate: MatchFilterFn<UI_MESSAGE>,
+  //   handler: (
+  //     subPipeline: MatchPipeline<UI_MESSAGE, any, any>,
+  //   ) => MatchResult<UI_MESSAGE, any, any>,
+  // ): ChunkPipeline<UI_MESSAGE, CHUNK, PART> {
+  //   const subPipeline = new MatchPipeline<
+  //     UI_MESSAGE,
+  //     ExtractChunkForPart<UI_MESSAGE, ExtractPart<UI_MESSAGE, PART_TYPE>>,
+  //     ExtractPart<UI_MESSAGE, PART_TYPE>
+  //   >();
 
-    const result = handler(subPipeline);
-    const subPipelineBuilder = result[BUILDER];
-    const pred = predicate as MatchPredicate<UI_MESSAGE>;
+  //   const result = handler(subPipeline);
+  //   const subPipelineBuilder = result[BUILDER];
+  //   const pred = predicate as MatchPredicate<UI_MESSAGE>;
 
-    const nextBuilder: ChunkBuilder<UI_MESSAGE> = (iterable) => {
-      const prevIterable = this.prevBuilder(iterable);
+  //   const nextBuilder: ChunkBuilder<UI_MESSAGE> = (iterable) => {
+  //     const prevIterable = this.prevBuilder(iterable);
 
-      async function* generateMatched(): AsyncGenerator<
-        InternalChunk<UI_MESSAGE>
-      > {
-        for await (const item of prevIterable) {
-          if (item.partType === undefined) {
-            /** Meta chunks pass through */
-            yield item;
-          } else if (pred({ part: { type: item.partType } })) {
-            /** Apply transform to matching chunk */
-            const singleItemIterable = (async function* () {
-              yield item;
-            })();
-            for await (const transformed of subPipelineBuilder(
-              singleItemIterable,
-            )) {
-              yield transformed;
-            }
-          } else {
-            /** Non-matching pass through */
-            yield item;
-          }
-        }
-      }
+  //     async function* generateMatched(): AsyncGenerator<
+  //       InternalChunk<UI_MESSAGE>
+  //     > {
+  //       for await (const item of prevIterable) {
+  //         if (item.partType === undefined) {
+  //           /** Meta chunks pass through */
+  //           yield item;
+  //         } else if (pred({ part: { type: item.partType } })) {
+  //           /** Apply transform to matching chunk */
+  //           const singleItemIterable = (async function* () {
+  //             yield item;
+  //           })();
+  //           for await (const transformed of subPipelineBuilder(
+  //             singleItemIterable,
+  //           )) {
+  //             yield transformed;
+  //           }
+  //         } else {
+  //           /** Non-matching pass through */
+  //           yield item;
+  //         }
+  //       }
+  //     }
 
-      return generateMatched();
-    };
+  //     return generateMatched();
+  //   };
 
-    return new ChunkPipeline<UI_MESSAGE, CHUNK, PART>(
-      this.sourceIterable,
-      nextBuilder,
-    );
-  }
+  //   return new ChunkPipeline<UI_MESSAGE, CHUNK, PART>(
+  //     this.sourceIterable,
+  //     nextBuilder,
+  //   );
+  // }
 
-  /**
-   * Reduce chunks to complete parts.
-   */
-  reduce(): PartPipeline<UI_MESSAGE, PART> {
-    const prevBuilder = this.prevBuilder;
-    const sourceIterable = this.sourceIterable;
+  // /**
+  //  * Reduce chunks to complete parts.
+  //  */
+  // reduce(): PartPipeline<UI_MESSAGE, PART> {
+  //   const prevBuilder = this.prevBuilder;
+  //   const sourceIterable = this.sourceIterable;
 
-    /** Extract chunks from internal iterable representation */
-    async function* generateRawChunks(): AsyncGenerator<
-      InferUIMessageChunk<UI_MESSAGE>
-    > {
-      for await (const item of prevBuilder(sourceIterable)) {
-        yield item.chunk;
-      }
-    }
+  //   /** Extract chunks from internal iterable representation */
+  //   async function* generateRawChunks(): AsyncGenerator<
+  //     InferUIMessageChunk<UI_MESSAGE>
+  //   > {
+  //     for await (const item of prevBuilder(sourceIterable)) {
+  //       yield item.chunk;
+  //     }
+  //   }
 
-    const rawChunkStream = convertAsyncIteratorToReadableStream(
-      generateRawChunks(),
-    );
+  //   const rawChunkStream = convertAsyncIteratorToReadableStream(
+  //     generateRawChunks(),
+  //   );
 
-    /** Call reduceUIMessageStream eagerly - this is the only place that needs a stream */
-    const reducedIterable = reduceUIMessageStream<UI_MESSAGE>(
-      rawChunkStream,
-    ) as AsyncIterable<PartInput<PART>>;
+  //   /** Call reduceUIMessageStream eagerly - this is the only place that needs a stream */
+  //   const reducedIterable = reduceUIMessageStream<UI_MESSAGE>(
+  //     rawChunkStream,
+  //   ) as AsyncIterable<PartInput<PART>>;
 
-    return new PartPipeline<UI_MESSAGE, PART>(reducedIterable, (s) => s);
-  }
+  //   return new PartPipeline<UI_MESSAGE, PART>(reducedIterable, (s) => s);
+  // }
 
   /**
    * Execute the pipeline and return the resulting stream.

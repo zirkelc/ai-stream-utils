@@ -5,7 +5,7 @@ import type { InferUIMessageChunk, UIMessage } from 'ai';
  * This is needed because only `tool-input-start` has the `toolName` and `dynamic` flag,
  * while other tool chunks only have `toolCallId`.
  */
-export type ToolCallIdMap = Record<string, string>;
+export type ToolCallIdMap = Map<string, string>;
 
 /**
  * Derives the part type directly from a chunk's type.
@@ -43,7 +43,7 @@ export function getPartTypeFromChunk<UI_MESSAGE extends UIMessage>(
         dynamic?: boolean;
       };
       const partType = c.dynamic ? `dynamic-tool` : `tool-${c.toolName}`;
-      toolCallIdMap[c.toolCallId] = partType;
+      toolCallIdMap.set(c.toolCallId, partType);
       return partType;
     }
 
@@ -56,7 +56,7 @@ export function getPartTypeFromChunk<UI_MESSAGE extends UIMessage>(
     case `tool-output-denied`:
     case `tool-approval-request`: {
       const c = chunk as { toolCallId: string };
-      return toolCallIdMap[c.toolCallId];
+      return toolCallIdMap.get(c.toolCallId);
     }
 
     /** Source chunks */

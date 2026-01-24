@@ -25,19 +25,19 @@ export {
   type ChunkPredicate,
   type ChunkTypeGuard,
   chunkType,
-  type MatchPredicate,
-  type PartInput,
-  type PartMapFn,
-  type PartPredicate,
+  // type MatchPredicate,
+  // type PartInput,
+  // type PartMapFn,
+  // type PartPredicate,
   type PartTypeGuard,
   partType,
   pipeUIMessageStream,
   type ScanOperator,
 } from './pipe-ui-message-stream.js';
-export {
-  type SmoothStreamingOptions,
-  smoothStreaming,
-} from './smooth-streaming.js';
+// export {
+//   type SmoothStreamingOptions,
+//   smoothStreaming,
+// } from './smooth-streaming.js';
 export type {
   InferUIMessagePart,
   InferUIMessagePartType,

@@ -1,6 +1,6 @@
 import { convertAsyncIteratorToReadableStream } from '@ai-sdk/provider-utils';
 import type { AsyncIterableStream, InferUIMessageChunk, UIMessage } from 'ai';
-import type { PartInput } from './pipe-ui-message-stream.js';
+import type { PartInput } from './pipe/types.js';
 import type { InferUIMessagePart } from './types.js';
 import { createAsyncIterableStream } from './utils/create-async-iterable-stream.js';
 import { fastReadUIMessageStream } from './utils/fast-read-ui-message-stream.js';
@@ -94,7 +94,7 @@ export function reduceUIMessageStream<UI_MESSAGE extends UIMessage>(
     /** Order parts were first seen (for preserving emission order) */
     const partOrder: Array<string> = [];
     /** Tracks toolCallId → partType mapping for tool chunks */
-    const toolCallIdMap: ToolCallIdMap = {};
+    const toolCallIdMap: ToolCallIdMap = new Map();
 
     for await (const { chunk, message } of fastReadUIMessageStream<UI_MESSAGE>(
       stream,
