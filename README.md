@@ -321,6 +321,8 @@ Helper functions for converting between streams, arrays, and async iterables.
 | `convertAsyncIterableToStream` | `AsyncIterable<T>` | `ReadableStream<T>` |
 | `convertAsyncIterableToArray` | `AsyncIterable<T>` | `Promise<Array<T>>` |
 | `convertStreamToArray` | `ReadableStream<T>` | `Promise<Array<T>>` |
+| `convertUIMessageToSSEStream` | `ReadableStream<UIMessageChunk>` | `ReadableStream<string>` |
+| `convertSSEToUIMessageStream` | `ReadableStream<string>` | `ReadableStream<UIMessageChunk>` |
 
 ### `createAsyncIterableStream`
 
@@ -377,6 +379,31 @@ Consumes a `ReadableStream` and collects all chunks into an array.
 import { convertStreamToArray } from 'ai-stream-utils/utils';
 
 const array = await convertStreamToArray(readableStream);
+```
+
+### `convertUIMessageToSSEStream`
+
+Converts a UI message stream to an SSE (Server-Sent Events) stream. Useful for sending UI message chunks over HTTP as SSE-formatted text.
+
+```typescript
+import { convertUIMessageToSSEStream } from 'ai-stream-utils/utils';
+
+const uiStream = result.toUIMessageStream();
+const sseStream = convertUIMessageToSSEStream(uiStream);
+
+// Output format: "data: {...}\n\n" for each chunk
+```
+
+### `convertSSEToUIMessageStream`
+
+Converts an SSE stream back to a UI message stream. Useful for parsing SSE-formatted responses on the client.
+
+```typescript
+import { convertSSEToUIMessageStream } from 'ai-stream-utils/utils';
+
+const response = await fetch('/api/chat');
+const sseStream = response.body.pipeThrough(new TextDecoderStream());
+const uiStream = convertSSEToUIMessageStream(sseStream);
 ```
 
 ## Type Safety
