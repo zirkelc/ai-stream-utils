@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.0](https://github.com/zirkelc/ai-stream-utils/compare/v1.4.2...v1.5.0) (2026-01-29)
+
+
+### Features
+
+* add conversion function for SSE ([b1e1d3d](https://github.com/zirkelc/ai-stream-utils/commit/b1e1d3d9d213c277058167fd9d8f3c040dc03377))
+
 ## [1.4.2](https://github.com/zirkelc/ai-stream-utils/compare/v1.4.1...v1.4.2) (2026-01-21)
 
 
