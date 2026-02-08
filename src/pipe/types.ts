@@ -1,5 +1,5 @@
-import type { InferUIMessageChunk, UIMessage } from 'ai';
-import type { InferUIMessagePart } from '../types.js';
+import type { InferUIMessageChunk, UIMessage } from "ai";
+import type { InferUIMessagePart } from "../types.js";
 
 /**
  * Input for chunk-based operations.
@@ -52,10 +52,7 @@ export type ChunkMapFn<
   PART extends InferUIMessagePart<UI_MESSAGE>,
 > = (
   input: ChunkInput<CHUNK, PART>,
-) =>
-  | InferUIMessageChunk<UI_MESSAGE>
-  | Array<InferUIMessageChunk<UI_MESSAGE>>
-  | null;
+) => InferUIMessageChunk<UI_MESSAGE> | Array<InferUIMessageChunk<UI_MESSAGE>> | null;
 
 /**
  * Map function for part-based operations (PartPipeline).
@@ -82,22 +79,15 @@ export type PartMapFn<PART> = (input: PartInput<PART>) => PART | null;
 export type ScanOperator<
   UI_MESSAGE extends UIMessage,
   STATE,
-  CHUNK extends
-    InferUIMessageChunk<UI_MESSAGE> = InferUIMessageChunk<UI_MESSAGE>,
+  CHUNK extends InferUIMessageChunk<UI_MESSAGE> = InferUIMessageChunk<UI_MESSAGE>,
   PART extends InferUIMessagePart<UI_MESSAGE> = InferUIMessagePart<UI_MESSAGE>,
 > = {
   initial: STATE | (() => STATE);
   reducer: (
     state: STATE,
     input: ChunkInput<CHUNK, PART>,
-  ) =>
-    | InferUIMessageChunk<UI_MESSAGE>
-    | Array<InferUIMessageChunk<UI_MESSAGE>>
-    | null;
+  ) => InferUIMessageChunk<UI_MESSAGE> | Array<InferUIMessageChunk<UI_MESSAGE>> | null;
   finalize?: (
     state: STATE,
-  ) =>
-    | InferUIMessageChunk<UI_MESSAGE>
-    | Array<InferUIMessageChunk<UI_MESSAGE>>
-    | null;
+  ) => InferUIMessageChunk<UI_MESSAGE> | Array<InferUIMessageChunk<UI_MESSAGE>> | null;
 };

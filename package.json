@@ -2,12 +2,29 @@
   "name": "ai-stream-utils",
   "version": "1.4.2",
   "description": "AI SDK: Filter and transform UI messages while streaming to the client",
-  "packageManager": "pnpm@10.0.0",
-  "types": "./dist/index.d.mts",
-  "type": "module",
+  "keywords": [
+    "ai",
+    "ai-sdk",
+    "chunk",
+    "message",
+    "sdk",
+    "stream",
+    "ui",
+    "ui-message",
+    "ui-message-chunk",
+    "ui-message-stream"
+  ],
+  "license": "MIT",
+  "author": "Chris Cook",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zirkelc/ai-stream-utils"
+  },
   "files": [
     "dist"
   ],
+  "type": "module",
+  "types": "./dist/index.d.mts",
   "exports": {
     ".": "./dist/index.mjs",
     "./utils": "./dist/utils/index.mjs",
@@ -18,29 +35,14 @@
     "build": "tsdown",
     "test": "vitest",
     "benchmark": "pnpm vitest bench --run",
-    "lint": "biome check . --write",
+    "lint": "oxlint --fix",
+    "lint:ci": "oxlint",
+    "format": "oxfmt --write",
+    "format:ci": "oxfmt --check",
     "prepare": "husky"
   },
-  "keywords": [
-    "ai",
-    "sdk",
-    "ai-sdk",
-    "ui",
-    "message",
-    "stream",
-    "chunk",
-    "ui-message",
-    "ui-message-stream",
-    "ui-message-chunk"
-  ],
-  "author": "Chris Cook",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/zirkelc/ai-stream-utils"
-  },
-  "peerDependencies": {
-    "ai": "5.x || 6.x"
+  "dependencies": {
+    "defu": "^6.1.4"
   },
   "devDependencies": {
     "@ai-sdk/openai": "^3.0.13",
@@ -52,7 +54,10 @@
     "@types/node": "^25.0.9",
     "ai": "^6.0.42",
     "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
     "msw": "^2.12.7",
+    "oxfmt": "^0.26.0",
+    "oxlint": "^1.41.0",
     "pkg-pr-new": "^0.0.62",
     "publint": "^0.3.16",
     "tsdown": "0.20.0-beta.4",
@@ -61,7 +66,12 @@
     "vitest": "^4.0.17",
     "zod": "^4.3.5"
   },
-  "dependencies": {
-    "defu": "^6.1.4"
-  }
+  "peerDependencies": {
+    "ai": "5.x || 6.x"
+  },
+  "lint-staged": {
+    "*": "oxfmt --no-error-on-unmatched-pattern",
+    "*.{js,jsx,ts,tsx,mjs,cjs}": "oxlint"
+  },
+  "packageManager": "pnpm@10.0.0"
 }

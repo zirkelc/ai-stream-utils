@@ -1,4 +1,4 @@
-import type { InferUIMessageChunk, UIMessage } from 'ai';
+import type { InferUIMessageChunk, UIMessage } from "ai";
 
 /**
  * Tracks toolCallId to partType mapping for tool chunks.
@@ -84,7 +84,7 @@ export function getPartTypeFromChunk<UI_MESSAGE extends UIMessage>(
       if (chunkType.startsWith(`data-`)) {
         return chunkType;
       }
-      /** Unknown chunk type - could be custom, return the type as-is */
-      return chunkType;
   }
+
+  throw new Error(`Unable to derive part type from chunk type: ${chunkType}`);
 }

@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitest/config';
+import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
@@ -6,8 +6,8 @@ export default defineConfig({
       enabled: true,
     },
     benchmark: {
-      outputJson: './benchmarks/benchmark-results.json',
-      compare: './benchmarks/benchmark-results.json',
+      outputJson: "./benchmarks/benchmark-results.json",
+      compare: "./benchmarks/benchmark-results.json",
     },
   },
 });

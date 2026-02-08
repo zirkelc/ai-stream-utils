@@ -9,8 +9,8 @@ import {
   type ToolUIPart,
   type UIMessage,
   type UIMessageChunk,
-} from 'ai';
-import { defu } from 'defu';
+} from "ai";
+import { defu } from "defu";
 
 /**
  * State object for tracking message assembly during streaming.
@@ -312,8 +312,7 @@ export function processChunkFast<UI_MESSAGE extends UIMessage>(
         }
       } else {
         const part = parts.find(
-          (p): p is ToolUIPart =>
-            isToolUIPart(p) && p.toolCallId === chunk.toolCallId,
+          (p): p is ToolUIPart => isToolUIPart(p) && p.toolCallId === chunk.toolCallId,
         );
 
         if (part) {

@@ -1,19 +1,21 @@
-import type { InferUIMessageChunk, UIMessage } from 'ai';
+import type { InferUIMessageChunk, UIMessage } from "ai";
+import { asArray } from "../internal/utils.js";
 import type {
   ExtractChunkForPart,
   ExtractPart,
   InferUIMessagePart,
   InferUIMessagePartType,
-} from '../types.js';
-import { asArray } from '../utils/internal/stream-utils.js';
-import type { ChunkTypeGuard } from './chunk-type.js';
+} from "../types.js";
+import type { InternalChunk } from "./base-pipeline.js";
 import type {
   ChunkBuilder,
   ChunkFilterFn,
-  InternalChunk,
-} from './internal-types.js';
-import type { PartTypeGuard } from './part-type.js';
-import type { ChunkInput, ChunkMapFn, ChunkPredicate } from './types.js';
+  ChunkInput,
+  ChunkMapFn,
+  ChunkPredicate,
+} from "./chunk-pipeline.js";
+import type { ChunkTypeGuard } from "./chunk-type.js";
+import type { PartTypeGuard } from "./part-type.js";
 
 /** @internal Symbol for accessing MatchPipeline builder */
 export const BUILDER = Symbol(`builder`);
@@ -60,21 +62,15 @@ export class MatchPipeline<
   /**
    * Filter with generic predicate.
    */
-  filter(
-    predicate: ChunkPredicate<CHUNK, PART>,
-  ): MatchPipeline<UI_MESSAGE, CHUNK, PART>;
+  filter(predicate: ChunkPredicate<CHUNK, PART>): MatchPipeline<UI_MESSAGE, CHUNK, PART>;
 
-  filter(
-    predicate: ChunkFilterFn<UI_MESSAGE, CHUNK, PART>,
-  ): MatchPipeline<UI_MESSAGE, any, any> {
+  filter(predicate: ChunkFilterFn<UI_MESSAGE, CHUNK, PART>): MatchPipeline<UI_MESSAGE, any, any> {
     const predicateFn = predicate as ChunkPredicate<CHUNK, PART>;
 
     const nextBuilder: ChunkBuilder<UI_MESSAGE> = (iterable) => {
       const prevIterable = this[BUILDER](iterable);
 
-      async function* filterMatched(): AsyncGenerator<
-        InternalChunk<UI_MESSAGE>
-      > {
+      async function* filterMatched(): AsyncGenerator<InternalChunk<UI_MESSAGE>> {
         for await (const item of prevIterable) {
           /** Meta chunks pass through (shouldn't happen in match context) */
           if (item.partType === undefined) {
@@ -102,9 +98,7 @@ export class MatchPipeline<
   /**
    * Transform chunks.
    */
-  map(
-    fn: ChunkMapFn<UI_MESSAGE, CHUNK, PART>,
-  ): MatchPipeline<UI_MESSAGE, CHUNK, PART> {
+  map(fn: ChunkMapFn<UI_MESSAGE, CHUNK, PART>): MatchPipeline<UI_MESSAGE, CHUNK, PART> {
     const nextBuilder: ChunkBuilder<UI_MESSAGE> = (iterable) => {
       const prevIterable = this[BUILDER](iterable);
 

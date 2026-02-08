@@ -1,12 +1,10 @@
-import type { AsyncIterableStream } from 'ai';
+import type { AsyncIterableStream } from "ai";
 
 /**
  * Converts a ReadableStream to an AsyncIterableStream.
  * Copied from https://github.com/vercel/ai/blob/main/packages/ai/src/util/async-iterable-stream.ts
  */
-export function createAsyncIterableStream<T>(
-  source: ReadableStream<T>,
-): AsyncIterableStream<T> {
+export function createAsyncIterableStream<T>(source: ReadableStream<T>): AsyncIterableStream<T> {
   /** Pipe through a TransformStream to ensure a fresh, unlocked stream. */
   const stream = source.pipeThrough(new TransformStream<T, T>());
 

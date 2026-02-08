@@ -1,20 +1,16 @@
 /**
  * Smooth Streaming Example
  *
- * Demonstrates how to use pipeUIMessageStream with smoothStreaming() operator.
+ * Demonstrates how to use pipe with smoothStreaming() operator.
  * Buffers text-delta chunks and re-emits them based on word or custom boundaries.
  *
  * This mirrors the AI SDK's smoothStream function behavior.
  */
 
-import { type InferUIMessageChunk, streamText, type UIMessage } from 'ai';
-import {
-  type ChunkInput,
-  type InferUIMessagePart,
-  pipeUIMessageStream,
-  type ScanOperator,
-} from '../src/index.js';
-import { createMockModel, textToChunks } from '../src/utils/test/mock-model.js';
+import { type InferUIMessageChunk, streamText, type UIMessage } from "ai";
+import { type ChunkInput, experimental_pipe as pipe, type ScanOperator } from "../src/index.js";
+import { createMockModel, textToChunks } from "../src/test/mock-model.js";
+import { InferUIMessagePart } from "../src/types.js";
 
 const result = streamText({
   model: createMockModel({
@@ -75,13 +71,7 @@ function smoothStreaming<UI_MESSAGE extends UIMessage>(
     initial: () => ({ buffer: ``, id: `` }),
     reducer: (
       state: SmoothStreamingState,
-      {
-        chunk,
-        part,
-      }: ChunkInput<
-        InferUIMessageChunk<UI_MESSAGE>,
-        InferUIMessagePart<UI_MESSAGE>
-      >,
+      { chunk, part }: ChunkInput<InferUIMessageChunk<UI_MESSAGE>, InferUIMessagePart<UI_MESSAGE>>,
     ) => {
       /** Non-text-delta: flush buffer, pass through */
       if (chunk.type !== `text-delta`) {
@@ -118,8 +108,7 @@ function smoothStreaming<UI_MESSAGE extends UIMessage>(
       state.buffer += textDelta.delta;
       state.id = textDelta.id;
 
-      const chunks: Array<{ type: `text-delta`; id: string; delta: string }> =
-        [];
+      const chunks: Array<{ type: `text-delta`; id: string; delta: string }> = [];
       let match: RegExpExecArray | null = null;
 
       /** Split text matching the regex into new chunks */
@@ -135,9 +124,7 @@ function smoothStreaming<UI_MESSAGE extends UIMessage>(
         }
       }
 
-      return chunks.length > 0
-        ? (chunks as Array<InferUIMessageChunk<UI_MESSAGE>>)
-        : null;
+      return chunks.length > 0 ? (chunks as Array<InferUIMessageChunk<UI_MESSAGE>>) : null;
     },
     finalize: (state: SmoothStreamingState) => {
       /** Finalize remaining buffer at end */
@@ -154,12 +141,10 @@ function smoothStreaming<UI_MESSAGE extends UIMessage>(
 }
 
 /**
- * Using pipeUIMessageStream with smoothStreaming() operator.
+ * Using pipe with smoothStreaming() operator.
  * The smoothStreaming() operator buffers text and emits on word boundaries.
  */
-const smoothedStream = pipeUIMessageStream(result.toUIMessageStream())
-  .scan(smoothStreaming())
-  .toStream();
+const smoothedStream = pipe(result.toUIMessageStream()).scan(smoothStreaming()).toStream();
 
 for await (const chunk of smoothedStream) {
   console.log(chunk);

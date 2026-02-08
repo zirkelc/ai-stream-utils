@@ -1,11 +1,11 @@
-import type { AsyncIterableStream, InferUIMessageChunk, UIMessage } from 'ai';
-import { mapUIMessageStream } from './map-ui-message-stream.js';
+import type { AsyncIterableStream, InferUIMessageChunk, UIMessage } from "ai";
+import { mapUIMessageStream } from "../map/map-ui-message-stream.js";
 import type {
   ExcludePart,
   ExtractPart,
   InferUIMessagePart,
   InferUIMessagePartType,
-} from './types.js';
+} from "../types.js";
 
 /**
  * Unique symbol for type branding filter predicates.
@@ -26,22 +26,10 @@ declare const FilterPredicatePartType: unique symbol;
  */
 export type FilterPredicate<
   UI_MESSAGE extends UIMessage,
-  NARROWED_PART extends
-    InferUIMessagePart<UI_MESSAGE> = InferUIMessagePart<UI_MESSAGE>,
-> = ((input: {
-  chunk: InferUIMessageChunk<UI_MESSAGE>;
-  part: { type: string };
-}) => boolean) & {
+  NARROWED_PART extends InferUIMessagePart<UI_MESSAGE> = InferUIMessagePart<UI_MESSAGE>,
+> = ((input: { chunk: InferUIMessageChunk<UI_MESSAGE>; part: { type: string } }) => boolean) & {
   readonly [FilterPredicatePartType]?: NARROWED_PART;
 };
-
-/**
- * @deprecated Use `FilterPredicate` instead. This alias is kept for backward compatibility.
- */
-export type FilterUIMessageStreamPredicate<
-  UI_MESSAGE extends UIMessage,
-  PART extends InferUIMessagePart<UI_MESSAGE> = InferUIMessagePart<UI_MESSAGE>,
-> = FilterPredicate<UI_MESSAGE, PART>;
 
 /* ============================================================================
  * Helper Functions
@@ -58,7 +46,7 @@ export type FilterUIMessageStreamPredicate<
  * filterUIMessageStream(stream, includeParts(['text', 'tool-weather']));
  *
  * // Pipeline usage - part type is narrowed in subsequent .map()
- * pipeUIMessageStream<MyUIMessage>(stream)
+ * pipe<MyUIMessage>(stream)
  *   .filter(includeParts(['text', 'reasoning']))
  *   .map(({ chunk, part }) => {
  *     // part is typed as TextPart | ReasoningPart
@@ -76,10 +64,7 @@ export function includeParts<
     return includePartTypes.includes(part.type as PART_TYPE);
   };
 
-  return predicate as FilterPredicate<
-    UI_MESSAGE,
-    ExtractPart<UI_MESSAGE, PART_TYPE>
-  >;
+  return predicate as FilterPredicate<UI_MESSAGE, ExtractPart<UI_MESSAGE, PART_TYPE>>;
 }
 
 /**
@@ -93,7 +78,7 @@ export function includeParts<
  * filterUIMessageStream(stream, excludeParts(['reasoning', 'tool-calculator']));
  *
  * // Pipeline usage - part type is narrowed in subsequent .map()
- * pipeUIMessageStream<MyUIMessage>(stream)
+ * pipe<MyUIMessage>(stream)
  *   .filter(excludeParts(['reasoning']))
  *   .map(({ chunk, part }) => {
  *     // part is typed as all parts except ReasoningPart
@@ -111,10 +96,7 @@ export function excludeParts<
     return !excludePartTypes.includes(part.type as PART_TYPE);
   };
 
-  return predicate as FilterPredicate<
-    UI_MESSAGE,
-    ExcludePart<UI_MESSAGE, PART_TYPE>
-  >;
+  return predicate as FilterPredicate<UI_MESSAGE, ExcludePart<UI_MESSAGE, PART_TYPE>>;
 }
 
 /**

@@ -1,10 +1,5 @@
-import {
-  convertArrayToReadableStream,
-  convertAsyncIterableToArray,
-} from '@ai-sdk/provider-utils/test';
-import { readUIMessageStream, type UIMessageChunk } from 'ai';
-import { describe, expect, it } from 'vitest';
-import { fastReadUIMessageStream } from './fast-read-ui-message-stream.js';
+import { readUIMessageStream, type UIMessageChunk } from "ai";
+import { describe, expect, it } from "vitest";
 import {
   DATA_CHUNKS,
   DYNAMIC_TOOL_CHUNKS,
@@ -19,7 +14,10 @@ import {
   TOOL_CLIENT_CHUNKS,
   TOOL_ERROR_CHUNKS,
   TOOL_SERVER_CHUNKS,
-} from './internal/test-utils.js';
+} from "../test/ui-message.js";
+import { convertArrayToStream } from "../utils/convert-array-to-stream.js";
+import { convertAsyncIterableToArray } from "../utils/convert-async-iterable-to-array.js";
+import { fastReadUIMessageStream } from "./fast-read-ui-message-stream.js";
 
 /**
  * Helper to collect all yielded messages by cloning them
@@ -57,7 +55,7 @@ describe(`fastReadUIMessageStream`, () => {
   describe(`basic text streaming`, () => {
     it(`should return messages for a basic input stream`, async () => {
       /* Arrange */
-      const stream = convertArrayToReadableStream([
+      const stream = convertArrayToStream([
         { type: `start`, messageId: `msg-123` },
         { type: `start-step` },
         { type: `text-start`, id: `text-1` },
@@ -161,13 +159,11 @@ describe(`fastReadUIMessageStream`, () => {
         { type: `finish` },
       ];
 
-      const stream1 = convertArrayToReadableStream(chunks);
-      const stream2 = convertArrayToReadableStream(chunks);
+      const stream1 = convertArrayToStream(chunks);
+      const stream2 = convertArrayToStream(chunks);
 
       /* Act */
-      const fastMessages = await collectMessages(
-        fastReadUIMessageStream(stream1),
-      );
+      const fastMessages = await collectMessages(fastReadUIMessageStream(stream1));
       const sdkMessages = await convertAsyncIterableToArray(
         readUIMessageStream({ stream: stream2 }),
       );
@@ -178,9 +174,7 @@ describe(`fastReadUIMessageStream`, () => {
       for (let i = 0; i < fastMessages.length; i++) {
         expect(fastMessages[i]?.id).toBe(sdkMessages[i]?.id);
         expect(fastMessages[i]?.role).toBe(sdkMessages[i]?.role);
-        expect(fastMessages[i]?.parts.length).toBe(
-          sdkMessages[i]?.parts.length,
-        );
+        expect(fastMessages[i]?.parts.length).toBe(sdkMessages[i]?.parts.length);
 
         /* Compare each part */
         for (let j = 0; j < (fastMessages[i]?.parts.length ?? 0); j++) {
@@ -188,9 +182,7 @@ describe(`fastReadUIMessageStream`, () => {
           const sdkPart = sdkMessages[i]?.parts[j];
           expect(fastPart?.type).toBe(sdkPart?.type);
           if (fastPart?.type === `text`) {
-            expect((fastPart as { text: string }).text).toBe(
-              (sdkPart as { text: string }).text,
-            );
+            expect((fastPart as { text: string }).text).toBe((sdkPart as { text: string }).text);
             expect((fastPart as { state: string }).state).toBe(
               (sdkPart as { state: string }).state,
             );
@@ -203,22 +195,14 @@ describe(`fastReadUIMessageStream`, () => {
   describe(`reasoning streaming`, () => {
     it(`should handle reasoning chunks`, async () => {
       /* Arrange */
-      const stream = convertArrayToReadableStream([
-        START_CHUNK,
-        ...REASONING_CHUNKS,
-        FINISH_CHUNK,
-      ]);
+      const stream = convertArrayToStream([START_CHUNK, ...REASONING_CHUNKS, FINISH_CHUNK]);
 
       /* Act */
-      const messages = await collectMessages(
-        fastReadUIMessageStream<MyUIMessage>(stream),
-      );
+      const messages = await collectMessages(fastReadUIMessageStream<MyUIMessage>(stream));
 
       /* Assert */
       const lastMessage = messages[messages.length - 1];
-      const reasoningPart = lastMessage?.parts.find(
-        (p) => p.type === `reasoning`,
-      );
+      const reasoningPart = lastMessage?.parts.find((p) => p.type === `reasoning`);
       expect(reasoningPart).toBeDefined();
       expect((reasoningPart as { text: string }).text).toBe(`Thinking...`);
       expect((reasoningPart as { state: string }).state).toBe(`done`);
@@ -226,21 +210,13 @@ describe(`fastReadUIMessageStream`, () => {
 
     it(`should accumulate reasoning text across deltas`, async () => {
       /* Arrange */
-      const stream = convertArrayToReadableStream([
-        START_CHUNK,
-        ...REASONING_CHUNKS,
-        FINISH_CHUNK,
-      ]);
+      const stream = convertArrayToStream([START_CHUNK, ...REASONING_CHUNKS, FINISH_CHUNK]);
 
       /* Act */
       const reasoningTexts: Array<string> = [];
-      for await (const { message } of fastReadUIMessageStream<MyUIMessage>(
-        stream,
-      )) {
+      for await (const { message } of fastReadUIMessageStream<MyUIMessage>(stream)) {
         if (message) {
-          const reasoningPart = message.parts.find(
-            (p) => p.type === `reasoning`,
-          );
+          const reasoningPart = message.parts.find((p) => p.type === `reasoning`);
           if (reasoningPart) {
             reasoningTexts.push((reasoningPart as { text: string }).text);
           }
@@ -248,34 +224,21 @@ describe(`fastReadUIMessageStream`, () => {
       }
 
       /* Assert */
-      expect(reasoningTexts).toEqual([
-        ``,
-        `Think`,
-        `Thinking...`,
-        `Thinking...`,
-      ]);
+      expect(reasoningTexts).toEqual([``, `Think`, `Thinking...`, `Thinking...`]);
     });
   });
 
   describe(`tool streaming`, () => {
     it(`should handle server-side tool chunks with output`, async () => {
       /* Arrange */
-      const stream = convertArrayToReadableStream([
-        START_CHUNK,
-        ...TOOL_SERVER_CHUNKS,
-        FINISH_CHUNK,
-      ]);
+      const stream = convertArrayToStream([START_CHUNK, ...TOOL_SERVER_CHUNKS, FINISH_CHUNK]);
 
       /* Act */
-      const messages = await collectMessages(
-        fastReadUIMessageStream<MyUIMessage>(stream),
-      );
+      const messages = await collectMessages(fastReadUIMessageStream<MyUIMessage>(stream));
 
       /* Assert */
       const lastMessage = messages[messages.length - 1];
-      const toolPart = lastMessage?.parts.find(
-        (p) => p.type === `tool-weather`,
-      );
+      const toolPart = lastMessage?.parts.find((p) => p.type === `tool-weather`);
       expect(toolPart).toBeDefined();
       expect((toolPart as { state: string }).state).toBe(`output-available`);
       expect((toolPart as { input: unknown }).input).toEqual({
@@ -288,22 +251,14 @@ describe(`fastReadUIMessageStream`, () => {
 
     it(`should handle client-side tool chunks without output`, async () => {
       /* Arrange */
-      const stream = convertArrayToReadableStream([
-        START_CHUNK,
-        ...TOOL_CLIENT_CHUNKS,
-        FINISH_CHUNK,
-      ]);
+      const stream = convertArrayToStream([START_CHUNK, ...TOOL_CLIENT_CHUNKS, FINISH_CHUNK]);
 
       /* Act */
-      const messages = await collectMessages(
-        fastReadUIMessageStream<MyUIMessage>(stream),
-      );
+      const messages = await collectMessages(fastReadUIMessageStream<MyUIMessage>(stream));
 
       /* Assert */
       const lastMessage = messages[messages.length - 1];
-      const toolPart = lastMessage?.parts.find(
-        (p) => p.type === `tool-weather`,
-      );
+      const toolPart = lastMessage?.parts.find((p) => p.type === `tool-weather`);
       expect(toolPart).toBeDefined();
       expect((toolPart as { state: string }).state).toBe(`input-available`);
       expect((toolPart as { input: unknown }).input).toEqual({
@@ -313,22 +268,14 @@ describe(`fastReadUIMessageStream`, () => {
 
     it(`should handle dynamic tool chunks`, async () => {
       /* Arrange */
-      const stream = convertArrayToReadableStream([
-        START_CHUNK,
-        ...DYNAMIC_TOOL_CHUNKS,
-        FINISH_CHUNK,
-      ]);
+      const stream = convertArrayToStream([START_CHUNK, ...DYNAMIC_TOOL_CHUNKS, FINISH_CHUNK]);
 
       /* Act */
-      const messages = await collectMessages(
-        fastReadUIMessageStream<MyUIMessage>(stream),
-      );
+      const messages = await collectMessages(fastReadUIMessageStream<MyUIMessage>(stream));
 
       /* Assert */
       const lastMessage = messages[messages.length - 1];
-      const toolPart = lastMessage?.parts.find(
-        (p) => p.type === `dynamic-tool`,
-      );
+      const toolPart = lastMessage?.parts.find((p) => p.type === `dynamic-tool`);
       expect(toolPart).toBeDefined();
       expect((toolPart as { state: string }).state).toBe(`output-available`);
       expect((toolPart as { toolName: string }).toolName).toBe(`calculator`);
@@ -336,48 +283,31 @@ describe(`fastReadUIMessageStream`, () => {
 
     it(`should NOT parse partial JSON during tool-input-delta (performance optimization)`, async () => {
       /* Arrange */
-      const stream = convertArrayToReadableStream([
-        START_CHUNK,
-        ...TOOL_SERVER_CHUNKS,
-        FINISH_CHUNK,
-      ]);
+      const stream = convertArrayToStream([START_CHUNK, ...TOOL_SERVER_CHUNKS, FINISH_CHUNK]);
 
       /* Act */
       const inputsDuringStreaming: Array<unknown> = [];
-      for await (const { message } of fastReadUIMessageStream<MyUIMessage>(
-        stream,
-      )) {
+      for await (const { message } of fastReadUIMessageStream<MyUIMessage>(stream)) {
         if (message) {
           const toolPart = message.parts.find((p) => p.type === `tool-weather`);
-          if (
-            toolPart &&
-            (toolPart as { state: string }).state === `input-streaming`
-          ) {
+          if (toolPart && (toolPart as { state: string }).state === `input-streaming`) {
             inputsDuringStreaming.push((toolPart as { input: unknown }).input);
           }
         }
       }
 
       /* Assert - input should be undefined during streaming (no partial parsing) */
-      expect(inputsDuringStreaming.every((input) => input === undefined)).toBe(
-        true,
-      );
+      expect(inputsDuringStreaming.every((input) => input === undefined)).toBe(true);
     });
   });
 
   describe(`tool errors`, () => {
     it(`should handle tool error chunks`, async () => {
       /* Arrange */
-      const stream = convertArrayToReadableStream([
-        START_CHUNK,
-        ...TOOL_ERROR_CHUNKS,
-        FINISH_CHUNK,
-      ]);
+      const stream = convertArrayToStream([START_CHUNK, ...TOOL_ERROR_CHUNKS, FINISH_CHUNK]);
 
       /* Act */
-      const messages = await collectMessages(
-        fastReadUIMessageStream<MyUIMessage>(stream),
-      );
+      const messages = await collectMessages(fastReadUIMessageStream<MyUIMessage>(stream));
 
       /* Assert */
       const lastMessage = messages[messages.length - 1];
@@ -386,93 +316,59 @@ describe(`fastReadUIMessageStream`, () => {
       );
       expect(errorPart).toBeDefined();
       expect((errorPart as { state: string }).state).toBe(`output-error`);
-      expect((errorPart as { errorText: string }).errorText).toBe(
-        `Execution failed`,
-      );
+      expect((errorPart as { errorText: string }).errorText).toBe(`Execution failed`);
     });
   });
 
   describe(`file chunks`, () => {
     it(`should handle file chunks`, async () => {
       /* Arrange */
-      const stream = convertArrayToReadableStream([
-        START_CHUNK,
-        ...FILE_CHUNKS,
-        FINISH_CHUNK,
-      ]);
+      const stream = convertArrayToStream([START_CHUNK, ...FILE_CHUNKS, FINISH_CHUNK]);
 
       /* Act */
-      const messages = await collectMessages(
-        fastReadUIMessageStream<MyUIMessage>(stream),
-      );
+      const messages = await collectMessages(fastReadUIMessageStream<MyUIMessage>(stream));
 
       /* Assert */
       const lastMessage = messages[messages.length - 1];
       const filePart = lastMessage?.parts.find((p) => p.type === `file`);
       expect(filePart).toBeDefined();
-      expect((filePart as { url: string }).url).toBe(
-        `https://example.com/file.pdf`,
-      );
-      expect((filePart as { mediaType: string }).mediaType).toBe(
-        `application/pdf`,
-      );
+      expect((filePart as { url: string }).url).toBe(`https://example.com/file.pdf`);
+      expect((filePart as { mediaType: string }).mediaType).toBe(`application/pdf`);
     });
   });
 
   describe(`source chunks`, () => {
     it(`should handle source-url and source-document chunks`, async () => {
       /* Arrange */
-      const stream = convertArrayToReadableStream([
-        START_CHUNK,
-        ...SOURCE_CHUNKS,
-        FINISH_CHUNK,
-      ]);
+      const stream = convertArrayToStream([START_CHUNK, ...SOURCE_CHUNKS, FINISH_CHUNK]);
 
       /* Act */
-      const messages = await collectMessages(
-        fastReadUIMessageStream<MyUIMessage>(stream),
-      );
+      const messages = await collectMessages(fastReadUIMessageStream<MyUIMessage>(stream));
 
       /* Assert */
       const lastMessage = messages[messages.length - 1];
-      const sourceUrlPart = lastMessage?.parts.find(
-        (p) => p.type === `source-url`,
-      );
-      const sourceDocPart = lastMessage?.parts.find(
-        (p) => p.type === `source-document`,
-      );
+      const sourceUrlPart = lastMessage?.parts.find((p) => p.type === `source-url`);
+      const sourceDocPart = lastMessage?.parts.find((p) => p.type === `source-document`);
 
       expect(sourceUrlPart).toBeDefined();
-      expect((sourceUrlPart as { url: string }).url).toBe(
-        `https://example.com`,
-      );
+      expect((sourceUrlPart as { url: string }).url).toBe(`https://example.com`);
 
       expect(sourceDocPart).toBeDefined();
-      expect((sourceDocPart as { mediaType: string }).mediaType).toBe(
-        `application/pdf`,
-      );
+      expect((sourceDocPart as { mediaType: string }).mediaType).toBe(`application/pdf`);
     });
   });
 
   describe(`data chunks`, () => {
     it(`should handle custom data-* chunks`, async () => {
       /* Arrange */
-      const stream = convertArrayToReadableStream([
-        START_CHUNK,
-        ...DATA_CHUNKS,
-        FINISH_CHUNK,
-      ]);
+      const stream = convertArrayToStream([START_CHUNK, ...DATA_CHUNKS, FINISH_CHUNK]);
 
       /* Act */
-      const messages = await collectMessages(
-        fastReadUIMessageStream<MyUIMessage>(stream),
-      );
+      const messages = await collectMessages(fastReadUIMessageStream<MyUIMessage>(stream));
 
       /* Assert */
       const lastMessage = messages[messages.length - 1];
-      const dataPart = lastMessage?.parts.find(
-        (p) => p.type === `data-weather`,
-      );
+      const dataPart = lastMessage?.parts.find((p) => p.type === `data-weather`);
       expect(dataPart).toBeDefined();
       expect((dataPart as { data: unknown }).data).toEqual({
         location: `Tokyo`,
@@ -484,7 +380,7 @@ describe(`fastReadUIMessageStream`, () => {
   describe(`meta and step chunks`, () => {
     it(`should not yield message for meta chunks without content`, async () => {
       /* Arrange */
-      const stream = convertArrayToReadableStream([
+      const stream = convertArrayToStream([
         { type: `start` } /* no messageId or metadata */,
         { type: `finish` } /* no metadata */,
         { type: `abort` },
@@ -500,7 +396,7 @@ describe(`fastReadUIMessageStream`, () => {
 
     it(`should yield message for start chunk with messageId`, async () => {
       /* Arrange */
-      const stream = convertArrayToReadableStream([
+      const stream = convertArrayToStream([
         { type: `start`, messageId: `msg-1` },
         { type: `finish` },
       ] as Array<UIMessageChunk>);
@@ -515,7 +411,7 @@ describe(`fastReadUIMessageStream`, () => {
 
     it(`should not yield message for step chunks but should add step-start part`, async () => {
       /* Arrange */
-      const stream = convertArrayToReadableStream([
+      const stream = convertArrayToStream([
         { type: `start`, messageId: `msg-1` },
         { type: `start-step` },
         {
@@ -534,9 +430,7 @@ describe(`fastReadUIMessageStream`, () => {
       /* We should have: start (1), text-start (1), text-end (1) = 3 messages */
       expect(messages.length).toBe(3);
       /* The step-start part should be in the message (added before text parts) */
-      expect(messages[1]?.parts.some((p) => p.type === `step-start`)).toBe(
-        true,
-      );
+      expect(messages[1]?.parts.some((p) => p.type === `step-start`)).toBe(true);
       /* step-start should be first part */
       expect(messages[1]?.parts[0]?.type).toBe(`step-start`);
     });
@@ -545,7 +439,7 @@ describe(`fastReadUIMessageStream`, () => {
   describe(`message metadata`, () => {
     it(`should merge message metadata from start chunk`, async () => {
       /* Arrange */
-      const stream = convertArrayToReadableStream([
+      const stream = convertArrayToStream([
         { type: `start`, messageId: `msg-1`, messageMetadata: { foo: `bar` } },
         { type: `finish` },
       ] as Array<UIMessageChunk>);
@@ -559,7 +453,7 @@ describe(`fastReadUIMessageStream`, () => {
 
     it(`should merge message metadata from message-metadata chunk`, async () => {
       /* Arrange */
-      const stream = convertArrayToReadableStream([
+      const stream = convertArrayToStream([
         { type: `start`, messageId: `msg-1`, messageMetadata: { foo: `bar` } },
         { type: `message-metadata`, messageMetadata: { baz: `qux` } },
         { type: `finish` },
@@ -574,7 +468,7 @@ describe(`fastReadUIMessageStream`, () => {
 
     it(`should merge message metadata from finish chunk`, async () => {
       /* Arrange */
-      const stream = convertArrayToReadableStream([
+      const stream = convertArrayToStream([
         { type: `start`, messageId: `msg-1` },
         { type: `finish`, messageMetadata: { final: true } },
       ] as Array<UIMessageChunk>);
@@ -591,7 +485,7 @@ describe(`fastReadUIMessageStream`, () => {
   describe(`multi-step streaming`, () => {
     it(`should reset active parts between steps`, async () => {
       /* Arrange - two steps with text */
-      const stream = convertArrayToReadableStream([
+      const stream = convertArrayToStream([
         { type: `start`, messageId: `msg-1` },
         { type: `start-step` },
         { type: `text-start`, id: `text-1` },
@@ -621,18 +515,11 @@ describe(`fastReadUIMessageStream`, () => {
   describe(`chunk and message yielding`, () => {
     it(`should yield both chunk and message`, async () => {
       /* Arrange */
-      const stream = convertArrayToReadableStream([
-        START_CHUNK,
-        ...TEXT_CHUNKS,
-        FINISH_CHUNK,
-      ]);
+      const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
 
       /* Act */
       const results: Array<{ chunkType: string; hasMessage: boolean }> = [];
-      for await (const {
-        chunk,
-        message,
-      } of fastReadUIMessageStream<MyUIMessage>(stream)) {
+      for await (const { chunk, message } of fastReadUIMessageStream<MyUIMessage>(stream)) {
         results.push({
           chunkType: chunk.type,
           hasMessage: message !== undefined,
@@ -654,17 +541,11 @@ describe(`fastReadUIMessageStream`, () => {
 
     it(`should yield all chunks from the input stream`, async () => {
       /* Arrange */
-      const stream = convertArrayToReadableStream([
-        START_CHUNK,
-        ...TEXT_CHUNKS,
-        FINISH_CHUNK,
-      ]);
+      const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
 
       /* Act */
       const chunks: Array<MyUIMessageChunk> = [];
-      for await (const { chunk } of fastReadUIMessageStream<MyUIMessage>(
-        stream,
-      )) {
+      for await (const { chunk } of fastReadUIMessageStream<MyUIMessage>(stream)) {
         chunks.push(chunk as MyUIMessageChunk);
       }
 
@@ -674,17 +555,11 @@ describe(`fastReadUIMessageStream`, () => {
 
     it(`should accumulate text in parts across text-delta chunks`, async () => {
       /* Arrange */
-      const stream = convertArrayToReadableStream([
-        START_CHUNK,
-        ...TEXT_CHUNKS,
-        FINISH_CHUNK,
-      ]);
+      const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
 
       /* Act */
       const textContents: Array<string> = [];
-      for await (const { message } of fastReadUIMessageStream<MyUIMessage>(
-        stream,
-      )) {
+      for await (const { message } of fastReadUIMessageStream<MyUIMessage>(stream)) {
         if (message) {
           const textPart = message.parts.find((p) => p.type === `text`);
           if (textPart) {
@@ -699,7 +574,7 @@ describe(`fastReadUIMessageStream`, () => {
 
     it(`should release reader lock after iteration completes`, async () => {
       /* Arrange */
-      const stream = convertArrayToReadableStream([START_CHUNK, FINISH_CHUNK]);
+      const stream = convertArrayToStream([START_CHUNK, FINISH_CHUNK]);
 
       /* Act - consume all chunks */
       for await (const _ of fastReadUIMessageStream<MyUIMessage>(stream)) {
@@ -718,19 +593,13 @@ describe(`fastReadUIMessageStream`, () => {
 describe(`comparison with AI SDK readUIMessageStream`, () => {
   it(`should produce same final message for text streaming`, async () => {
     /* Arrange */
-    const chunks: Array<MyUIMessageChunk> = [
-      START_CHUNK,
-      ...TEXT_CHUNKS,
-      FINISH_CHUNK,
-    ];
+    const chunks: Array<MyUIMessageChunk> = [START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK];
 
-    const stream1 = convertArrayToReadableStream(chunks);
-    const stream2 = convertArrayToReadableStream(chunks);
+    const stream1 = convertArrayToStream(chunks);
+    const stream2 = convertArrayToStream(chunks);
 
     /* Act */
-    const fastMessages = await collectMessages(
-      fastReadUIMessageStream<MyUIMessage>(stream1),
-    );
+    const fastMessages = await collectMessages(fastReadUIMessageStream<MyUIMessage>(stream1));
     const sdkMessages = await convertAsyncIterableToArray(
       readUIMessageStream<MyUIMessage>({ stream: stream2 }),
     );
@@ -744,26 +613,18 @@ describe(`comparison with AI SDK readUIMessageStream`, () => {
     const fastText = fastLast?.parts.find((p) => p.type === `text`);
     const sdkText = sdkLast?.parts.find((p) => p.type === `text`);
 
-    expect((fastText as { text: string }).text).toBe(
-      (sdkText as { text: string }).text,
-    );
+    expect((fastText as { text: string }).text).toBe((sdkText as { text: string }).text);
   });
 
   it(`should produce same final message for tool streaming`, async () => {
     /* Arrange */
-    const chunks: Array<MyUIMessageChunk> = [
-      START_CHUNK,
-      ...TOOL_SERVER_CHUNKS,
-      FINISH_CHUNK,
-    ];
+    const chunks: Array<MyUIMessageChunk> = [START_CHUNK, ...TOOL_SERVER_CHUNKS, FINISH_CHUNK];
 
-    const stream1 = convertArrayToReadableStream(chunks);
-    const stream2 = convertArrayToReadableStream(chunks);
+    const stream1 = convertArrayToStream(chunks);
+    const stream2 = convertArrayToStream(chunks);
 
     /* Act */
-    const fastMessages = await collectMessages(
-      fastReadUIMessageStream<MyUIMessage>(stream1),
-    );
+    const fastMessages = await collectMessages(fastReadUIMessageStream<MyUIMessage>(stream1));
     const sdkMessages = await convertAsyncIterableToArray(
       readUIMessageStream<MyUIMessage>({ stream: stream2 }),
     );
@@ -775,12 +636,8 @@ describe(`comparison with AI SDK readUIMessageStream`, () => {
     const fastTool = fastLast?.parts.find((p) => p.type === `tool-weather`);
     const sdkTool = sdkLast?.parts.find((p) => p.type === `tool-weather`);
 
-    expect((fastTool as { state: string }).state).toBe(
-      (sdkTool as { state: string }).state,
-    );
-    expect((fastTool as { input: unknown }).input).toEqual(
-      (sdkTool as { input: unknown }).input,
-    );
+    expect((fastTool as { state: string }).state).toBe((sdkTool as { state: string }).state);
+    expect((fastTool as { input: unknown }).input).toEqual((sdkTool as { input: unknown }).input);
     expect((fastTool as { output: unknown }).output).toEqual(
       (sdkTool as { output: unknown }).output,
     );
@@ -795,13 +652,11 @@ describe(`comparison with AI SDK readUIMessageStream`, () => {
       FINISH_CHUNK,
     ];
 
-    const stream1 = convertArrayToReadableStream(chunks);
-    const stream2 = convertArrayToReadableStream(chunks);
+    const stream1 = convertArrayToStream(chunks);
+    const stream2 = convertArrayToStream(chunks);
 
     /* Act */
-    const fastMessages = await collectMessages(
-      fastReadUIMessageStream<MyUIMessage>(stream1),
-    );
+    const fastMessages = await collectMessages(fastReadUIMessageStream<MyUIMessage>(stream1));
     const sdkMessages = await convertAsyncIterableToArray(
       readUIMessageStream<MyUIMessage>({ stream: stream2 }),
     );

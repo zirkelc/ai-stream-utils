@@ -30,11 +30,12 @@ npm install ai-stream-utils
 
 ## Overview
 
-| Function | Input | Returns | Use Case |
-|----------|-------------|---------|----------|
-| [`mapUIMessageStream`](#mapuimessagestream) | [UIMessageChunk](https://github.com/vercel/ai/blob/main/packages/ai/src/ui-message-stream/ui-message-chunks.ts) | `chunk \| chunk[] \| null` | Transform or filter chunks in real-time (e.g., smooth streaming) |
-| [`flatMapUIMessageStream`](#flatmapuimessagestream) | [UIMessagePart](https://ai-sdk.dev/docs/reference/ai-sdk-core/ui-message#uimessagepart-types) | `part \| part[] \| null` | Buffer until complete, then transform (e.g., redact tool output) |
-| [`filterUIMessageStream`](#filteruimessagestream) | [UIMessageChunk](https://github.com/vercel/ai/blob/main/packages/ai/src/ui-message-stream/ui-message-chunks.ts) | `boolean` | Include/exclude parts by type (e.g., hide reasoning) |
+| Function                                               | Input                                                                                                           | Returns                    | Use Case                                                         |
+| ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- | -------------------------- | ---------------------------------------------------------------- |
+| [`mapUIMessageStream`](#mapuimessagestream)            | [UIMessageChunk](https://github.com/vercel/ai/blob/main/packages/ai/src/ui-message-stream/ui-message-chunks.ts) | `chunk \| chunk[] \| null` | Transform or filter chunks in real-time (e.g., smooth streaming) |
+| [`flatMapUIMessageStream`](#flatmapuimessagestream)    | [UIMessagePart](https://ai-sdk.dev/docs/reference/ai-sdk-core/ui-message#uimessagepart-types)                   | `part \| part[] \| null`   | Buffer until complete, then transform (e.g., redact tool output) |
+| [`filterUIMessageStream`](#filteruimessagestream)      | [UIMessageChunk](https://github.com/vercel/ai/blob/main/packages/ai/src/ui-message-stream/ui-message-chunks.ts) | `boolean`                  | Include/exclude parts by type (e.g., hide reasoning)             |
+| [`experimental_pipe`](#experimental_pipe-experimental) | [UIMessageChunk](https://github.com/vercel/ai/blob/main/packages/ai/src/ui-message-stream/ui-message-chunks.ts) | `ChunkPipeline`            | Composable pipeline API for chaining operations (experimental)   |
 
 ## Usage
 
@@ -43,22 +44,19 @@ npm install ai-stream-utils
 The `mapUIMessageStream` function operates on chunks and can be used to transform or filter individual chunks as they stream through. It receives the current chunk and the partial part representing all already processed chunks.
 
 ```typescript
-import { mapUIMessageStream } from 'ai-stream-utils';
+import { mapUIMessageStream } from "ai-stream-utils";
 
-const stream = mapUIMessageStream(
-  result.toUIMessageStream<MyUIMessage>(),
-  ({ chunk, part }) => {
-    // Transform: modify the chunk
-    if (chunk.type === 'text-delta') {
-      return { ...chunk, delta: chunk.delta.toUpperCase() };
-    }
-    // Filter: return null to exclude chunks
-    if (part.type === 'tool-weather') {
-      return null;
-    }
-    return chunk;
+const stream = mapUIMessageStream(result.toUIMessageStream<MyUIMessage>(), ({ chunk, part }) => {
+  // Transform: modify the chunk
+  if (chunk.type === "text-delta") {
+    return { ...chunk, delta: chunk.delta.toUpperCase() };
   }
-);
+  // Filter: return null to exclude chunks
+  if (part.type === "tool-weather") {
+    return null;
+  }
+  return chunk;
+});
 ```
 
 ### `flatMapUIMessageStream`
@@ -66,51 +64,118 @@ const stream = mapUIMessageStream(
 The `flatMapUIMessageStream` function operates on parts. It buffers all chunks of a particular type (e.g. text parts) until the part is complete and then transforms or filters the complete part. The optional predicate `partTypeIs()` can be used to selectively buffer only specific parts while streaming others through immediately.
 
 ```typescript
-import { flatMapUIMessageStream, partTypeIs } from 'ai-stream-utils';
+import { flatMapUIMessageStream, partTypeIs } from "ai-stream-utils";
 
 const stream = flatMapUIMessageStream(
   result.toUIMessageStream<MyUIMessage>(),
   // Predicate to only buffer tool-weather parts and pass through other parts
-  partTypeIs('tool-weather'),
+  partTypeIs("tool-weather"),
   ({ part }) => {
     // Transform: modify the complete part
-    if (part.state === 'output-available') {
-      return { ...part, output: { ...part.output, temperature: toFahrenheit(part.output.temperature) } };
+    if (part.state === "output-available") {
+      return {
+        ...part,
+        output: { ...part.output, temperature: toFahrenheit(part.output.temperature) },
+      };
     }
     // Filter: return null to exclude parts
     return part;
-  }
+  },
 );
 ```
 
 ### `filterUIMessageStream`
 
-The `filterUIMessageStream` function is a convenience function around `mapUIMessageStream` with a simpler API to filter chunks by part type. It provides the  `includeParts()` and `excludeParts()` predicates for common patterns.
+The `filterUIMessageStream` function is a convenience function around `mapUIMessageStream` with a simpler API to filter chunks by part type. It provides the `includeParts()` and `excludeParts()` predicates for common patterns.
 
 ```typescript
-import { filterUIMessageStream, includeParts, excludeParts } from 'ai-stream-utils';
+import { filterUIMessageStream, includeParts, excludeParts } from "ai-stream-utils";
 
 // Include only specific parts
 const stream = filterUIMessageStream(
   result.toUIMessageStream<MyUIMessage>(),
-  includeParts(['text', 'tool-weather'])
+  includeParts(["text", "tool-weather"]),
 );
 
 // Exclude specific parts
 const stream = filterUIMessageStream(
   result.toUIMessageStream<MyUIMessage>(),
-  excludeParts(['reasoning', 'tool-database'])
+  excludeParts(["reasoning", "tool-database"]),
 );
 
 // Custom filter function
-const stream = filterUIMessageStream(
-  result.toUIMessageStream<MyUIMessage>(),
-  ({ part, chunk }) => {
-    if (part.type === 'text') return true;
-    if (chunk.type === 'tool-input-available') return true;
-    return false;
-  }
-);
+const stream = filterUIMessageStream(result.toUIMessageStream<MyUIMessage>(), ({ part, chunk }) => {
+  if (part.type === "text") return true;
+  if (chunk.type === "tool-input-available") return true;
+  return false;
+});
+```
+
+### `experimental_pipe` (Experimental)
+
+> [!WARN]
+> This API is experimental and subject to change in future releases.
+
+The `experimental_pipe` function provides a composable pipeline API for chaining filter, map, and scan operations on UI message streams.
+
+```typescript
+import { experimental_pipe, isPartType, isChunkType } from "ai-stream-utils";
+```
+
+**Basic usage:**
+
+```typescript
+const stream = experimental_pipe(result.toUIMessageStream<MyUIMessage>())
+  .filter(isPartType(["text", "reasoning"]))
+  .map(({ chunk }) => {
+    if (chunk.type === "text-delta") {
+      return { ...chunk, delta: chunk.delta.toUpperCase() };
+    }
+    return chunk;
+  })
+  .toStream();
+```
+
+**Methods:**
+
+- `.filter(predicateFn)` - Filter chunks by part type, chunk type, or custom predicate
+- `.map(transformFn)` - Transform chunks (return chunk, array of chunks, or null to remove)
+- `.scan(operator)` - Stateful transformations with accumulator (e.g., smooth streaming)
+- `.toStream()` - Execute pipeline and return the resulting stream
+
+**Type guards:**
+
+- `isPartType('text')` or `isPartType(['text', 'reasoning'])` - Narrow by part type
+- `isChunkType('text-delta')` or `isChunkType(['text-delta', 'text-end'])` - Narrow by chunk type
+
+**Type-safe filtering example:**
+
+```typescript
+const stream = experimental_pipe<MyUIMessage>(result.toUIMessageStream())
+  .filter(isPartType("text"))
+  .map(({ chunk, part }) => {
+    // chunk is narrowed to text chunks only
+    // part.type is narrowed to "text"
+    return chunk;
+  })
+  .toStream();
+```
+
+**Stateful scan example:**
+
+```typescript
+const stream = experimental_pipe(result.toUIMessageStream<MyUIMessage>())
+  .scan({
+    initial: { count: 0 },
+    reducer: (state, { chunk }) => {
+      state.count++;
+      if (chunk.type === "text-delta") {
+        return { ...chunk, delta: `[${state.count}] ${chunk.delta}` };
+      }
+      return chunk;
+    },
+  })
+  .toStream();
 ```
 
 ## Examples
@@ -120,37 +185,38 @@ const stream = filterUIMessageStream(
 Buffers multiple text chunks into a string, splits at word boundaries and re-emits each word as a separate chunk for smoother UI rendering. See [examples/smooth-streaming.ts](./examples/smooth-streaming.ts) for the full implementation.
 
 ```typescript
-import { mapUIMessageStream } from 'ai-stream-utils';
+import { mapUIMessageStream } from "ai-stream-utils";
 
 const WORD_REGEX = /\S+\s+/m;
-let buffer = '';
+let buffer = "";
 
-const smoothedStream = mapUIMessageStream(
-  result.toUIMessageStream(),
-  ({ chunk }) => {
-    if (chunk.type !== 'text-delta') {
-      // Flush buffer on non-text chunks
-      if (buffer.length > 0) {
-        const flushed = { type: 'text-delta' as const, id: chunk.id, delta: buffer };
-        buffer = '';
-        return [flushed, chunk];
-      }
-      return chunk;
+const smoothedStream = mapUIMessageStream(result.toUIMessageStream(), ({ chunk }) => {
+  if (chunk.type !== "text-delta") {
+    // Flush buffer on non-text chunks
+    if (buffer.length > 0) {
+      const flushed = { type: "text-delta" as const, id: chunk.id, delta: buffer };
+      buffer = "";
+      return [flushed, chunk];
     }
-
-    // Append the text delta to the buffer
-    buffer += chunk.delta;
-    const chunks = [];
-    
-    let match;
-    while ((match = WORD_REGEX.exec(buffer)) !== null) {
-      chunks.push({ type: 'text-delta', id: chunk.id, delta: buffer.slice(0, match.index + match[0].length) });
-      buffer = buffer.slice(match.index + match[0].length);
-    }
-    // Emit the word-by-word chunks
-    return chunks;
+    return chunk;
   }
-);
+
+  // Append the text delta to the buffer
+  buffer += chunk.delta;
+  const chunks = [];
+
+  let match;
+  while ((match = WORD_REGEX.exec(buffer)) !== null) {
+    chunks.push({
+      type: "text-delta",
+      id: chunk.id,
+      delta: buffer.slice(0, match.index + match[0].length),
+    });
+    buffer = buffer.slice(match.index + match[0].length);
+  }
+  // Emit the word-by-word chunks
+  return chunks;
+});
 
 // Output: word-by-word streaming
 // { type: 'text-delta', delta: 'Why ' }
@@ -163,43 +229,43 @@ const smoothedStream = mapUIMessageStream(
 Buffer tool calls until complete, then redact sensitive fields before streaming to the client. See [examples/order-lookup.ts](./examples/order-lookup.ts) for the full example.
 
 ```typescript
-import { flatMapUIMessageStream, partTypeIs } from 'ai-stream-utils';
+import { flatMapUIMessageStream, partTypeIs } from "ai-stream-utils";
 
 const tools = {
   lookupOrder: tool({
-    description: 'Look up order details by order ID',
+    description: "Look up order details by order ID",
     inputSchema: z.object({
-      orderId: z.string().describe('The order ID to look up'),
+      orderId: z.string().describe("The order ID to look up"),
     }),
     execute: ({ orderId }) => ({
       orderId,
-      status: 'shipped',
-      items: ['iPhone 15'],
+      status: "shipped",
+      items: ["iPhone 15"],
       total: 1299.99,
-      email: 'customer@example.com',        // Sensitive
-      address: '123 Main St, SF, CA 94102', // Sensitive
+      email: "customer@example.com", // Sensitive
+      address: "123 Main St, SF, CA 94102", // Sensitive
     }),
   }),
 };
 
 const result = streamText({
-  model: openai('gpt-4o'),
-  prompt: 'Where is my order #12345?',
+  model: openai("gpt-4o"),
+  prompt: "Where is my order #12345?",
   tools,
 });
 
 // Buffer tool-lookupOrder parts, stream text parts immediately
 const redactedStream = flatMapUIMessageStream(
   result.toUIMessageStream<MyUIMessage>(),
-  partTypeIs('tool-lookupOrder'),
+  partTypeIs("tool-lookupOrder"),
   ({ part }) => {
-    if (part.state === 'output-available') {
+    if (part.state === "output-available") {
       return {
         ...part,
         output: {
           ...part.output,
-          email: '[REDACTED]',
-          address: '[REDACTED]',
+          email: "[REDACTED]",
+          address: "[REDACTED]",
         },
       };
     }
@@ -217,38 +283,35 @@ const redactedStream = flatMapUIMessageStream(
 Inspect previously streamed parts to conditionally inject new parts. This example creates a text part from a tool call message if the model didn't generate one. See [examples/ask-permission.ts](./examples/ask-permission.ts) for the full example.
 
 ```typescript
-import { flatMapUIMessageStream, partTypeIs } from 'ai-stream-utils';
+import { flatMapUIMessageStream, partTypeIs } from "ai-stream-utils";
 
 const tools = {
   askForPermission: tool({
-    description: 'Ask for permission to access current location',
+    description: "Ask for permission to access current location",
     inputSchema: z.object({
-      message: z.string().describe('The message to ask for permission'),
+      message: z.string().describe("The message to ask for permission"),
     }),
   }),
 };
 
 const result = streamText({
-  model: openai('gpt-4o'),
-  prompt: 'Is it sunny today?',
+  model: openai("gpt-4o"),
+  prompt: "Is it sunny today?",
   tools,
 });
 
 // Buffer askForPermission tool calls, check if text was already generated
 const stream = flatMapUIMessageStream(
   result.toUIMessageStream<MyUIMessage>(),
-  partTypeIs('tool-askForPermission'),
+  partTypeIs("tool-askForPermission"),
   (current, context) => {
-    if (current.part.state === 'input-available') {
+    if (current.part.state === "input-available") {
       // Check if a text part was already streamed
-      const hasTextPart = context.parts.some((p) => p.type === 'text');
-      
+      const hasTextPart = context.parts.some((p) => p.type === "text");
+
       if (!hasTextPart) {
         // Inject a text part from the tool call message
-        return [
-          { type: 'text', text: current.part.input.message },
-          current.part,
-        ];
+        return [{ type: "text", text: current.part.input.message }, current.part];
       }
     }
     return current.part;
@@ -265,40 +328,40 @@ const stream = flatMapUIMessageStream(
 Transform tool outputs on-the-fly, such as converting temperature units. See [examples/weather.ts](./examples/weather.ts) for the full example.
 
 ```typescript
-import { flatMapUIMessageStream, partTypeIs } from 'ai-stream-utils';
+import { flatMapUIMessageStream, partTypeIs } from "ai-stream-utils";
 
 const toFahrenheit = (celsius: number) => (celsius * 9) / 5 + 32;
 
 const tools = {
   weather: tool({
-    description: 'Get the weather in a location',
+    description: "Get the weather in a location",
     inputSchema: z.object({ location: z.string() }),
     execute: ({ location }) => ({
       location,
       temperature: 22, // Celsius from API
-      unit: 'C',
+      unit: "C",
     }),
   }),
 };
 
 const result = streamText({
-  model: openai('gpt-4o'),
-  prompt: 'What is the weather in Tokyo?',
+  model: openai("gpt-4o"),
+  prompt: "What is the weather in Tokyo?",
   tools,
 });
 
 // Convert Celsius to Fahrenheit before streaming to client
 const stream = flatMapUIMessageStream(
   result.toUIMessageStream<MyUIMessage>(),
-  partTypeIs('tool-weather'),
+  partTypeIs("tool-weather"),
   ({ part }) => {
-    if (part.state === 'output-available') {
+    if (part.state === "output-available") {
       return {
         ...part,
         output: {
           ...part.output,
           temperature: toFahrenheit(part.output.temperature),
-          unit: 'F',
+          unit: "F",
         },
       };
     }
@@ -314,20 +377,20 @@ const stream = flatMapUIMessageStream(
 
 Helper functions for converting between streams, arrays, and async iterables.
 
-| Function | Converts | To |
-|----------|----------|-----|
-| `createAsyncIterableStream` | `ReadableStream<T>` | `AsyncIterableStream<T>` |
-| `convertArrayToStream` | `Array<T>` | `ReadableStream<T>` |
-| `convertAsyncIterableToStream` | `AsyncIterable<T>` | `ReadableStream<T>` |
-| `convertAsyncIterableToArray` | `AsyncIterable<T>` | `Promise<Array<T>>` |
-| `convertStreamToArray` | `ReadableStream<T>` | `Promise<Array<T>>` |
+| Function                       | Converts            | To                       |
+| ------------------------------ | ------------------- | ------------------------ |
+| `createAsyncIterableStream`    | `ReadableStream<T>` | `AsyncIterableStream<T>` |
+| `convertArrayToStream`         | `Array<T>`          | `ReadableStream<T>`      |
+| `convertAsyncIterableToStream` | `AsyncIterable<T>`  | `ReadableStream<T>`      |
+| `convertAsyncIterableToArray`  | `AsyncIterable<T>`  | `Promise<Array<T>>`      |
+| `convertStreamToArray`         | `ReadableStream<T>` | `Promise<Array<T>>`      |
 
 ### `createAsyncIterableStream`
 
 Adds async iterator protocol to a `ReadableStream`, enabling `for await...of` loops.
 
 ```typescript
-import { createAsyncIterableStream } from 'ai-stream-utils/utils';
+import { createAsyncIterableStream } from "ai-stream-utils/utils";
 
 const asyncStream = createAsyncIterableStream(readableStream);
 for await (const chunk of asyncStream) {
@@ -340,7 +403,7 @@ for await (const chunk of asyncStream) {
 Converts an array to a `ReadableStream` that emits each element.
 
 ```typescript
-import { convertArrayToStream } from 'ai-stream-utils/utils';
+import { convertArrayToStream } from "ai-stream-utils/utils";
 
 const stream = convertArrayToStream([1, 2, 3]);
 ```
@@ -350,7 +413,7 @@ const stream = convertArrayToStream([1, 2, 3]);
 Converts an async iterable (e.g., async generator) to a `ReadableStream`.
 
 ```typescript
-import { convertAsyncIterableToStream } from 'ai-stream-utils/utils';
+import { convertAsyncIterableToStream } from "ai-stream-utils/utils";
 
 async function* generator() {
   yield 1;
@@ -364,7 +427,7 @@ const stream = convertAsyncIterableToStream(generator());
 Collects all values from an async iterable into an array.
 
 ```typescript
-import { convertAsyncIterableToArray } from 'ai-stream-utils/utils';
+import { convertAsyncIterableToArray } from "ai-stream-utils/utils";
 
 const array = await convertAsyncIterableToArray(asyncIterable);
 ```
@@ -374,7 +437,7 @@ const array = await convertAsyncIterableToArray(asyncIterable);
 Consumes a `ReadableStream` and collects all chunks into an array.
 
 ```typescript
-import { convertStreamToArray } from 'ai-stream-utils/utils';
+import { convertStreamToArray } from "ai-stream-utils/utils";
 
 const array = await convertStreamToArray(readableStream);
 ```
@@ -386,17 +449,13 @@ The [`toUIMessageStream()`](https://ai-sdk.dev/docs/reference/ai-sdk-core/stream
 To enable autocomplete and type-safety, pass your [`UIMessage`](https://ai-sdk.dev/docs/reference/ai-sdk-core/ui-message#creating-your-own-uimessage-type) type as a generic parameter:
 
 ```typescript
-import type { UIMessage, InferUITools } from 'ai';
+import type { UIMessage, InferUITools } from "ai";
 
 type MyUIMessageMetadata = {};
 type MyDataPart = {};
 type MyTools = InferUITools<typeof tools>;
 
-type MyUIMessage = UIMessage<
-  MyUIMessageMetadata,
-  MyDataPart,
-  MyTools
->;
+type MyUIMessage = UIMessage<MyUIMessageMetadata, MyDataPart, MyTools>;
 
 // Use MyUIMessage type when creating the UI message stream
 const uiStream = result.toUIMessageStream<MyUIMessage>();
@@ -404,17 +463,14 @@ const uiStream = result.toUIMessageStream<MyUIMessage>();
 // Type-safe filtering with autocomplete
 const stream = filterUIMessageStream(
   uiStream,
-  includeParts(['text', 'tool-weather']) // Autocomplete works!
+  includeParts(["text", "tool-weather"]), // Autocomplete works!
 );
 
 // Type-safe chunk mapping
-const stream = mapUIMessageStream(
-  uiStream,
-  ({ chunk, part }) => {
-    // part.type is typed based on MyUIMessage
-    return chunk;
-  }
-);
+const stream = mapUIMessageStream(uiStream, ({ chunk, part }) => {
+  // part.type is typed based on MyUIMessage
+  return chunk;
+});
 ```
 
 ## Client-Side Usage
@@ -429,16 +485,16 @@ If you save messages to a database and configure `useChat()` to [only send the l
 
 The transformations operate on [UIMessagePart](https://ai-sdk.dev/docs/reference/ai-sdk-core/ui-message#uimessagepart-types) types, which are derived from [UIMessageChunk](https://github.com/vercel/ai/blob/main/packages/ai/src/ui-message-stream/ui-message-chunks.ts) types:
 
-| Part Type         | Chunk Types                           |
-| ----------------- | ------------------------------------- |
-| [`text`](https://ai-sdk.dev/docs/reference/ai-sdk-core/ui-message#textuipart)            | `text-start`, `text-delta`, `text-end` |
-| [`reasoning`](https://ai-sdk.dev/docs/reference/ai-sdk-core/ui-message#reasoninguipart)       | `reasoning-start`, `reasoning-delta`, `reasoning-end` |
-| [`tool-{name}`](https://ai-sdk.dev/docs/reference/ai-sdk-core/ui-message#tooluipart)     | `tool-input-start`, `tool-input-delta`, `tool-input-available`, `tool-input-error`, `tool-output-available`, `tool-output-error` |
-| [`data-{name}`](https://ai-sdk.dev/docs/reference/ai-sdk-core/ui-message#datauipart)     | `data-{name}` |
-| [`step-start`](https://ai-sdk.dev/docs/reference/ai-sdk-core/ui-message#stepstartuipart)      | `start-step` |
-| [`file`](https://ai-sdk.dev/docs/reference/ai-sdk-core/ui-message#fileuipart)            | `file` |
-| [`source-url`](https://ai-sdk.dev/docs/reference/ai-sdk-core/ui-message#sourceurluipart)      | `source-url` |
-| [`source-document`](https://ai-sdk.dev/docs/reference/ai-sdk-core/ui-message#sourcedocumentuipart) | `source-document` |
+| Part Type                                                                                          | Chunk Types                                                                                                                      |
+| -------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| [`text`](https://ai-sdk.dev/docs/reference/ai-sdk-core/ui-message#textuipart)                      | `text-start`, `text-delta`, `text-end`                                                                                           |
+| [`reasoning`](https://ai-sdk.dev/docs/reference/ai-sdk-core/ui-message#reasoninguipart)            | `reasoning-start`, `reasoning-delta`, `reasoning-end`                                                                            |
+| [`tool-{name}`](https://ai-sdk.dev/docs/reference/ai-sdk-core/ui-message#tooluipart)               | `tool-input-start`, `tool-input-delta`, `tool-input-available`, `tool-input-error`, `tool-output-available`, `tool-output-error` |
+| [`data-{name}`](https://ai-sdk.dev/docs/reference/ai-sdk-core/ui-message#datauipart)               | `data-{name}`                                                                                                                    |
+| [`step-start`](https://ai-sdk.dev/docs/reference/ai-sdk-core/ui-message#stepstartuipart)           | `start-step`                                                                                                                     |
+| [`file`](https://ai-sdk.dev/docs/reference/ai-sdk-core/ui-message#fileuipart)                      | `file`                                                                                                                           |
+| [`source-url`](https://ai-sdk.dev/docs/reference/ai-sdk-core/ui-message#sourceurluipart)           | `source-url`                                                                                                                     |
+| [`source-document`](https://ai-sdk.dev/docs/reference/ai-sdk-core/ui-message#sourcedocumentuipart) | `source-document`                                                                                                                |
 
 ### Control Chunks
 
@@ -467,7 +523,7 @@ Step boundaries are handled automatically:
 function mapUIMessageStream<UI_MESSAGE extends UIMessage>(
   stream: ReadableStream<UIMessageChunk>,
   mapFn: MapUIMessageStreamFn<UI_MESSAGE>,
-): AsyncIterableStream<InferUIMessageChunk<UI_MESSAGE>>
+): AsyncIterableStream<InferUIMessageChunk<UI_MESSAGE>>;
 
 type MapUIMessageStreamFn<UI_MESSAGE extends UIMessage> = (
   input: MapInput<UI_MESSAGE>,
@@ -486,16 +542,22 @@ type MapInput<UI_MESSAGE extends UIMessage> = {
 function flatMapUIMessageStream<UI_MESSAGE extends UIMessage>(
   stream: ReadableStream<UIMessageChunk>,
   flatMapFn: FlatMapUIMessageStreamFn<UI_MESSAGE>,
-): AsyncIterableStream<InferUIMessageChunk<UI_MESSAGE>>
+): AsyncIterableStream<InferUIMessageChunk<UI_MESSAGE>>;
 
 // With predicate - buffer only matching parts, pass through others
-function flatMapUIMessageStream<UI_MESSAGE extends UIMessage, PART extends InferUIMessagePart<UI_MESSAGE>>(
+function flatMapUIMessageStream<
+  UI_MESSAGE extends UIMessage,
+  PART extends InferUIMessagePart<UI_MESSAGE>,
+>(
   stream: ReadableStream<UIMessageChunk>,
   predicate: FlatMapUIMessageStreamPredicate<UI_MESSAGE, PART>,
   flatMapFn: FlatMapUIMessageStreamFn<UI_MESSAGE, PART>,
-): AsyncIterableStream<InferUIMessageChunk<UI_MESSAGE>>
+): AsyncIterableStream<InferUIMessageChunk<UI_MESSAGE>>;
 
-type FlatMapUIMessageStreamFn<UI_MESSAGE extends UIMessage, PART = InferUIMessagePart<UI_MESSAGE>> = (
+type FlatMapUIMessageStreamFn<
+  UI_MESSAGE extends UIMessage,
+  PART = InferUIMessagePart<UI_MESSAGE>,
+> = (
   input: FlatMapInput<UI_MESSAGE, PART>,
   context: FlatMapContext<UI_MESSAGE>,
 ) => InferUIMessagePart<UI_MESSAGE> | InferUIMessagePart<UI_MESSAGE>[] | null;
@@ -515,10 +577,15 @@ type FlatMapContext<UI_MESSAGE extends UIMessage> = {
 ```typescript
 function partTypeIs<UI_MESSAGE extends UIMessage, T extends InferUIMessagePartType<UI_MESSAGE>>(
   type: T | T[],
-): FlatMapUIMessageStreamPredicate<UI_MESSAGE, Extract<InferUIMessagePart<UI_MESSAGE>, { type: T }>>
+): FlatMapUIMessageStreamPredicate<
+  UI_MESSAGE,
+  Extract<InferUIMessagePart<UI_MESSAGE>, { type: T }>
+>;
 
-type FlatMapUIMessageStreamPredicate<UI_MESSAGE extends UIMessage, PART extends InferUIMessagePart<UI_MESSAGE>> = 
-  (part: InferUIMessagePart<UI_MESSAGE>) => boolean;
+type FlatMapUIMessageStreamPredicate<
+  UI_MESSAGE extends UIMessage,
+  PART extends InferUIMessagePart<UI_MESSAGE>,
+> = (part: InferUIMessagePart<UI_MESSAGE>) => boolean;
 ```
 
 ### `filterUIMessageStream`
@@ -527,7 +594,7 @@ type FlatMapUIMessageStreamPredicate<UI_MESSAGE extends UIMessage, PART extends 
 function filterUIMessageStream<UI_MESSAGE extends UIMessage>(
   stream: ReadableStream<UIMessageChunk>,
   filterFn: FilterUIMessageStreamPredicate<UI_MESSAGE>,
-): AsyncIterableStream<InferUIMessageChunk<UI_MESSAGE>>
+): AsyncIterableStream<InferUIMessageChunk<UI_MESSAGE>>;
 
 type FilterUIMessageStreamPredicate<UI_MESSAGE extends UIMessage> = (
   input: MapInput<UI_MESSAGE>,
@@ -540,7 +607,7 @@ type FilterUIMessageStreamPredicate<UI_MESSAGE extends UIMessage> = (
 ```typescript
 function includeParts<UI_MESSAGE extends UIMessage>(
   partTypes: Array<InferUIMessagePartType<UI_MESSAGE>>,
-): FilterUIMessageStreamPredicate<UI_MESSAGE>
+): FilterUIMessageStreamPredicate<UI_MESSAGE>;
 ```
 
 #### `excludeParts`
@@ -548,5 +615,5 @@ function includeParts<UI_MESSAGE extends UIMessage>(
 ```typescript
 function excludeParts<UI_MESSAGE extends UIMessage>(
   partTypes: Array<InferUIMessagePartType<UI_MESSAGE>>,
-): FilterUIMessageStreamPredicate<UI_MESSAGE>
+): FilterUIMessageStreamPredicate<UI_MESSAGE>;
 ```

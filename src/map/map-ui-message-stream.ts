@@ -1,14 +1,9 @@
-import { convertAsyncIteratorToReadableStream } from '@ai-sdk/provider-utils';
-import type { AsyncIterableStream, InferUIMessageChunk, UIMessage } from 'ai';
-import type { InferUIMessagePart } from './types.js';
-import { createAsyncIterableStream } from './utils/create-async-iterable-stream.js';
-import { createUIMessageStreamReader } from './utils/internal/create-ui-message-stream-reader.js';
-import {
-  asArray,
-  isMetaChunk,
-  isStepEndChunk,
-  isStepStartChunk,
-} from './utils/internal/stream-utils.js';
+import { convertAsyncIteratorToReadableStream } from "@ai-sdk/provider-utils";
+import type { AsyncIterableStream, InferUIMessageChunk, UIMessage } from "ai";
+import { createUIMessageStreamReader } from "../internal/create-ui-message-stream-reader.js";
+import { asArray, isMetaChunk, isStepEndChunk, isStepStartChunk } from "../internal/utils.js";
+import type { InferUIMessagePart } from "../types.js";
+import { createAsyncIterableStream } from "../utils/create-async-iterable-stream.js";
 
 /**
  * Input object provided to the chunk map function.
@@ -132,12 +127,8 @@ export function mapUIMessageStream<UI_MESSAGE extends UIMessage>(
   /**
    * Main processing generator.
    */
-  async function* processChunks(): AsyncGenerator<
-    InferUIMessageChunk<UI_MESSAGE>
-  > {
-    for await (const { chunk, part } of createUIMessageStreamReader<UI_MESSAGE>(
-      stream,
-    )) {
+  async function* processChunks(): AsyncGenerator<InferUIMessageChunk<UI_MESSAGE>> {
+    for await (const { chunk, part } of createUIMessageStreamReader<UI_MESSAGE>(stream)) {
       // Meta chunks (start, finish, abort, error, message-metadata) always pass through unchanged.
       if (isMetaChunk(chunk)) {
         yield chunk;
@@ -165,9 +156,7 @@ export function mapUIMessageStream<UI_MESSAGE extends UIMessage>(
       // If not, the stream reader behavior has changed unexpectedly.
       const currentPart = part;
       if (!currentPart) {
-        throw new Error(
-          `Unexpected: received content chunk but part is undefined`,
-        );
+        throw new Error(`Unexpected: received content chunk but part is undefined`);
       }
 
       // Apply the user's mapFn with the chunk and current part.

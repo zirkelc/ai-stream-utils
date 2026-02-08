@@ -1,6 +1,6 @@
-import type { LanguageModelV3StreamPart } from '@ai-sdk/provider';
-import { simulateReadableStream } from 'ai';
-import { MockLanguageModelV3 } from 'ai/test';
+import type { LanguageModelV3StreamPart } from "@ai-sdk/provider";
+import { simulateReadableStream } from "ai";
+import { MockLanguageModelV3 } from "ai/test";
 
 type TextToChunksInput =
   | {
@@ -11,16 +11,12 @@ type TextToChunksInput =
       text: string;
       length: number;
     };
-export const textToChunks = (
-  input: TextToChunksInput,
-): Array<LanguageModelV3StreamPart> => {
+export const textToChunks = (input: TextToChunksInput): Array<LanguageModelV3StreamPart> => {
   const tokens =
-    'seperator' in input
+    "seperator" in input
       ? input.text.split(input.seperator).map((s) => s + input.seperator)
-      : input.text
-          .split(new RegExp(`(.{1,${input.length}})`))
-          .filter((s) => s.length > 0);
-  const textId = '1';
+      : input.text.split(new RegExp(`(.{1,${input.length}})`)).filter((s) => s.length > 0);
+  const textId = "1";
 
   const chunks: Array<LanguageModelV3StreamPart> = [
     { type: `text-start`, id: textId },
@@ -35,7 +31,7 @@ export const textToChunks = (
     { type: `text-end`, id: textId },
     {
       type: `finish`,
-      finishReason: { unified: 'stop', raw: 'stop' },
+      finishReason: { unified: "stop", raw: "stop" },
       usage: {
         inputTokens: {
           total: tokens.length,

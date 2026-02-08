@@ -1,14 +1,8 @@
-import type { InferUIMessageChunk, UIMessage } from 'ai';
-import { readUIMessageStream } from 'ai';
-import type { InferUIMessagePart } from '../../types.js';
-import {
-  getPartTypeFromChunk,
-  isMessageDataChunk,
-  isMetaChunk,
-  isStepEndChunk,
-  isStepStartChunk,
-  type ToolCallState,
-} from './stream-utils.js';
+import type { InferUIMessageChunk, UIMessage } from "ai";
+import { readUIMessageStream } from "ai";
+import type { InferUIMessagePart } from "../types.js";
+import { getPartTypeFromChunk, type ToolCallIdMap } from "./get-part-type-from-chunk.js";
+import { isMessageDataChunk, isMetaChunk, isStepEndChunk, isStepStartChunk } from "./utils.js";
 
 /**
  * Value yielded by the UIMessageStreamReader async generator.
@@ -49,9 +43,7 @@ export type UIMessageStreamReaderValue<UI_MESSAGE extends UIMessage> = {
  * }
  * ```
  */
-export async function* createUIMessageStreamReader<
-  UI_MESSAGE extends UIMessage,
->(
+export async function* createUIMessageStreamReader<UI_MESSAGE extends UIMessage>(
   inputStream: ReadableStream<InferUIMessageChunk<UI_MESSAGE>>,
 ): AsyncGenerator<UIMessageStreamReaderValue<UI_MESSAGE>> {
   // Reader for the input stream - used to read chunks one at a time
@@ -59,9 +51,7 @@ export async function* createUIMessageStreamReader<
 
   // Internal stream that we control - chunks are enqueued here and
   // readUIMessageStream consumes them to assemble parts into messages
-  let controller!: ReadableStreamDefaultController<
-    InferUIMessageChunk<UI_MESSAGE>
-  >;
+  let controller!: ReadableStreamDefaultController<InferUIMessageChunk<UI_MESSAGE>>;
   const internalStream = new ReadableStream<InferUIMessageChunk<UI_MESSAGE>>({
     start(c) {
       controller = c;
@@ -77,7 +67,7 @@ export async function* createUIMessageStreamReader<
   const iterator = uiMessages[Symbol.asyncIterator]();
 
   // Track tool call state for resolving part types when message is undefined
-  const toolCallStates = new Map<string, ToolCallState>();
+  const toolCallIdMap: ToolCallIdMap = new Map();
 
   try {
     while (true) {
@@ -87,28 +77,10 @@ export async function* createUIMessageStreamReader<
         break;
       }
 
-      // Track tool call state for later lookups
-      if (chunk.type === `tool-input-start`) {
-        const toolChunk = chunk as {
-          type: `tool-input-start`;
-          toolCallId: string;
-          toolName: string;
-          dynamic?: boolean;
-        };
-        toolCallStates.set(toolChunk.toolCallId, {
-          toolName: toolChunk.toolName,
-          dynamic: toolChunk.dynamic,
-        });
-      }
-
       // Meta chunks (start, finish, error, etc.) and step chunks (start-step, finish-step)
       // don't emit messages and have no associated part.
       // We still enqueue them so readUIMessageStream can track state internally.
-      if (
-        isMetaChunk(chunk) ||
-        isStepStartChunk(chunk) ||
-        isStepEndChunk(chunk)
-      ) {
+      if (isMetaChunk(chunk) || isStepStartChunk(chunk) || isStepEndChunk(chunk)) {
         controller.enqueue(chunk);
         yield { chunk, message: undefined, part: undefined };
         continue;
@@ -130,7 +102,8 @@ export async function* createUIMessageStreamReader<
 
       // Get the part from the message, or build a partial part from the chunk
       const messagePart = message?.parts[message.parts.length - 1];
-      const expectedPartType = getPartTypeFromChunk(chunk, toolCallStates);
+      // Note: expectedPartType is never undefined here because meta/step chunks are filtered above
+      const expectedPartType = getPartTypeFromChunk<UI_MESSAGE>(chunk, toolCallIdMap)!;
 
       // Use message part if it matches the expected type, otherwise use fallback.
       // This handles timing issues where readUIMessageStream may yield the message

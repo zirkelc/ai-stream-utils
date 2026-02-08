@@ -1,9 +1,4 @@
-import { describe, expectTypeOf, it } from 'vitest';
-import {
-  chunkType,
-  partType,
-  pipeUIMessageStream,
-} from './pipe-ui-message-stream.js';
+import { describe, expectTypeOf, it } from "vitest";
 import type {
   FileChunk,
   MyUIMessage,
@@ -11,18 +6,21 @@ import type {
   ReasoningChunk,
   TextChunk,
   TextDeltaChunk,
-  // TextPart,
+  TextPart,
   ToolChunk,
-} from './utils/internal/test-utils.js';
+} from "../test/ui-message.js";
+import { isChunkType } from "./chunk-type.js";
+import { isPartType } from "./part-type.js";
+import { pipe } from "./pipe.js";
 
 /** Mock stream for type tests */
 const mockStream = null as unknown as ReadableStream<MyUIMessageChunk>;
 
-describe(`pipeUIMessageStream types`, () => {
-  describe(`filter with partType`, () => {
+describe(`pipe types`, () => {
+  describe(`filter with isPartType`, () => {
     it(`should narrow part.type and chunk types for single type`, () => {
-      pipeUIMessageStream<MyUIMessage>(mockStream)
-        .filter(partType(`text`))
+      pipe<MyUIMessage>(mockStream)
+        .filter(isPartType(`text`))
         .map(({ part, chunk }) => {
           /** part is now { type: 'text' } not full TextPart */
           expectTypeOf(part).toEqualTypeOf<{ type: `text` }>();
@@ -32,8 +30,8 @@ describe(`pipeUIMessageStream types`, () => {
     });
 
     it(`should narrow part.type and chunk types for multiple types`, () => {
-      pipeUIMessageStream<MyUIMessage>(mockStream)
-        .filter(partType(`text`, `reasoning`))
+      pipe<MyUIMessage>(mockStream)
+        .filter(isPartType([`text`, `reasoning`]))
         .map(({ part, chunk }) => {
           /** part.type is narrowed to 'text' | 'reasoning' */
           expectTypeOf(part).toEqualTypeOf<{ type: `text` | `reasoning` }>();
@@ -43,8 +41,8 @@ describe(`pipeUIMessageStream types`, () => {
     });
 
     it(`should narrow part.type and chunk types for tool parts`, () => {
-      pipeUIMessageStream<MyUIMessage>(mockStream)
-        .filter(partType(`tool-weather`))
+      pipe<MyUIMessage>(mockStream)
+        .filter(isPartType(`tool-weather`))
         .map(({ part, chunk }) => {
           expectTypeOf(part).toEqualTypeOf<{ type: `tool-weather` }>();
           expectTypeOf(chunk).toEqualTypeOf<ToolChunk>();
@@ -53,8 +51,8 @@ describe(`pipeUIMessageStream types`, () => {
     });
 
     it(`should narrow part.type and chunk types for file parts`, () => {
-      pipeUIMessageStream<MyUIMessage>(mockStream)
-        .filter(partType(`file`))
+      pipe<MyUIMessage>(mockStream)
+        .filter(isPartType(`file`))
         .map(({ part, chunk }) => {
           expectTypeOf(part).toEqualTypeOf<{ type: `file` }>();
           expectTypeOf(chunk).toEqualTypeOf<FileChunk>();
@@ -63,8 +61,8 @@ describe(`pipeUIMessageStream types`, () => {
     });
 
     it(`should preserve narrowed types through plain filter predicate`, () => {
-      pipeUIMessageStream<MyUIMessage>(mockStream)
-        .filter(partType(`text`))
+      pipe<MyUIMessage>(mockStream)
+        .filter(isPartType(`text`))
         .filter(({ chunk }) => chunk.type !== `text-start`)
         .map(({ part, chunk }) => {
           /** Plain predicate preserves current types */
@@ -75,39 +73,39 @@ describe(`pipeUIMessageStream types`, () => {
     });
   });
 
-  describe(`filter with chunkType`, () => {
+  describe(`filter with isChunkType`, () => {
     it(`should narrow chunk type for single type`, () => {
-      pipeUIMessageStream<MyUIMessage>(mockStream)
-        .filter(chunkType(`text-delta`))
+      pipe<MyUIMessage>(mockStream)
+        .filter(isChunkType(`text-delta`))
         .map(({ chunk, part }) => {
-          /** chunkType narrows chunk but part.type is still all types */
+          /** chunkType narrows both chunk and part types */
           expectTypeOf(chunk).toEqualTypeOf<TextDeltaChunk>();
-          expectTypeOf(part.type).toBeString();
+          expectTypeOf(part).toEqualTypeOf<{ type: `text` }>();
           return chunk;
         });
     });
 
     it(`should narrow chunk type for multiple types`, () => {
-      pipeUIMessageStream<MyUIMessage>(mockStream)
-        .filter(chunkType(`text-delta`, `text-end`))
+      pipe<MyUIMessage>(mockStream)
+        .filter(isChunkType([`text-delta`, `text-end`]))
         .map(({ chunk, part }) => {
-          /** chunkType narrows to union of specified chunk types */
+          /** chunkType narrows both chunk and part types */
           expectTypeOf(chunk).toEqualTypeOf<
             Extract<MyUIMessageChunk, { type: `text-delta` | `text-end` }>
           >();
-          expectTypeOf(part.type).toBeString();
+          expectTypeOf(part).toEqualTypeOf<{ type: `text` }>();
           return chunk;
         });
     });
 
     it(`should preserve narrowed chunk type through plain filter predicate`, () => {
-      pipeUIMessageStream<MyUIMessage>(mockStream)
-        .filter(chunkType(`text-delta`))
+      pipe<MyUIMessage>(mockStream)
+        .filter(isChunkType(`text-delta`))
         .filter(({ chunk }) => chunk.delta.length > 0)
         .map(({ chunk, part }) => {
-          /** Plain predicate preserves narrowed chunk type */
+          /** Plain predicate preserves narrowed chunk and part types */
           expectTypeOf(chunk).toEqualTypeOf<TextDeltaChunk>();
-          expectTypeOf(part.type).toBeString();
+          expectTypeOf(part).toEqualTypeOf<{ type: `text` }>();
           return chunk;
         });
     });
@@ -115,8 +113,8 @@ describe(`pipeUIMessageStream types`, () => {
 
   // describe(`reduce`, () => {
   //   it(`should transform ChunkInput to PartInput with full part`, () => {
-  //     pipeUIMessageStream<MyUIMessage>(mockStream)
-  //       .filter(partType(`text`))
+  //     pipe<MyUIMessage>(mockStream)
+  //       .filter(isPartType(`text`))
   //       .reduce()
   //       .map(({ part }) => {
   //         /** After reduce, part is the full TextPart type */
@@ -126,10 +124,10 @@ describe(`pipeUIMessageStream types`, () => {
   //   });
 
   //   it(`should allow further narrowing with partType after reduce`, () => {
-  //     pipeUIMessageStream<MyUIMessage>(mockStream)
-  //       .filter(partType(`text`, `reasoning`))
+  //     pipe<MyUIMessage>(mockStream)
+  //       .filter(isPartType(`text`, `reasoning`))
   //       .reduce()
-  //       .filter(partType(`text`))
+  //       .filter(isPartType(`text`))
   //       .map(({ part }) => {
   //         expectTypeOf(part).toEqualTypeOf<TextPart>();
   //         return part;
@@ -137,8 +135,8 @@ describe(`pipeUIMessageStream types`, () => {
   //   });
 
   //   it(`should not have chunk property after reduce`, () => {
-  //     pipeUIMessageStream<MyUIMessage>(mockStream)
-  //       .filter(partType(`text`))
+  //     pipe<MyUIMessage>(mockStream)
+  //       .filter(isPartType(`text`))
   //       .reduce()
   //       .map((input) => {
   //         /** After reduce, input only has 'part', not 'chunk' */
@@ -152,8 +150,8 @@ describe(`pipeUIMessageStream types`, () => {
 
   // describe(`match with partType`, () => {
   //   it(`should narrow part.type and chunk types in sub-pipeline`, () => {
-  //     pipeUIMessageStream<MyUIMessage>(mockStream).match(
-  //       partType(`text`),
+  //     pipe<MyUIMessage>(mockStream).match(
+  //       isPartType(`text`),
   //       (pipe) =>
   //         pipe.map(({ part, chunk }) => {
   //           expectTypeOf(part).toEqualTypeOf<{ type: `text` }>();
@@ -164,8 +162,8 @@ describe(`pipeUIMessageStream types`, () => {
   //   });
 
   //   it(`should narrow part.type and chunk types for multiple types`, () => {
-  //     pipeUIMessageStream<MyUIMessage>(mockStream).match(
-  //       partType(`text`, `reasoning`),
+  //     pipe<MyUIMessage>(mockStream).match(
+  //       isPartType(`text`, `reasoning`),
   //       (pipe) =>
   //         pipe.map(({ part, chunk }) => {
   //           expectTypeOf(part).toEqualTypeOf<{ type: `text` | `reasoning` }>();
@@ -176,8 +174,8 @@ describe(`pipeUIMessageStream types`, () => {
   //   });
 
   //   it(`should narrow part.type and chunk types for tool parts`, () => {
-  //     pipeUIMessageStream<MyUIMessage>(mockStream).match(
-  //       partType(`tool-weather`),
+  //     pipe<MyUIMessage>(mockStream).match(
+  //       isPartType(`tool-weather`),
   //       (pipe) =>
   //         pipe.map(({ part, chunk }) => {
   //           expectTypeOf(part).toEqualTypeOf<{ type: `tool-weather` }>();
@@ -190,8 +188,8 @@ describe(`pipeUIMessageStream types`, () => {
 
   // describe(`chaining`, () => {
   //   it(`should preserve main pipeline INPUT after match`, () => {
-  //     pipeUIMessageStream<MyUIMessage>(mockStream)
-  //       .match(partType(`text`), (pipe) => pipe.map(({ chunk }) => chunk))
+  //     pipe<MyUIMessage>(mockStream)
+  //       .match(isPartType(`text`), (pipe) => pipe.map(({ chunk }) => chunk))
   //       .map(({ chunk, part }) => {
   //         /** Main pipeline still has ChunkInput with all types */
   //         expectTypeOf(chunk).toEqualTypeOf<MyUIMessageChunk>();
@@ -201,9 +199,9 @@ describe(`pipeUIMessageStream types`, () => {
   //   });
 
   //   it(`should allow multiple match calls`, () => {
-  //     pipeUIMessageStream<MyUIMessage>(mockStream)
-  //       .match(partType(`text`), (pipe) => pipe.map(({ chunk }) => chunk))
-  //       .match(partType(`reasoning`), (pipe) => pipe.map(({ chunk }) => chunk))
+  //     pipe<MyUIMessage>(mockStream)
+  //       .match(isPartType(`text`), (pipe) => pipe.map(({ chunk }) => chunk))
+  //       .match(isPartType(`reasoning`), (pipe) => pipe.map(({ chunk }) => chunk))
   //       .toStream();
   //   });
   // });

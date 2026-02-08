@@ -1,11 +1,9 @@
-import {
-  convertArrayToReadableStream,
-  convertAsyncIterableToArray,
-} from '@ai-sdk/provider-utils/test';
-import { readUIMessageStream } from 'ai';
-import { bench, describe } from 'vitest';
-import { fastReadUIMessageStream } from './fast-read-ui-message-stream.js';
-import type { MyUIMessage, MyUIMessageChunk } from './internal/test-utils.js';
+import { readUIMessageStream } from "ai";
+import { bench, describe } from "vitest";
+import type { MyUIMessage, MyUIMessageChunk } from "../test/ui-message.js";
+import { convertArrayToStream } from "../utils/convert-array-to-stream.js";
+import { convertAsyncIterableToArray } from "../utils/convert-async-iterable-to-array.js";
+import { fastReadUIMessageStream } from "./fast-read-ui-message-stream.js";
 
 /* Generate text chunks for benchmarking */
 function createTextChunks(count: number): Array<MyUIMessageChunk> {
@@ -21,8 +19,7 @@ function createToolInputDeltaChunks(count: number): Array<MyUIMessageChunk> {
   return Array.from({ length: count }, (_, i) => ({
     type: `tool-input-delta` as const,
     toolCallId: `tool-1`,
-    inputTextDelta:
-      i === 0 ? `{"key${i}":"value${i}"` : `,"key${i}":"value${i}"`,
+    inputTextDelta: i === 0 ? `{"key${i}":"value${i}"` : `,"key${i}":"value${i}"`,
   }));
 }
 
@@ -32,9 +29,7 @@ const LARGE_TEXT_CHUNKS = createTextChunks(5_000);
 
 const TOOL_INPUT_DELTA_CHUNKS = createToolInputDeltaChunks(100);
 
-function createTextStream(
-  textChunks: Array<MyUIMessageChunk>,
-): Array<MyUIMessageChunk> {
+function createTextStream(textChunks: Array<MyUIMessageChunk>): Array<MyUIMessageChunk> {
   return [
     { type: `start`, messageId: `msg-1` },
     { type: `start-step` },
@@ -71,9 +66,7 @@ function createToolStream(): Array<MyUIMessageChunk> {
 /**
  * Helper to collect messages (cloning for AI SDK comparison since fast version mutates)
  */
-async function collectMessages<T>(
-  generator: AsyncGenerator<T>,
-): Promise<Array<T>> {
+async function collectMessages<T>(generator: AsyncGenerator<T>): Promise<Array<T>> {
   const results: Array<T> = [];
   for await (const item of generator) {
     results.push(structuredClone(item));
@@ -86,22 +79,18 @@ describe(`fastReadUIMessageStream vs AI SDK readUIMessageStream`, () => {
     const chunks = createTextStream(SMALL_TEXT_CHUNKS);
 
     bench(`AI SDK readUIMessageStream`, async () => {
-      const stream = convertArrayToReadableStream(chunks);
-      await convertAsyncIterableToArray(
-        readUIMessageStream<MyUIMessage>({ stream }),
-      );
+      const stream = convertArrayToStream(chunks);
+      await convertAsyncIterableToArray(readUIMessageStream<MyUIMessage>({ stream }));
     });
 
     bench(`fastReadUIMessageStream`, async () => {
-      const stream = convertArrayToReadableStream(chunks);
+      const stream = convertArrayToStream(chunks);
       await collectMessages(fastReadUIMessageStream<MyUIMessage>(stream));
     });
 
     bench(`fastReadUIMessageStream (no clone)`, async () => {
-      const stream = convertArrayToReadableStream(chunks);
-      await convertAsyncIterableToArray(
-        fastReadUIMessageStream<MyUIMessage>(stream),
-      );
+      const stream = convertArrayToStream(chunks);
+      await convertAsyncIterableToArray(fastReadUIMessageStream<MyUIMessage>(stream));
     });
   });
 
@@ -109,22 +98,18 @@ describe(`fastReadUIMessageStream vs AI SDK readUIMessageStream`, () => {
     const chunks = createTextStream(MEDIUM_TEXT_CHUNKS);
 
     bench(`AI SDK readUIMessageStream`, async () => {
-      const stream = convertArrayToReadableStream(chunks);
-      await convertAsyncIterableToArray(
-        readUIMessageStream<MyUIMessage>({ stream }),
-      );
+      const stream = convertArrayToStream(chunks);
+      await convertAsyncIterableToArray(readUIMessageStream<MyUIMessage>({ stream }));
     });
 
     bench(`fastReadUIMessageStream`, async () => {
-      const stream = convertArrayToReadableStream(chunks);
+      const stream = convertArrayToStream(chunks);
       await collectMessages(fastReadUIMessageStream<MyUIMessage>(stream));
     });
 
     bench(`fastReadUIMessageStream (no clone)`, async () => {
-      const stream = convertArrayToReadableStream(chunks);
-      await convertAsyncIterableToArray(
-        fastReadUIMessageStream<MyUIMessage>(stream),
-      );
+      const stream = convertArrayToStream(chunks);
+      await convertAsyncIterableToArray(fastReadUIMessageStream<MyUIMessage>(stream));
     });
   });
 
@@ -132,22 +117,18 @@ describe(`fastReadUIMessageStream vs AI SDK readUIMessageStream`, () => {
     const chunks = createTextStream(LARGE_TEXT_CHUNKS);
 
     bench(`AI SDK readUIMessageStream`, async () => {
-      const stream = convertArrayToReadableStream(chunks);
-      await convertAsyncIterableToArray(
-        readUIMessageStream<MyUIMessage>({ stream }),
-      );
+      const stream = convertArrayToStream(chunks);
+      await convertAsyncIterableToArray(readUIMessageStream<MyUIMessage>({ stream }));
     });
 
     bench(`fastReadUIMessageStream`, async () => {
-      const stream = convertArrayToReadableStream(chunks);
+      const stream = convertArrayToStream(chunks);
       await collectMessages(fastReadUIMessageStream<MyUIMessage>(stream));
     });
 
     bench(`fastReadUIMessageStream (no clone)`, async () => {
-      const stream = convertArrayToReadableStream(chunks);
-      await convertAsyncIterableToArray(
-        fastReadUIMessageStream<MyUIMessage>(stream),
-      );
+      const stream = convertArrayToStream(chunks);
+      await convertAsyncIterableToArray(fastReadUIMessageStream<MyUIMessage>(stream));
     });
   });
 
@@ -155,22 +136,18 @@ describe(`fastReadUIMessageStream vs AI SDK readUIMessageStream`, () => {
     const chunks = createToolStream();
 
     bench(`AI SDK readUIMessageStream`, async () => {
-      const stream = convertArrayToReadableStream(chunks);
-      await convertAsyncIterableToArray(
-        readUIMessageStream<MyUIMessage>({ stream }),
-      );
+      const stream = convertArrayToStream(chunks);
+      await convertAsyncIterableToArray(readUIMessageStream<MyUIMessage>({ stream }));
     });
 
     bench(`fastReadUIMessageStream`, async () => {
-      const stream = convertArrayToReadableStream(chunks);
+      const stream = convertArrayToStream(chunks);
       await collectMessages(fastReadUIMessageStream<MyUIMessage>(stream));
     });
 
     bench(`fastReadUIMessageStream (no clone)`, async () => {
-      const stream = convertArrayToReadableStream(chunks);
-      await convertAsyncIterableToArray(
-        fastReadUIMessageStream<MyUIMessage>(stream),
-      );
+      const stream = convertArrayToStream(chunks);
+      await convertAsyncIterableToArray(fastReadUIMessageStream<MyUIMessage>(stream));
     });
   });
 });

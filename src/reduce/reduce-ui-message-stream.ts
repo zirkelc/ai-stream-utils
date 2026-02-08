@@ -1,18 +1,11 @@
-import { convertAsyncIteratorToReadableStream } from '@ai-sdk/provider-utils';
-import type { AsyncIterableStream, InferUIMessageChunk, UIMessage } from 'ai';
-import type { PartInput } from './pipe/types.js';
-import type { InferUIMessagePart } from './types.js';
-import { createAsyncIterableStream } from './utils/create-async-iterable-stream.js';
-import { fastReadUIMessageStream } from './utils/fast-read-ui-message-stream.js';
-import {
-  getPartTypeFromChunk,
-  type ToolCallIdMap,
-} from './utils/internal/get-part-type-from-chunk.js';
-import {
-  isMetaChunk,
-  isStepEndChunk,
-  isStepStartChunk,
-} from './utils/internal/stream-utils.js';
+import { convertAsyncIteratorToReadableStream } from "@ai-sdk/provider-utils";
+import type { AsyncIterableStream, InferUIMessageChunk, UIMessage } from "ai";
+import { fastReadUIMessageStream } from "../internal/fast-read-ui-message-stream.js";
+import { getPartTypeFromChunk, type ToolCallIdMap } from "../internal/get-part-type-from-chunk.js";
+import { isMetaChunk, isStepEndChunk, isStepStartChunk } from "../internal/utils.js";
+import type { PartInput } from "../pipe/part-pipeline.js";
+import type { InferUIMessagePart } from "../types.js";
+import { createAsyncIterableStream } from "../utils/create-async-iterable-stream.js";
 
 /**
  * Buffer for accumulating chunks for a single part.
@@ -86,9 +79,7 @@ function isPartComplete(partType: string, chunkType: string): boolean {
 export function reduceUIMessageStream<UI_MESSAGE extends UIMessage>(
   stream: ReadableStream<InferUIMessageChunk<UI_MESSAGE>>,
 ): AsyncIterableStream<PartInput<InferUIMessagePart<UI_MESSAGE>>> {
-  async function* processChunks(): AsyncGenerator<
-    PartInput<InferUIMessagePart<UI_MESSAGE>>
-  > {
+  async function* processChunks(): AsyncGenerator<PartInput<InferUIMessagePart<UI_MESSAGE>>> {
     /** Buffers keyed by part type */
     const buffers = new Map<string, PartBuffer<UI_MESSAGE>>();
     /** Order parts were first seen (for preserving emission order) */
@@ -96,15 +87,9 @@ export function reduceUIMessageStream<UI_MESSAGE extends UIMessage>(
     /** Tracks toolCallId → partType mapping for tool chunks */
     const toolCallIdMap: ToolCallIdMap = new Map();
 
-    for await (const { chunk, message } of fastReadUIMessageStream<UI_MESSAGE>(
-      stream,
-    )) {
+    for await (const { chunk, message } of fastReadUIMessageStream<UI_MESSAGE>(stream)) {
       /** Skip meta chunks and step boundaries */
-      if (
-        isMetaChunk(chunk) ||
-        isStepStartChunk(chunk) ||
-        isStepEndChunk(chunk)
-      ) {
+      if (isMetaChunk(chunk) || isStepStartChunk(chunk) || isStepEndChunk(chunk)) {
         continue;
       }
 
@@ -142,7 +127,7 @@ export function reduceUIMessageStream<UI_MESSAGE extends UIMessage>(
         const firstPartType = partOrder[0]!;
         const firstBuf = buffers.get(firstPartType)!;
         if (firstBuf.complete && firstBuf.part) {
-          yield { part: firstBuf.part, chunks: firstBuf.chunks };
+          yield { part: firstBuf.part };
           partOrder.shift();
           buffers.delete(firstPartType);
         } else {
@@ -156,7 +141,7 @@ export function reduceUIMessageStream<UI_MESSAGE extends UIMessage>(
     for (const pt of partOrder) {
       const buf = buffers.get(pt)!;
       if (buf.part) {
-        yield { part: buf.part, chunks: buf.chunks };
+        yield { part: buf.part };
       }
     }
   }

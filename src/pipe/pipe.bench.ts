@@ -1,23 +1,15 @@
-import {
-  convertArrayToReadableStream,
-  convertAsyncIterableToArray,
-} from '@ai-sdk/provider-utils/test';
-import { bench, describe } from 'vitest';
-import { pipeUIMessageStream } from './pipe-ui-message-stream.js';
-import type {
-  MyUIMessage,
-  MyUIMessageChunk,
-} from './utils/internal/test-utils.js';
+import { bench, describe } from "vitest";
+import type { MyUIMessage, MyUIMessageChunk } from "../test/ui-message.js";
+import { convertArrayToStream } from "../utils/convert-array-to-stream.js";
+import { convertAsyncIterableToArray } from "../utils/convert-async-iterable-to-array.js";
+import { pipe } from "./pipe.js";
 
 /* Generate 1,000 text chunks for benchmarking */
-const TEXT_DELTA_CHUNKS: Array<MyUIMessageChunk> = Array.from(
-  { length: 1_000 },
-  (_, i) => ({
-    type: `text-delta`,
-    id: `1`,
-    delta: `chunk ${i}`,
-  }),
-);
+const TEXT_DELTA_CHUNKS: Array<MyUIMessageChunk> = Array.from({ length: 1_000 }, (_, i) => ({
+  type: `text-delta`,
+  id: `1`,
+  delta: `chunk ${i}`,
+}));
 
 const BENCHMARK_CHUNKS: Array<MyUIMessageChunk> = [
   { type: `start` },
@@ -29,32 +21,30 @@ const BENCHMARK_CHUNKS: Array<MyUIMessageChunk> = [
   { type: `finish` },
 ];
 
-describe(`pipeUIMessageStream overhead`, () => {
+describe(`pipe overhead`, () => {
   bench(`baseline - raw stream iteration`, async () => {
-    const stream = convertArrayToReadableStream(BENCHMARK_CHUNKS);
+    const stream = convertArrayToStream(BENCHMARK_CHUNKS);
     await convertAsyncIterableToArray(stream);
   });
 
   bench(`empty pipeline`, async () => {
-    const stream = convertArrayToReadableStream(BENCHMARK_CHUNKS);
-    await convertAsyncIterableToArray(
-      pipeUIMessageStream<MyUIMessage>(stream).toStream(),
-    );
+    const stream = convertArrayToStream(BENCHMARK_CHUNKS);
+    await convertAsyncIterableToArray(pipe<MyUIMessage>(stream).toStream());
   });
 
   bench(`1x map`, async () => {
-    const stream = convertArrayToReadableStream(BENCHMARK_CHUNKS);
+    const stream = convertArrayToStream(BENCHMARK_CHUNKS);
     await convertAsyncIterableToArray(
-      pipeUIMessageStream<MyUIMessage>(stream)
+      pipe<MyUIMessage>(stream)
         .map(({ chunk }) => chunk)
         .toStream(),
     );
   });
 
   bench(`2x map`, async () => {
-    const stream = convertArrayToReadableStream(BENCHMARK_CHUNKS);
+    const stream = convertArrayToStream(BENCHMARK_CHUNKS);
     await convertAsyncIterableToArray(
-      pipeUIMessageStream<MyUIMessage>(stream)
+      pipe<MyUIMessage>(stream)
         .map(({ chunk }) => chunk)
         .map(({ chunk }) => chunk)
         .toStream(),
@@ -62,9 +52,9 @@ describe(`pipeUIMessageStream overhead`, () => {
   });
 
   bench(`5x map`, async () => {
-    const stream = convertArrayToReadableStream(BENCHMARK_CHUNKS);
+    const stream = convertArrayToStream(BENCHMARK_CHUNKS);
     await convertAsyncIterableToArray(
-      pipeUIMessageStream<MyUIMessage>(stream)
+      pipe<MyUIMessage>(stream)
         .map(({ chunk }) => chunk)
         .map(({ chunk }) => chunk)
         .map(({ chunk }) => chunk)
@@ -75,9 +65,9 @@ describe(`pipeUIMessageStream overhead`, () => {
   });
 
   bench(`10x map`, async () => {
-    const stream = convertArrayToReadableStream(BENCHMARK_CHUNKS);
+    const stream = convertArrayToStream(BENCHMARK_CHUNKS);
     await convertAsyncIterableToArray(
-      pipeUIMessageStream<MyUIMessage>(stream)
+      pipe<MyUIMessage>(stream)
         .map(({ chunk }) => chunk)
         .map(({ chunk }) => chunk)
         .map(({ chunk }) => chunk)

@@ -1,43 +1,64 @@
-import { convertAsyncIteratorToReadableStream } from '@ai-sdk/provider-utils';
-import type { AsyncIterableStream, InferUIMessageChunk, UIMessage } from 'ai';
-import type {
-  ExtractPart,
-  InferUIMessagePart,
-  InferUIMessagePartType,
-} from '../types.js';
-import { createAsyncIterableStream } from '../utils/create-async-iterable-stream.js';
-import { serializePartToChunks } from '../utils/internal/serialize-part-to-chunks.js';
-import type {
-  BasePipeline,
-  PartBuilder,
-  PartFilterFn,
-} from './internal-types.js';
-import type { PartTypeGuard } from './part-type.js';
-import type { PartInput, PartMapFn, PartPredicate } from './types.js';
+import { convertAsyncIteratorToReadableStream } from "@ai-sdk/provider-utils";
+import type { AsyncIterableStream, InferUIMessageChunk, UIMessage } from "ai";
+import { serializePartToChunks } from "../internal/serialize-part-to-chunks.js";
+import type { ExtractPart, InferUIMessagePart, InferUIMessagePartType } from "../types.js";
+import { createAsyncIterableStream } from "../utils/create-async-iterable-stream.js";
+import type { BasePipeline } from "./base-pipeline.js";
+import type { PartTypeGuard } from "./part-type.js";
+
+/**
+ * Input for part-based operations (after reduce).
+ */
+export type PartInput<PART> = {
+  part: PART;
+};
+
+/**
+ * Predicate for part-based operations (PartPipeline.filter).
+ * Returns true to include the part, false to exclude.
+ */
+export type PartPredicate<PART> = (input: PartInput<PART>) => boolean;
+
+/**
+ * Map function for part-based operations (PartPipeline).
+ * Returns transformed part or null to remove.
+ */
+export type PartMapFn<PART> = (input: PartInput<PART>) => PART | null;
+
+/**
+ * Builder function for PartPipeline operations.
+ * Uses InferUIMessagePart<UI_MESSAGE> to ensure covariance in the PART type parameter.
+ */
+export type PartBuilder<UI_MESSAGE extends UIMessage> = (
+  iterable: AsyncIterable<PartInput<InferUIMessagePart<UI_MESSAGE>>>,
+) => AsyncIterable<PartInput<InferUIMessagePart<UI_MESSAGE>>>;
+
+/**
+ * Union of all filter function types for PartPipeline.
+ * Used in implementation signatures to accept predicates or type guards.
+ */
+export type PartFilterFn<
+  UI_MESSAGE extends UIMessage,
+  PART extends InferUIMessagePart<UI_MESSAGE>,
+> = PartPredicate<PART> | PartTypeGuard<UI_MESSAGE, InferUIMessagePartType<UI_MESSAGE>>;
 
 /**
  * Pipeline for part-based operations (after reduce()).
  * Operations receive complete parts instead of individual chunks.
  */
-export class PartPipeline<
-  UI_MESSAGE extends UIMessage,
-  PART extends InferUIMessagePart<UI_MESSAGE>,
-> implements
-    BasePipeline<UI_MESSAGE>,
-    AsyncIterable<InferUIMessageChunk<UI_MESSAGE>>
+export class PartPipeline<UI_MESSAGE extends UIMessage, PART extends InferUIMessagePart<UI_MESSAGE>>
+  implements BasePipeline<UI_MESSAGE>, AsyncIterable<InferUIMessageChunk<UI_MESSAGE>>
 {
   private consumed = false;
 
   constructor(
-    private sourceIterable: AsyncIterable<
-      PartInput<InferUIMessagePart<UI_MESSAGE>>
-    >,
+    private sourceIterable: AsyncIterable<PartInput<InferUIMessagePart<UI_MESSAGE>>>,
     private prevBuilder: PartBuilder<UI_MESSAGE> = (s) => s,
   ) {}
 
   private assertNotConsumed(): void {
     if (this.consumed) {
-      throw new Error('Pipeline has already been consumed.');
+      throw new Error("Pipeline has already been consumed.");
     }
   }
 
@@ -52,20 +73,14 @@ export class PartPipeline<
    */
   filter(predicate: PartPredicate<PART>): PartPipeline<UI_MESSAGE, PART>;
 
-  filter(
-    predicate: PartFilterFn<UI_MESSAGE, PART>,
-  ): PartPipeline<UI_MESSAGE, PART> {
+  filter(predicate: PartFilterFn<UI_MESSAGE, PART>): PartPipeline<UI_MESSAGE, PART> {
     /** Cast predicate to work with full part type */
-    const predicateFn = predicate as PartPredicate<
-      InferUIMessagePart<UI_MESSAGE>
-    >;
+    const predicateFn = predicate as PartPredicate<InferUIMessagePart<UI_MESSAGE>>;
 
     const nextBuilder: PartBuilder<UI_MESSAGE> = (iterable) => {
       const prevIterable = this.prevBuilder(iterable);
 
-      async function* filterParts(): AsyncGenerator<
-        PartInput<InferUIMessagePart<UI_MESSAGE>>
-      > {
+      async function* filterParts(): AsyncGenerator<PartInput<InferUIMessagePart<UI_MESSAGE>>> {
         for await (const partInput of prevIterable) {
           if (predicateFn(partInput)) {
             yield partInput;
@@ -91,15 +106,12 @@ export class PartPipeline<
     const nextBuilder: PartBuilder<UI_MESSAGE> = (iterable) => {
       const prevIterable = this.prevBuilder(iterable);
 
-      async function* mapParts(): AsyncGenerator<
-        PartInput<InferUIMessagePart<UI_MESSAGE>>
-      > {
+      async function* mapParts(): AsyncGenerator<PartInput<InferUIMessagePart<UI_MESSAGE>>> {
         for await (const input of prevIterable) {
           const result = mapFn(input);
           if (result !== null) {
             yield {
               part: result,
-              chunks: input.chunks,
             };
           }
         }
@@ -118,18 +130,11 @@ export class PartPipeline<
     this.assertNotConsumed();
     this.consumed = true;
 
-    const partsIterable = this.prevBuilder(
-      this.sourceIterable,
-    ) as AsyncIterable<PartInput<PART>>;
+    const partsIterable = this.prevBuilder(this.sourceIterable) as AsyncIterable<PartInput<PART>>;
 
-    async function* emitChunks(): AsyncGenerator<
-      InferUIMessageChunk<UI_MESSAGE>
-    > {
+    async function* emitChunks(): AsyncGenerator<InferUIMessageChunk<UI_MESSAGE>> {
       for await (const partInput of partsIterable) {
-        const chunks = serializePartToChunks<UI_MESSAGE>(
-          partInput.part,
-          partInput.chunks as Array<InferUIMessageChunk<UI_MESSAGE>>,
-        );
+        const chunks = serializePartToChunks<UI_MESSAGE>(partInput.part);
         for (const chunk of chunks) {
           yield chunk;
         }

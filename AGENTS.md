@@ -66,7 +66,7 @@ examples/                     # Usage examples
 - Use JSDoc with `@example` blocks for public APIs
 - Do NOT use `@param` or `@return` annotations (TypeScript handles types)
 
-```typescript
+````typescript
 /**
  * Creates a filter predicate that includes only the specified part types.
  *
@@ -80,7 +80,7 @@ export function includeParts<UI_MESSAGE extends UIMessage>(
 ): FilterUIMessageStreamPredicate<UI_MESSAGE> {
   /* ... */
 }
-```
+````
 
 ### Error Handling
 
@@ -89,9 +89,7 @@ export function includeParts<UI_MESSAGE extends UIMessage>(
 
 ```typescript
 if (!message) {
-  throw new Error(
-    'Unexpected: received content chunk but message is undefined',
-  );
+  throw new Error("Unexpected: received content chunk but message is undefined");
 }
 ```
 
@@ -105,13 +103,13 @@ if (!message) {
 - Check array length with `expect(items.length).toBe(n)` instead of `.toHaveLength(n)`
 
 ```typescript
-describe('filterUIMessageStream', () => {
-  it('should filter chunks using include', async () => {
+describe("filterUIMessageStream", () => {
+  it("should filter chunks using include", async () => {
     /* Arrange */
-    const stream = convertArrayToReadableStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+    const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
 
     /* Act */
-    const filteredStream = filterUIMessageStream<MyUIMessage>(stream, includeParts(['text']));
+    const filteredStream = filterUIMessageStream<MyUIMessage>(stream, includeParts(["text"]));
     const result = await convertAsyncIterableToArray(filteredStream);
 
     /* Assert */
@@ -130,6 +128,7 @@ await expect(result).rejects.toThrow();
 ### Test Utilities
 
 Use fixtures from `src/utils/test-utils.ts`:
+
 - `START_CHUNK`, `FINISH_CHUNK`, `ABORT_CHUNK`, `TEXT_CHUNKS`, `REASONING_CHUNKS`
 - `MyUIMessage`, `MyUIMessageChunk`, `MyUIMessagePart` types
 

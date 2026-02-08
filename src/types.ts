@@ -1,10 +1,9 @@
-import type { InferUIMessageChunk, UIMessage } from 'ai';
+import type { InferUIMessageChunk, UIMessage } from "ai";
 
-export type InferUIMessagePart<UI_MESSAGE extends UIMessage> =
-  UI_MESSAGE['parts'][number];
+export type InferUIMessagePart<UI_MESSAGE extends UIMessage> = UI_MESSAGE["parts"][number];
 
 export type InferUIMessagePartType<UI_MESSAGE extends UIMessage> =
-  InferUIMessagePart<UI_MESSAGE>['type'];
+  InferUIMessagePart<UI_MESSAGE>["type"];
 
 /**
  * Extracts chunk type strings that match the prefix exactly or as `${PREFIX}-*`.
@@ -19,16 +18,14 @@ export type InferUIMessagePartType<UI_MESSAGE extends UIMessage> =
  * // => 'file' (exact match)
  * ```
  */
-type ExtractChunkTypesByPrefix<
-  UI_MESSAGE extends UIMessage,
-  PREFIX extends string,
-> = InferUIMessageChunk<UI_MESSAGE> extends infer CHUNK
-  ? CHUNK extends { type: infer T extends string }
-    ? T extends PREFIX | `${PREFIX}-${string}`
-      ? T
+type ExtractChunkTypesByPrefix<UI_MESSAGE extends UIMessage, PREFIX extends string> =
+  InferUIMessageChunk<UI_MESSAGE> extends infer CHUNK
+    ? CHUNK extends { type: infer T extends string }
+      ? T extends PREFIX | `${PREFIX}-${string}`
+        ? T
+        : never
       : never
-    : never
-  : never;
+    : never;
 
 /**
  * Maps a part type string to its corresponding chunk type(s).
@@ -51,10 +48,10 @@ type ExtractChunkTypesByPrefix<
 export type PartTypeToChunkTypes<
   UI_MESSAGE extends UIMessage,
   PART_TYPE extends string,
-> = PART_TYPE extends `tool-${string}` | 'dynamic-tool'
-  ? ExtractChunkTypesByPrefix<UI_MESSAGE, 'tool'>
-  : PART_TYPE extends 'step-start'
-    ? 'start-step'
+> = PART_TYPE extends `tool-${string}` | "dynamic-tool"
+  ? ExtractChunkTypesByPrefix<UI_MESSAGE, "tool">
+  : PART_TYPE extends "step-start"
+    ? "start-step"
     : ExtractChunkTypesByPrefix<UI_MESSAGE, PART_TYPE>;
 
 /**
@@ -71,7 +68,7 @@ export type ExtractChunkForPart<
   PART extends InferUIMessagePart<UI_MESSAGE>,
 > = Extract<
   InferUIMessageChunk<UI_MESSAGE>,
-  { type: PartTypeToChunkTypes<UI_MESSAGE, PART['type']> }
+  { type: PartTypeToChunkTypes<UI_MESSAGE, PART["type"]> }
 >;
 
 /**
@@ -96,4 +93,26 @@ export type ExcludePart<
 export type ExcludePartType<
   UI_MESSAGE extends UIMessage,
   PART_TYPE extends InferUIMessagePartType<UI_MESSAGE>,
-> = ExcludePart<UI_MESSAGE, PART_TYPE>['type'];
+> = ExcludePart<UI_MESSAGE, PART_TYPE>["type"];
+
+/**
+ * Maps chunk type string(s) back to the corresponding part type string(s).
+ * Reverse of `PartTypeToChunkTypes`.
+ *
+ * @example
+ * ```typescript
+ * type TextPartType = ChunkTypeToPartType<MyUIMessage, 'text-delta'>;
+ * // => 'text'
+ *
+ * type ToolPartType = ChunkTypeToPartType<MyUIMessage, 'tool-input-delta'>;
+ * // => 'tool-weather' | 'dynamic-tool' (all tool part types)
+ * ```
+ */
+export type ChunkTypeToPartType<UI_MESSAGE extends UIMessage, CHUNK_TYPE extends string> =
+  InferUIMessagePart<UI_MESSAGE> extends infer PART
+    ? PART extends { type: infer PT extends string }
+      ? CHUNK_TYPE extends PartTypeToChunkTypes<UI_MESSAGE, PT>
+        ? PT
+        : never
+      : never
+    : never;
