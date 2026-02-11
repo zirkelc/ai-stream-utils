@@ -35,6 +35,7 @@ npm install ai-stream-utils
 | [`mapUIMessageStream`](#mapuimessagestream) | [UIMessageChunk](https://github.com/vercel/ai/blob/main/packages/ai/src/ui-message-stream/ui-message-chunks.ts) | `chunk \| chunk[] \| null` | Transform or filter chunks in real-time (e.g., smooth streaming) |
 | [`flatMapUIMessageStream`](#flatmapuimessagestream) | [UIMessagePart](https://ai-sdk.dev/docs/reference/ai-sdk-core/ui-message#uimessagepart-types) | `part \| part[] \| null` | Buffer until complete, then transform (e.g., redact tool output) |
 | [`filterUIMessageStream`](#filteruimessagestream) | [UIMessageChunk](https://github.com/vercel/ai/blob/main/packages/ai/src/ui-message-stream/ui-message-chunks.ts) | `boolean` | Include/exclude parts by type (e.g., hide reasoning) |
+| [`consumeUIMessageStream`](#consumeuimessagestream) | [UIMessageChunk](https://github.com/vercel/ai/blob/main/packages/ai/src/ui-message-stream/ui-message-chunks.ts) | `Promise<UIMessage>` | Consume entire stream and return final message (e.g., server-side processing) |
 
 ## Usage
 
@@ -111,6 +112,42 @@ const stream = filterUIMessageStream(
     return false;
   }
 );
+```
+
+### `consumeUIMessageStream`
+
+The `consumeUIMessageStream` function consumes a UI message stream by fully reading it and returns the final assembled message. This is useful when you need to process the complete message on the server-side without streaming to the client.
+
+```typescript
+import { consumeUIMessageStream } from 'ai-stream-utils';
+
+const result = streamText({
+  model: openai('gpt-4o'),
+  prompt: 'Tell me a joke',
+});
+
+/* Consume the entire stream and get the final message */
+const message = await consumeUIMessageStream(
+  result.toUIMessageStream<MyUIMessage>()
+);
+
+console.log(message.parts); // All parts fully assembled
+```
+
+You can also use it with transformed or filtered streams:
+
+```typescript
+import { consumeUIMessageStream, filterUIMessageStream, includeParts } from 'ai-stream-utils';
+
+/* Filter the stream to only include text parts */
+const stream = filterUIMessageStream(
+  result.toUIMessageStream<MyUIMessage>(),
+  includeParts(['text'])
+);
+
+/* Consume the filtered stream */
+const message = await consumeUIMessageStream(stream);
+console.log(message.parts); // Only text parts
 ```
 
 ## Examples
@@ -576,4 +613,12 @@ function includeParts<UI_MESSAGE extends UIMessage>(
 function excludeParts<UI_MESSAGE extends UIMessage>(
   partTypes: Array<InferUIMessagePartType<UI_MESSAGE>>,
 ): FilterUIMessageStreamPredicate<UI_MESSAGE>
+```
+
+### `consumeUIMessageStream`
+
+```typescript
+async function consumeUIMessageStream<UI_MESSAGE extends UIMessage>(
+  stream: ReadableStream<InferUIMessageChunk<UI_MESSAGE>>,
+): Promise<UI_MESSAGE>
 ```
