@@ -37,30 +37,11 @@ describe('consumeUIMessageStream', () => {
         },
       ]
     `);
-  });
 
-  it('should consume a stream with multiple part types', async () => {
-    const stream = convertArrayToReadableStream([
-      START_CHUNK,
-      ...TEXT_CHUNKS,
-      ...REASONING_CHUNKS,
-      ...TOOL_SERVER_CHUNKS,
-      FINISH_CHUNK,
-    ]);
-
-    const message = await consumeUIMessageStream<MyUIMessage>(stream);
-
-    const partTypes = message.parts.map((part) => part.type);
-    expect(partTypes).toMatchInlineSnapshot(`
-      [
-        "step-start",
-        "text",
-        "step-start",
-        "reasoning",
-        "step-start",
-        "tool-weather",
-      ]
-    `);
+    const textPart = message.parts.find((part) => part.type === 'text');
+    expect(textPart).toBeDefined();
+    expect(textPart?.type).toBe('text');
+    expect((textPart as { text: string }).text).toBe('Hello World');
   });
 
   it('should consume a stream with all part types', async () => {
@@ -98,21 +79,6 @@ describe('consumeUIMessageStream', () => {
         "data-weather",
       ]
     `);
-  });
-
-  it('should return fully assembled text in the final message', async () => {
-    const stream = convertArrayToReadableStream([
-      START_CHUNK,
-      ...TEXT_CHUNKS,
-      FINISH_CHUNK,
-    ]);
-
-    const message = await consumeUIMessageStream<MyUIMessage>(stream);
-
-    const textPart = message.parts.find((part) => part.type === 'text');
-    expect(textPart).toBeDefined();
-    expect(textPart?.type).toBe('text');
-    expect((textPart as { text: string }).text).toBe('Hello World');
   });
 
   it('should throw when stream produces no messages', async () => {
