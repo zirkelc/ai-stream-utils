@@ -134,22 +134,6 @@ const message = await consumeUIMessageStream(
 console.log(message.parts); // All parts fully assembled
 ```
 
-You can also use it with transformed or filtered streams:
-
-```typescript
-import { consumeUIMessageStream, filterUIMessageStream, includeParts } from 'ai-stream-utils';
-
-/* Filter the stream to only include text parts */
-const stream = filterUIMessageStream(
-  result.toUIMessageStream<MyUIMessage>(),
-  includeParts(['text'])
-);
-
-/* Consume the filtered stream */
-const message = await consumeUIMessageStream(stream);
-console.log(message.parts); // Only text parts
-```
-
 ## Examples
 
 ### Smooth Streaming
