@@ -1,3 +1,4 @@
+export { consumeUIMessageStream } from './consume-ui-message-stream.js';
 export {
   excludeParts,
   type FilterUIMessageStreamPredicate,
