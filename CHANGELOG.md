@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.0](https://github.com/zirkelc/ai-stream-utils/compare/v1.5.0...v1.6.0) (2026-02-11)
+
+
+### Features
+
+* add `consumeUIMessageStream` utility ([#11](https://github.com/zirkelc/ai-stream-utils/issues/11)) ([290f418](https://github.com/zirkelc/ai-stream-utils/commit/290f41827cc4762356a3d3f79f8bc0a16b684564))
+
 ## [1.5.0](https://github.com/zirkelc/ai-stream-utils/compare/v1.4.2...v1.5.0) (2026-01-29)
 
 
