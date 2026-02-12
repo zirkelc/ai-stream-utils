@@ -30,12 +30,13 @@ npm install ai-stream-utils
 
 ## Overview
 
-| Function                                               | Input                                                                                                           | Returns                    | Use Case                                                         |
-| ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- | -------------------------- | ---------------------------------------------------------------- |
-| [`mapUIMessageStream`](#mapuimessagestream)            | [UIMessageChunk](https://github.com/vercel/ai/blob/main/packages/ai/src/ui-message-stream/ui-message-chunks.ts) | `chunk \| chunk[] \| null` | Transform or filter chunks in real-time (e.g., smooth streaming) |
-| [`flatMapUIMessageStream`](#flatmapuimessagestream)    | [UIMessagePart](https://ai-sdk.dev/docs/reference/ai-sdk-core/ui-message#uimessagepart-types)                   | `part \| part[] \| null`   | Buffer until complete, then transform (e.g., redact tool output) |
-| [`filterUIMessageStream`](#filteruimessagestream)      | [UIMessageChunk](https://github.com/vercel/ai/blob/main/packages/ai/src/ui-message-stream/ui-message-chunks.ts) | `boolean`                  | Include/exclude parts by type (e.g., hide reasoning)             |
-| [`experimental_pipe`](#experimental_pipe-experimental) | [UIMessageChunk](https://github.com/vercel/ai/blob/main/packages/ai/src/ui-message-stream/ui-message-chunks.ts) | `ChunkPipeline`            | Composable pipeline API for chaining operations (experimental)   |
+| Function                                               | Input                                                                                                           | Returns                    | Use Case                                                                      |
+| ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- | -------------------------- | ----------------------------------------------------------------------------- |
+| [`mapUIMessageStream`](#mapuimessagestream)            | [UIMessageChunk](https://github.com/vercel/ai/blob/main/packages/ai/src/ui-message-stream/ui-message-chunks.ts) | `chunk \| chunk[] \| null` | Transform or filter chunks in real-time (e.g., smooth streaming)              |
+| [`flatMapUIMessageStream`](#flatmapuimessagestream)    | [UIMessagePart](https://ai-sdk.dev/docs/reference/ai-sdk-core/ui-message#uimessagepart-types)                   | `part \| part[] \| null`   | Buffer until complete, then transform (e.g., redact tool output)              |
+| [`filterUIMessageStream`](#filteruimessagestream)      | [UIMessageChunk](https://github.com/vercel/ai/blob/main/packages/ai/src/ui-message-stream/ui-message-chunks.ts) | `boolean`                  | Include/exclude parts by type (e.g., hide reasoning)                          |
+| [`experimental_pipe`](#experimental_pipe-experimental) | [UIMessageChunk](https://github.com/vercel/ai/blob/main/packages/ai/src/ui-message-stream/ui-message-chunks.ts) | `ChunkPipeline`            | Composable pipeline API for chaining operations (experimental)                |
+| [`consumeUIMessageStream`](#consumeuimessagestream)    | [UIMessageChunk](https://github.com/vercel/ai/blob/main/packages/ai/src/ui-message-stream/ui-message-chunks.ts) | `Promise<UIMessage>`       | Consume entire stream and return final message (e.g., server-side processing) |
 
 ## Usage
 
@@ -176,6 +177,24 @@ const stream = experimental_pipe(result.toUIMessageStream<MyUIMessage>())
     },
   })
   .toStream();
+```
+
+### `consumeUIMessageStream`
+
+The `consumeUIMessageStream` function consumes a UI message stream by fully reading it and returns the final assembled message. This is useful when you need to process the complete message on the server-side without streaming to the client.
+
+```typescript
+import { consumeUIMessageStream } from "ai-stream-utils";
+
+const result = streamText({
+  model: openai("gpt-4o"),
+  prompt: "Tell me a joke",
+});
+
+/* Consume the entire stream and get the final message */
+const message = await consumeUIMessageStream(result.toUIMessageStream<MyUIMessage>());
+
+console.log(message.parts); // All parts fully assembled
 ```
 
 ## Examples
@@ -377,13 +396,15 @@ const stream = flatMapUIMessageStream(
 
 Helper functions for converting between streams, arrays, and async iterables.
 
-| Function                       | Converts            | To                       |
-| ------------------------------ | ------------------- | ------------------------ |
-| `createAsyncIterableStream`    | `ReadableStream<T>` | `AsyncIterableStream<T>` |
-| `convertArrayToStream`         | `Array<T>`          | `ReadableStream<T>`      |
-| `convertAsyncIterableToStream` | `AsyncIterable<T>`  | `ReadableStream<T>`      |
-| `convertAsyncIterableToArray`  | `AsyncIterable<T>`  | `Promise<Array<T>>`      |
-| `convertStreamToArray`         | `ReadableStream<T>` | `Promise<Array<T>>`      |
+| Function                       | Converts                         | To                               |
+| ------------------------------ | -------------------------------- | -------------------------------- |
+| `createAsyncIterableStream`    | `ReadableStream<T>`              | `AsyncIterableStream<T>`         |
+| `convertArrayToStream`         | `Array<T>`                       | `ReadableStream<T>`              |
+| `convertAsyncIterableToStream` | `AsyncIterable<T>`               | `ReadableStream<T>`              |
+| `convertAsyncIterableToArray`  | `AsyncIterable<T>`               | `Promise<Array<T>>`              |
+| `convertStreamToArray`         | `ReadableStream<T>`              | `Promise<Array<T>>`              |
+| `convertUIMessageToSSEStream`  | `ReadableStream<UIMessageChunk>` | `ReadableStream<string>`         |
+| `convertSSEToUIMessageStream`  | `ReadableStream<string>`         | `ReadableStream<UIMessageChunk>` |
 
 ### `createAsyncIterableStream`
 
@@ -440,6 +461,31 @@ Consumes a `ReadableStream` and collects all chunks into an array.
 import { convertStreamToArray } from "ai-stream-utils/utils";
 
 const array = await convertStreamToArray(readableStream);
+```
+
+### `convertUIMessageToSSEStream`
+
+Converts a UI message stream to an SSE (Server-Sent Events) stream. Useful for sending UI message chunks over HTTP as SSE-formatted text.
+
+```typescript
+import { convertUIMessageToSSEStream } from "ai-stream-utils/utils";
+
+const uiStream = result.toUIMessageStream();
+const sseStream = convertUIMessageToSSEStream(uiStream);
+
+// Output format: "data: {...}\n\n" for each chunk
+```
+
+### `convertSSEToUIMessageStream`
+
+Converts an SSE stream back to a UI message stream. Useful for parsing SSE-formatted responses on the client.
+
+```typescript
+import { convertSSEToUIMessageStream } from "ai-stream-utils/utils";
+
+const response = await fetch("/api/chat");
+const sseStream = response.body.pipeThrough(new TextDecoderStream());
+const uiStream = convertSSEToUIMessageStream(sseStream);
 ```
 
 ## Type Safety
@@ -616,4 +662,12 @@ function includeParts<UI_MESSAGE extends UIMessage>(
 function excludeParts<UI_MESSAGE extends UIMessage>(
   partTypes: Array<InferUIMessagePartType<UI_MESSAGE>>,
 ): FilterUIMessageStreamPredicate<UI_MESSAGE>;
+```
+
+### `consumeUIMessageStream`
+
+```typescript
+async function consumeUIMessageStream<UI_MESSAGE extends UIMessage>(
+  stream: ReadableStream<InferUIMessageChunk<UI_MESSAGE>>,
+): Promise<UI_MESSAGE>;
 ```
