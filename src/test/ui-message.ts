@@ -41,6 +41,8 @@ export type SourceDocumentChunk = Extract<MyUIMessageChunk, { type: "source-docu
 export type DataWeatherChunk = Extract<MyUIMessageChunk, { type: "data-weather" }>;
 export type FileChunk = Extract<MyUIMessageChunk, { type: "file" }>;
 export type StartStepChunk = Extract<MyUIMessageChunk, { type: "start-step" }>;
+export type StartChunk = Extract<MyUIMessageChunk, { type: `start` }>;
+export type FinishChunk = Extract<MyUIMessageChunk, { type: `finish` }>;
 
 const weatherTool = tool({
   description: "Get the weather in a location",

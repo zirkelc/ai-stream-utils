@@ -16,15 +16,23 @@ import type {
   StartStepChunk,
   StepStartPart,
   TextChunk,
+  TextDeltaChunk,
   TextPart,
   ToolChunk,
   ToolWeatherPart,
 } from "./test/ui-message.js";
 import type {
+  ChunkTypeToPartType,
+  ContentChunkType,
   ExcludePart,
   ExcludePartType,
+  ExtractChunk,
   ExtractChunkForPart,
   ExtractPart,
+  InferPartForChunk,
+  InferUIMessageChunkType,
+  InferUIMessagePart,
+  InferUIMessagePartType,
   PartTypeToChunkTypes,
 } from "./types.js";
 
@@ -193,6 +201,112 @@ describe(`types`, () => {
     });
   });
 
+  describe(`InferUIMessagePart`, () => {
+    it(`should infer part union from UIMessage`, () => {
+      expectTypeOf<InferUIMessagePart<MyUIMessage>>().toEqualTypeOf<MyUIMessagePart>();
+    });
+  });
+
+  describe(`InferUIMessagePartType`, () => {
+    it(`should infer part type strings from UIMessage`, () => {
+      expectTypeOf<InferUIMessagePartType<MyUIMessage>>().toEqualTypeOf<MyUIMessagePart["type"]>();
+    });
+  });
+
+  describe(`InferUIMessageChunkType`, () => {
+    it(`should infer chunk type strings from UIMessage`, () => {
+      expectTypeOf<InferUIMessageChunkType<MyUIMessage>>().toEqualTypeOf<
+        | "start"
+        | "finish"
+        | "start-step"
+        | "finish-step"
+        | "abort"
+        | "message-metadata"
+        | "error"
+        | "text-start"
+        | "text-delta"
+        | "text-end"
+        | "reasoning-start"
+        | "reasoning-delta"
+        | "reasoning-end"
+        | "tool-input-start"
+        | "tool-input-delta"
+        | "tool-input-available"
+        | "tool-input-error"
+        | "tool-output-available"
+        | "tool-output-error"
+        | "tool-output-denied"
+        | "tool-approval-request"
+        | "source-url"
+        | "source-document"
+        | "data-weather"
+        | "file"
+      >();
+    });
+  });
+
+  describe(`ExtractChunk`, () => {
+    it(`should extract TextDeltaChunk for 'text-delta'`, () => {
+      expectTypeOf<ExtractChunk<MyUIMessage, "text-delta">>().toEqualTypeOf<TextDeltaChunk>();
+    });
+
+    it(`should extract TextChunk for union of text chunk types`, () => {
+      expectTypeOf<
+        ExtractChunk<MyUIMessage, "text-start" | "text-delta" | "text-end">
+      >().toEqualTypeOf<TextChunk>();
+    });
+
+    it(`should extract ReasoningChunk for union of reasoning chunk types`, () => {
+      expectTypeOf<
+        ExtractChunk<MyUIMessage, "reasoning-start" | "reasoning-delta" | "reasoning-end">
+      >().toEqualTypeOf<ReasoningChunk>();
+    });
+
+    it(`should extract ToolChunk for tool chunk types`, () => {
+      expectTypeOf<
+        ExtractChunk<
+          MyUIMessage,
+          | "tool-input-start"
+          | "tool-input-delta"
+          | "tool-input-available"
+          | "tool-input-error"
+          | "tool-output-available"
+          | "tool-output-error"
+          | "tool-output-denied"
+          | "tool-approval-request"
+        >
+      >().toEqualTypeOf<ToolChunk>();
+    });
+
+    it(`should extract SourceUrlChunk for 'source-url'`, () => {
+      expectTypeOf<ExtractChunk<MyUIMessage, "source-url">>().toEqualTypeOf<SourceUrlChunk>();
+    });
+
+    it(`should extract SourceDocumentChunk for 'source-document'`, () => {
+      expectTypeOf<
+        ExtractChunk<MyUIMessage, "source-document">
+      >().toEqualTypeOf<SourceDocumentChunk>();
+    });
+
+    it(`should extract DataWeatherChunk for 'data-weather'`, () => {
+      expectTypeOf<ExtractChunk<MyUIMessage, "data-weather">>().toEqualTypeOf<DataWeatherChunk>();
+    });
+
+    it(`should extract FileChunk for 'file'`, () => {
+      expectTypeOf<ExtractChunk<MyUIMessage, "file">>().toEqualTypeOf<FileChunk>();
+    });
+
+    it(`should extract StartStepChunk for 'start-step'`, () => {
+      expectTypeOf<ExtractChunk<MyUIMessage, "start-step">>().toEqualTypeOf<StartStepChunk>();
+    });
+
+    it(`should extract union for multiple chunk types`, () => {
+      expectTypeOf<ExtractChunk<MyUIMessage, "text-delta" | "reasoning-delta">>().toEqualTypeOf<
+        TextDeltaChunk | Extract<ReasoningChunk, { type: "reasoning-delta" }>
+      >();
+    });
+  });
+
   describe(`ExcludePart`, () => {
     it(`should exclude TextPart for 'text'`, () => {
       expectTypeOf<ExcludePart<MyUIMessage, "text">>().toEqualTypeOf<
@@ -314,6 +428,89 @@ describe(`types`, () => {
       expectTypeOf<ExcludePartType<MyUIMessage, "text" | "reasoning">>().toEqualTypeOf<
         Exclude<MyUIMessagePart, TextPart | ReasoningPart>["type"]
       >();
+    });
+  });
+
+  describe(`ChunkTypeToPartType`, () => {
+    it(`should map text-delta to text`, () => {
+      expectTypeOf<ChunkTypeToPartType<MyUIMessage, "text-delta">>().toEqualTypeOf<"text">();
+    });
+
+    it(`should map reasoning-delta to reasoning`, () => {
+      expectTypeOf<
+        ChunkTypeToPartType<MyUIMessage, "reasoning-delta">
+      >().toEqualTypeOf<"reasoning">();
+    });
+
+    it(`should map start (meta chunk) to never`, () => {
+      expectTypeOf<ChunkTypeToPartType<MyUIMessage, "start">>().toEqualTypeOf<never>();
+    });
+
+    it(`should map union of chunk types to union of part types`, () => {
+      expectTypeOf<
+        ChunkTypeToPartType<MyUIMessage, "text-delta" | "reasoning-delta">
+      >().toEqualTypeOf<"text" | "reasoning">();
+    });
+  });
+
+  describe(`InferPartForChunk`, () => {
+    it(`should infer part type for content chunk`, () => {
+      expectTypeOf<InferPartForChunk<MyUIMessage, "text-delta">>().toEqualTypeOf<{
+        type: "text";
+      }>();
+    });
+
+    it(`should infer undefined for meta chunk`, () => {
+      expectTypeOf<InferPartForChunk<MyUIMessage, "start">>().toEqualTypeOf<undefined>();
+    });
+
+    it(`should infer union part type for multiple content chunks`, () => {
+      expectTypeOf<
+        InferPartForChunk<MyUIMessage, "text-delta" | "reasoning-delta">
+      >().toEqualTypeOf<{
+        type: "text" | "reasoning";
+      }>();
+    });
+  });
+
+  describe(`ContentChunkType`, () => {
+    it(`should exclude meta chunk types like start, finish, etc.`, () => {
+      expectTypeOf<ContentChunkType<MyUIMessage>>().toEqualTypeOf<
+        | "start-step"
+        | "text-start"
+        | "text-delta"
+        | "text-end"
+        | "reasoning-start"
+        | "reasoning-delta"
+        | "reasoning-end"
+        | "tool-input-start"
+        | "tool-input-delta"
+        | "tool-input-available"
+        | "tool-input-error"
+        | "tool-output-available"
+        | "tool-output-error"
+        | "tool-output-denied"
+        | "tool-approval-request"
+        | "source-url"
+        | "source-document"
+        | "data-weather"
+        | "file"
+      >();
+    });
+
+    it(`should not include start`, () => {
+      type Test = "start" extends ContentChunkType<MyUIMessage> ? true : false;
+      expectTypeOf<Test>().toEqualTypeOf<false>();
+    });
+
+    it(`should not include finish`, () => {
+      type Test = "finish" extends ContentChunkType<MyUIMessage> ? true : false;
+      expectTypeOf<Test>().toEqualTypeOf<false>();
+    });
+
+    it(`should include text-delta`, () => {
+      type Test = "text-delta" extends ContentChunkType<MyUIMessage> ? true : false;
+      expectTypeOf<Test>().toEqualTypeOf<true>();
     });
   });
 });

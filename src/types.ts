@@ -5,6 +5,9 @@ export type InferUIMessagePart<UI_MESSAGE extends UIMessage> = UI_MESSAGE["parts
 export type InferUIMessagePartType<UI_MESSAGE extends UIMessage> =
   InferUIMessagePart<UI_MESSAGE>["type"];
 
+export type InferUIMessageChunkType<UI_MESSAGE extends UIMessage> =
+  InferUIMessageChunk<UI_MESSAGE>["type"];
+
 /**
  * Extracts chunk type strings that match the prefix exactly or as `${PREFIX}-*`.
  * Dynamically derives chunk types from the actual UIMessageChunk union.
@@ -74,26 +77,34 @@ export type ExtractChunkForPart<
 /**
  * Extract a specific part type from UIMessage
  */
-export type ExtractPart<
-  UI_MESSAGE extends UIMessage,
-  PART_TYPE extends InferUIMessagePartType<UI_MESSAGE>,
-> = Extract<InferUIMessagePart<UI_MESSAGE>, { type: PART_TYPE }>;
+export type ExtractPart<UI_MESSAGE extends UIMessage, PART_TYPE extends string> = Extract<
+  InferUIMessagePart<UI_MESSAGE>,
+  { type: PART_TYPE }
+>;
+
+/**
+ * Extract a specific chunk type from UIMessage
+ */
+export type ExtractChunk<UI_MESSAGE extends UIMessage, CHUNK_TYPE extends string> = Extract<
+  InferUIMessageChunk<UI_MESSAGE>,
+  { type: CHUNK_TYPE }
+>;
 
 /**
  * Exclude specific part types from UIMessage, returns the remaining part types
  */
-export type ExcludePart<
-  UI_MESSAGE extends UIMessage,
-  PART_TYPE extends InferUIMessagePartType<UI_MESSAGE>,
-> = Exclude<InferUIMessagePart<UI_MESSAGE>, { type: PART_TYPE }>;
+export type ExcludePart<UI_MESSAGE extends UIMessage, PART_TYPE extends string> = Exclude<
+  InferUIMessagePart<UI_MESSAGE>,
+  { type: PART_TYPE }
+>;
 
 /**
  * Get the type string of excluded parts (the remaining part types)
  */
-export type ExcludePartType<
-  UI_MESSAGE extends UIMessage,
-  PART_TYPE extends InferUIMessagePartType<UI_MESSAGE>,
-> = ExcludePart<UI_MESSAGE, PART_TYPE>["type"];
+export type ExcludePartType<UI_MESSAGE extends UIMessage, PART_TYPE extends string> = ExcludePart<
+  UI_MESSAGE,
+  PART_TYPE
+>["type"];
 
 /**
  * Maps chunk type string(s) back to the corresponding part type string(s).
@@ -116,3 +127,68 @@ export type ChunkTypeToPartType<UI_MESSAGE extends UIMessage, CHUNK_TYPE extends
         : never
       : never
     : never;
+
+/**
+ * Extracts content chunk types (chunks that have a corresponding part type).
+ * Excludes meta chunks like 'start', 'finish', etc.
+ */
+export type ContentChunkType<UI_MESSAGE extends UIMessage> = {
+  [CT in InferUIMessageChunkType<UI_MESSAGE>]: [ChunkTypeToPartType<UI_MESSAGE, CT>] extends [never]
+    ? never
+    : CT;
+}[InferUIMessageChunkType<UI_MESSAGE>];
+
+/**
+ * Distributing helper to collect all part types for chunk types.
+ * Distributes over union chunk types to get all corresponding part types.
+ */
+type CollectPartTypesForChunk<
+  UI_MESSAGE extends UIMessage,
+  CHUNK_TYPE extends string,
+> = CHUNK_TYPE extends string ? ChunkTypeToPartType<UI_MESSAGE, CHUNK_TYPE> : never;
+
+/**
+ * Detects if any chunk type in the union is a meta chunk (has no corresponding part type).
+ * Returns `true` for meta chunks, `never` otherwise.
+ */
+type HasMetaChunk<
+  UI_MESSAGE extends UIMessage,
+  CHUNK_TYPE extends string,
+> = CHUNK_TYPE extends string
+  ? [ChunkTypeToPartType<UI_MESSAGE, CHUNK_TYPE>] extends [never]
+    ? true
+    : never
+  : never;
+
+/**
+ * Infer part type from chunk type for .on() callback.
+ * Returns { type: PART_TYPE } for content chunks, undefined for meta chunks.
+ * For union chunk types, returns union of their part types.
+ * When mixing content and meta chunks, includes undefined in the union.
+ *
+ * @example
+ * ```typescript
+ * // Content chunk: part is { type: 'text' }
+ * type TextPart = InferPartForChunk<MyUIMessage, 'text-delta'>;
+ * // => { type: 'text' }
+ *
+ * // Meta chunk: part is undefined
+ * type MetaPart = InferPartForChunk<MyUIMessage, 'start'>;
+ * // => undefined
+ *
+ * // Union of content chunks: part type is union
+ * type UnionPart = InferPartForChunk<MyUIMessage, 'text-delta' | 'reasoning-delta'>;
+ * // => { type: 'text' | 'reasoning' }
+ *
+ * // Mixed content and meta chunks: includes undefined
+ * type MixedPart = InferPartForChunk<MyUIMessage, 'text-delta' | 'start'>;
+ * // => { type: 'text' } | undefined
+ * ```
+ */
+export type InferPartForChunk<UI_MESSAGE extends UIMessage, CHUNK_TYPE extends string> = [
+  CollectPartTypesForChunk<UI_MESSAGE, CHUNK_TYPE>,
+] extends [never]
+  ? undefined
+  : [HasMetaChunk<UI_MESSAGE, CHUNK_TYPE>] extends [never]
+    ? { type: CollectPartTypesForChunk<UI_MESSAGE, CHUNK_TYPE> }
+    : { type: CollectPartTypesForChunk<UI_MESSAGE, CHUNK_TYPE> } | undefined;

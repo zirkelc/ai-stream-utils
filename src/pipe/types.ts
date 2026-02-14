@@ -1,5 +1,6 @@
 import type { InferUIMessageChunk, UIMessage } from "ai";
-import type { InferUIMessagePart } from "../types.js";
+import type { ExtractChunk, InferUIMessagePart } from "../types.js";
+import type { InternalChunk } from "./base-pipeline.js";
 
 /**
  * Input for chunk-based operations.
@@ -11,39 +12,16 @@ export type ChunkInput<CHUNK, PART extends { type: string }> = {
 };
 
 /**
- * Input for part-based operations (after reduce).
- */
-export type PartInput<PART> = {
-  part: PART;
-  /** @internal Original chunks for serialization */
-  chunks: unknown[];
-};
-
-/**
  * Predicate for chunk-based operations (filter, collect).
  * Returns true to include the chunk, false to exclude.
+ * The __brand exclusion prevents type guards from matching this type.
  */
-export type ChunkPredicate<CHUNK, PART extends { type: string }> = (
+export type ChunkPredicate<CHUNK, PART extends { type: string }> = ((
   input: ChunkInput<CHUNK, PART>,
-) => boolean;
+) => boolean) & { __brand?: never };
 
 /**
- * Predicate for part-based operations (PartPipeline.filter).
- * Returns true to include the part, false to exclude.
- */
-export type PartPredicate<PART> = (input: PartInput<PART>) => boolean;
-
-/**
- * Predicate for match operations (matches by part type).
- * Generic UI_MESSAGE parameter for future extensibility.
- * Uses `{ type: string }` for compatibility with internal string-based part tracking.
- */
-export type MatchPredicate<_UI_MESSAGE extends UIMessage> = (input: {
-  part: { type: string };
-}) => boolean;
-
-/**
- * Map function for chunk-based operations (MatchPipeline, ChunkPipeline).
+ * Map function for chunk-based operations.
  * Returns transformed chunk(s) or null to remove.
  */
 export type ChunkMapFn<
@@ -55,39 +33,57 @@ export type ChunkMapFn<
 ) => InferUIMessageChunk<UI_MESSAGE> | Array<InferUIMessageChunk<UI_MESSAGE>> | null;
 
 /**
- * Map function for part-based operations (PartPipeline).
- * Returns transformed part or null to remove.
+ * Input for .on() observer operations.
+ * Part is optional since meta chunks don't have a part type.
  */
-export type PartMapFn<PART> = (input: PartInput<PART>) => PART | null;
+export type ChunkOnInput<
+  CHUNK,
+  PART extends { type: string } | undefined = { type: string } | undefined,
+> = {
+  chunk: CHUNK;
+  part: PART;
+};
 
 /**
- * Reusable scan operator object.
- * Encapsulates initial, reducer, and finalize functions for use with .scan().
- *
- * @example
- * ```typescript
- * const countingOperator: ScanOperator<MyUIMessage, { count: number }> = {
- *   initial: { count: 0 },
- *   reducer: (state, { chunk }) => {
- *     state.count++;
- *     return { ...chunk, delta: `[${state.count}]` };
- *   },
- * };
- * pipe.scan(countingOperator);
- * ```
+ * Callback function for .on() observer.
+ * Called for each matching chunk. Can be sync or async.
  */
-export type ScanOperator<
-  UI_MESSAGE extends UIMessage,
-  STATE,
-  CHUNK extends InferUIMessageChunk<UI_MESSAGE> = InferUIMessageChunk<UI_MESSAGE>,
-  PART extends InferUIMessagePart<UI_MESSAGE> = InferUIMessagePart<UI_MESSAGE>,
-> = {
-  initial: STATE | (() => STATE);
-  reducer: (
-    state: STATE,
-    input: ChunkInput<CHUNK, PART>,
-  ) => InferUIMessageChunk<UI_MESSAGE> | Array<InferUIMessageChunk<UI_MESSAGE>> | null;
-  finalize?: (
-    state: STATE,
-  ) => InferUIMessageChunk<UI_MESSAGE> | Array<InferUIMessageChunk<UI_MESSAGE>> | null;
+export type ChunkOnFn<CHUNK, PART extends { type: string } | undefined = undefined> = (
+  input: ChunkOnInput<CHUNK, PART>,
+) => void | Promise<void>;
+
+/**
+ * Builder function for ChunkPipeline operations.
+ * Uses AsyncIterable instead of ReadableStream for deferred conversion.
+ */
+export type ChunkBuilder<UI_MESSAGE extends UIMessage> = (
+  iterable: AsyncIterable<InternalChunk<UI_MESSAGE>>,
+) => AsyncIterable<InternalChunk<UI_MESSAGE>>;
+
+/**
+ * Type guard predicate for chunk types.
+ * Used with `.filter()` to narrow chunk types.
+ * Generic T allows the guard to preserve other properties (like `part`) from the input.
+ * The __brand property is used to distinguish from plain predicates (never actually exists at runtime).
+ */
+export type ChunkTypeGuard<UI_MESSAGE extends UIMessage, CHUNK_TYPE extends string> = {
+  <T extends { chunk: InferUIMessageChunk<UI_MESSAGE> }>(
+    input: T,
+  ): input is T & {
+    chunk: ExtractChunk<UI_MESSAGE, CHUNK_TYPE>;
+  };
+  /** @internal Type brand - never exists at runtime */
+  readonly __brand: `ChunkTypeGuard`;
+};
+
+/**
+ * Type guard predicate for part types.
+ * Used with `.filter()` and `.match()` to narrow types.
+ * Generic T allows the guard to preserve other properties (like `chunk`) from the input.
+ * The __brand property is used to distinguish from plain predicates (never actually exists at runtime).
+ */
+export type PartTypeGuard<UI_MESSAGE extends UIMessage, PART_TYPE extends string> = {
+  <T extends { part: { type: string } }>(input: T): input is T & { part: { type: PART_TYPE } };
+  /** @internal Type brand - never exists at runtime */
+  readonly __brand: `PartTypeGuard`;
 };
