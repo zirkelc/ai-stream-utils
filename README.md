@@ -117,17 +117,24 @@ const stream = filterUIMessageStream(result.toUIMessageStream<MyUIMessage>(), ({
 > [!WARN]
 > This API is experimental and subject to change in future releases.
 
-The `experimental_pipe` function provides a composable pipeline API for chaining filter, map, and scan operations on UI message streams.
+The `experimental_pipe` function provides a composable pipeline API for chaining filter, map, and observer operations on UI message streams.
 
 ```typescript
-import { experimental_pipe, isPartType, isChunkType } from "ai-stream-utils";
+import {
+  experimental_pipe,
+  includeChunks,
+  includeParts,
+  excludeChunks,
+  excludeParts,
+  isChunk,
+} from "ai-stream-utils";
 ```
 
 **Basic usage:**
 
 ```typescript
 const stream = experimental_pipe(result.toUIMessageStream<MyUIMessage>())
-  .filter(isPartType(["text", "reasoning"]))
+  .filter(includeParts(["text", "reasoning"]))
   .map(({ chunk }) => {
     if (chunk.type === "text-delta") {
       return { ...chunk, delta: chunk.delta.toUpperCase() };
@@ -139,21 +146,27 @@ const stream = experimental_pipe(result.toUIMessageStream<MyUIMessage>())
 
 **Methods:**
 
-- `.filter(predicateFn)` - Filter chunks by part type, chunk type, or custom predicate
+- `.filter(guard)` - Filter chunks using type guards (`includeChunks`, `includeParts`, `excludeChunks`, `excludeParts`)
 - `.map(transformFn)` - Transform chunks (return chunk, array of chunks, or null to remove)
-- `.scan(operator)` - Stateful transformations with accumulator (e.g., smooth streaming)
+- `.on(guard, callback)` - Observe matching chunks without filtering (use with `isChunk`)
 - `.toStream()` - Execute pipeline and return the resulting stream
 
-**Type guards:**
+**Type guards for `.filter()`:**
 
-- `isPartType('text')` or `isPartType(['text', 'reasoning'])` - Narrow by part type
-- `isChunkType('text-delta')` or `isChunkType(['text-delta', 'text-end'])` - Narrow by chunk type
+- `includeChunks('text-delta')` or `includeChunks(['text-delta', 'text-end'])` - Include specific chunk types
+- `includeParts('text')` or `includeParts(['text', 'reasoning'])` - Include specific part types
+- `excludeChunks('text-delta')` - Exclude specific chunk types
+- `excludeParts('reasoning')` - Exclude specific part types
+
+**Type guards for `.on()`:**
+
+- `isChunk('text-delta')` or `isChunk(['text-delta', 'start'])` - Observe specific chunk types (including meta chunks)
 
 **Type-safe filtering example:**
 
 ```typescript
 const stream = experimental_pipe<MyUIMessage>(result.toUIMessageStream())
-  .filter(isPartType("text"))
+  .filter(includeParts("text"))
   .map(({ chunk, part }) => {
     // chunk is narrowed to text chunks only
     // part.type is narrowed to "text"
@@ -162,19 +175,18 @@ const stream = experimental_pipe<MyUIMessage>(result.toUIMessageStream())
   .toStream();
 ```
 
-**Stateful scan example:**
+**Observer example with `.on()`:**
 
 ```typescript
 const stream = experimental_pipe(result.toUIMessageStream<MyUIMessage>())
-  .scan({
-    initial: { count: 0 },
-    reducer: (state, { chunk }) => {
-      state.count++;
-      if (chunk.type === "text-delta") {
-        return { ...chunk, delta: `[${state.count}] ${chunk.delta}` };
-      }
-      return chunk;
-    },
+  .on(isChunk("start"), ({ chunk }) => {
+    console.log("Stream started");
+  })
+  .on(isChunk("text-delta"), ({ chunk }) => {
+    console.log("Received text:", chunk.delta);
+  })
+  .on(isChunk("finish"), ({ chunk }) => {
+    console.log("Stream finished");
   })
   .toStream();
 ```
