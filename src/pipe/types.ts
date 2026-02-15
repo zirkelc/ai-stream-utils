@@ -1,5 +1,4 @@
 import type { InferUIMessageChunk, UIMessage } from "ai";
-import type { ExtractChunk, InferUIMessagePart } from "../types.js";
 import type { InternalChunk } from "./base-pipeline.js";
 
 /**
@@ -12,11 +11,11 @@ export type ChunkInput<CHUNK, PART extends { type: string }> = {
 };
 
 /**
- * Predicate for chunk-based operations (filter, collect).
+ * Filter predicate for chunk-based operations.
  * Returns true to include the chunk, false to exclude.
  * The __brand exclusion prevents type guards from matching this type.
  */
-export type ChunkPredicate<CHUNK, PART extends { type: string }> = ((
+export type ChunkFilterFn<CHUNK, PART extends { type: string }> = ((
   input: ChunkInput<CHUNK, PART>,
 ) => boolean) & { __brand?: never };
 
@@ -27,7 +26,7 @@ export type ChunkPredicate<CHUNK, PART extends { type: string }> = ((
 export type ChunkMapFn<
   UI_MESSAGE extends UIMessage,
   CHUNK extends InferUIMessageChunk<UI_MESSAGE>,
-  PART extends InferUIMessagePart<UI_MESSAGE>,
+  PART extends { type: string },
 > = (
   input: ChunkInput<CHUNK, PART>,
 ) => InferUIMessageChunk<UI_MESSAGE> | Array<InferUIMessageChunk<UI_MESSAGE>> | null;
@@ -61,29 +60,41 @@ export type ChunkBuilder<UI_MESSAGE extends UIMessage> = (
 ) => AsyncIterable<InternalChunk<UI_MESSAGE>>;
 
 /**
- * Type guard predicate for chunk types.
- * Used with `.filter()` to narrow chunk types.
- * Generic T allows the guard to preserve other properties (like `part`) from the input.
- * The __brand property is used to distinguish from plain predicates (never actually exists at runtime).
+ * Generic guard for filter() - carries pre-computed narrowed types.
+ * Factory functions (includeChunks, includeParts, etc.) compute the types.
+ * The __brand property distinguishes this from plain predicates.
  */
-export type ChunkTypeGuard<UI_MESSAGE extends UIMessage, CHUNK_TYPE extends string> = {
-  <T extends { chunk: InferUIMessageChunk<UI_MESSAGE> }>(
+export type FilterGuard<
+  UI_MESSAGE extends UIMessage,
+  NARROWED_CHUNK extends InferUIMessageChunk<UI_MESSAGE>,
+  NARROWED_PART extends { type: string },
+> = {
+  <T extends { chunk: InferUIMessageChunk<UI_MESSAGE>; part?: { type: string } | undefined }>(
     input: T,
   ): input is T & {
-    chunk: ExtractChunk<UI_MESSAGE, CHUNK_TYPE>;
+    chunk: NARROWED_CHUNK;
+    part: NARROWED_PART;
   };
   /** @internal Type brand - never exists at runtime */
-  readonly __brand: `ChunkTypeGuard`;
+  readonly __brand: `FilterGuard`;
 };
 
 /**
- * Type guard predicate for part types.
- * Used with `.filter()` and `.match()` to narrow types.
- * Generic T allows the guard to preserve other properties (like `chunk`) from the input.
- * The __brand property is used to distinguish from plain predicates (never actually exists at runtime).
+ * Generic guard for on() - carries pre-computed narrowed types.
+ * Part can be undefined for meta chunks.
+ * The __brand property distinguishes this from plain predicates.
  */
-export type PartTypeGuard<UI_MESSAGE extends UIMessage, PART_TYPE extends string> = {
-  <T extends { part: { type: string } }>(input: T): input is T & { part: { type: PART_TYPE } };
+export type OnGuard<
+  UI_MESSAGE extends UIMessage,
+  NARROWED_CHUNK extends InferUIMessageChunk<UI_MESSAGE>,
+  NARROWED_PART extends { type: string } | undefined,
+> = {
+  <T extends { chunk: InferUIMessageChunk<UI_MESSAGE>; part?: { type: string } | undefined }>(
+    input: T,
+  ): input is T & {
+    chunk: NARROWED_CHUNK;
+    part: NARROWED_PART;
+  };
   /** @internal Type brand - never exists at runtime */
-  readonly __brand: `PartTypeGuard`;
+  readonly __brand: `OnGuard`;
 };

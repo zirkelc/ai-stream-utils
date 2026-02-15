@@ -1,17 +1,7 @@
 import { convertAsyncIteratorToReadableStream } from "@ai-sdk/provider-utils";
 import type { AsyncIterableStream, InferUIMessageChunk, UIMessage } from "ai";
 import { asArray } from "../internal/utils.js";
-import type {
-  ChunkTypeToPartType,
-  ContentChunkType,
-  ExtractChunk,
-  ExtractChunkForPart,
-  ExtractPart,
-  InferPartForChunk,
-  InferUIMessageChunkType,
-  InferUIMessagePart,
-  InferUIMessagePartType,
-} from "../types.js";
+import type { ContentChunkType, ExtractChunk } from "../types.js";
 import { createAsyncIterableStream } from "../utils/create-async-iterable-stream.js";
 import type { BasePipeline, InternalChunk } from "./base-pipeline.js";
 import type {
@@ -20,9 +10,9 @@ import type {
   ChunkMapFn,
   ChunkOnFn,
   ChunkOnInput,
-  ChunkPredicate,
-  ChunkTypeGuard,
-  PartTypeGuard,
+  ChunkFilterFn,
+  FilterGuard,
+  OnGuard,
 } from "./types.js";
 
 /**
@@ -32,7 +22,7 @@ import type {
 export class ChunkPipeline<
   UI_MESSAGE extends UIMessage,
   CHUNK extends InferUIMessageChunk<UI_MESSAGE>,
-  PART extends InferUIMessagePart<UI_MESSAGE>,
+  PART extends { type: string },
 >
   implements BasePipeline<UI_MESSAGE>, AsyncIterable<InferUIMessageChunk<UI_MESSAGE>>
 {
@@ -55,29 +45,15 @@ export class ChunkPipeline<
   }
 
   /**
-   * Filters chunks using a part type guard and narrows both chunk and part types.
+   * Filters chunks using a FilterGuard and narrows both chunk and part types.
+   * Use with includeChunks(), includeParts(), excludeChunks(), or excludeParts().
    */
-  filter<PART_TYPE extends InferUIMessagePartType<UI_MESSAGE>>(
-    guard: PartTypeGuard<UI_MESSAGE, PART_TYPE>,
-  ): ChunkPipeline<
-    UI_MESSAGE,
-    CHUNK & ExtractChunkForPart<UI_MESSAGE, ExtractPart<UI_MESSAGE, PART_TYPE>>,
-    ExtractPart<UI_MESSAGE, PART_TYPE>
-  >;
-
-  /**
-   * Filters chunks using a chunk type guard and narrows both chunk and part types.
-   * Only content chunk types are allowed, which excludes meta chunks like 'start' and 'finish'.
-   */
-  filter<CHUNK_TYPE extends InferUIMessageChunkType<UI_MESSAGE>>(
-    guard: CHUNK_TYPE extends ContentChunkType<UI_MESSAGE>
-      ? ChunkTypeGuard<UI_MESSAGE, CHUNK_TYPE>
-      : never,
-  ): ChunkPipeline<
-    UI_MESSAGE,
-    ExtractChunk<UI_MESSAGE, CHUNK_TYPE>,
-    ExtractPart<UI_MESSAGE, ChunkTypeToPartType<UI_MESSAGE, CHUNK_TYPE>>
-  >;
+  filter<
+    NARROWED_CHUNK extends InferUIMessageChunk<UI_MESSAGE>,
+    NARROWED_PART extends { type: string },
+  >(
+    guard: FilterGuard<UI_MESSAGE, NARROWED_CHUNK, NARROWED_PART>,
+  ): ChunkPipeline<UI_MESSAGE, NARROWED_CHUNK, NARROWED_PART>;
 
   /**
    * Filters chunks using a generic predicate function.
@@ -85,30 +61,33 @@ export class ChunkPipeline<
    * The callback only receives content chunks because meta chunks pass through unchanged.
    */
   filter(
-    predicate: ChunkPredicate<CHUNK & ExtractChunk<UI_MESSAGE, ContentChunkType<UI_MESSAGE>>, PART>,
+    predicate: ChunkFilterFn<CHUNK & ExtractChunk<UI_MESSAGE, ContentChunkType<UI_MESSAGE>>, PART>,
   ): ChunkPipeline<UI_MESSAGE, CHUNK, PART>;
 
   filter(
-    predicate:
-      | ChunkPredicate<any, any>
-      | PartTypeGuard<UI_MESSAGE, string>
-      | ChunkTypeGuard<UI_MESSAGE, string>,
+    predicate: ChunkFilterFn<any, any> | FilterGuard<UI_MESSAGE, any, any>,
   ): ChunkPipeline<UI_MESSAGE, any, any> {
-    /** The predicate is cast to a simple function type for runtime execution. */
-    const predicateFn = predicate as ChunkPredicate<CHUNK, PART>;
+    /**
+     * The predicate is cast to a simple function type for runtime execution.
+     */
+    const predicateFn = predicate as ChunkFilterFn<CHUNK, PART>;
 
     const nextBuilder: ChunkBuilder<UI_MESSAGE> = (iterable) => {
       const prevIterable = this.prevBuilder(iterable);
 
       async function* generator(): AsyncGenerator<InternalChunk<UI_MESSAGE>> {
         for await (const item of prevIterable) {
-          /** Meta chunks always pass through without filtering. */
+          /**
+           * Meta chunks always pass through without filtering.
+           */
           if (item.partType === undefined) {
             yield item;
             continue;
           }
 
-          /** Apply the predicate to determine if the chunk should be included. */
+          /**
+           * Apply the predicate to determine if the chunk should be included.
+           */
           const input = {
             chunk: item.chunk,
             part: { type: item.partType },
@@ -181,17 +160,17 @@ export class ChunkPipeline<
   }
 
   /**
-   * Observes chunks matching a chunk type guard without filtering them.
+   * Observes chunks matching an OnGuard without filtering them.
    * The callback receives a narrowed chunk type and inferred part type.
    * Content chunks include a part object with the type, while meta chunks have undefined part.
    * All chunks pass through regardless of whether the callback is invoked.
    */
-  on<CHUNK_TYPE extends InferUIMessageChunkType<UI_MESSAGE>>(
-    guard: ChunkTypeGuard<UI_MESSAGE, CHUNK_TYPE>,
-    callback: ChunkOnFn<
-      ExtractChunk<UI_MESSAGE, CHUNK_TYPE>,
-      InferPartForChunk<UI_MESSAGE, CHUNK_TYPE>
-    >,
+  on<
+    NARROWED_CHUNK extends InferUIMessageChunk<UI_MESSAGE>,
+    NARROWED_PART extends { type: string } | undefined,
+  >(
+    guard: OnGuard<UI_MESSAGE, NARROWED_CHUNK, NARROWED_PART>,
+    callback: ChunkOnFn<NARROWED_CHUNK, NARROWED_PART>,
   ): ChunkPipeline<UI_MESSAGE, CHUNK, PART>;
 
   /**
@@ -205,9 +184,7 @@ export class ChunkPipeline<
   ): ChunkPipeline<UI_MESSAGE, CHUNK, PART>;
 
   on(
-    predicate:
-      | ((input: ChunkOnInput<CHUNK>) => boolean)
-      | ChunkTypeGuard<UI_MESSAGE, InferUIMessageChunkType<UI_MESSAGE>>,
+    predicate: ((input: ChunkOnInput<CHUNK>) => boolean) | OnGuard<UI_MESSAGE, any, any>,
     callback: ChunkOnFn<any, any>,
   ): ChunkPipeline<UI_MESSAGE, CHUNK, PART> {
     /**

@@ -192,3 +192,30 @@ export type InferPartForChunk<UI_MESSAGE extends UIMessage, CHUNK_TYPE extends s
   : [HasMetaChunk<UI_MESSAGE, CHUNK_TYPE>] extends [never]
     ? { type: CollectPartTypesForChunk<UI_MESSAGE, CHUNK_TYPE> }
     : { type: CollectPartTypesForChunk<UI_MESSAGE, CHUNK_TYPE> } | undefined;
+
+/**
+ * Computes which part types remain after excluding specific chunk types.
+ * A part type is excluded only if ALL its chunk types are excluded.
+ *
+ * @example
+ * ```typescript
+ * // Excluding 'text-delta' still leaves 'text-start' and 'text-end'
+ * // So 'text' part type is NOT excluded
+ * type RemainingParts = ExcludePartForChunks<MyUIMessage, 'text-delta'>;
+ * // => 'text' | 'reasoning' | ... (all part types)
+ *
+ * // Excluding all text chunks removes 'text' part type
+ * type RemainingParts2 = ExcludePartForChunks<MyUIMessage, 'text-start' | 'text-delta' | 'text-end'>;
+ * // => 'reasoning' | ... (all part types except 'text')
+ * ```
+ */
+export type ExcludePartForChunks<
+  UI_MESSAGE extends UIMessage,
+  EXCLUDED_CHUNK_TYPE extends string,
+> = {
+  [PT in InferUIMessagePartType<UI_MESSAGE>]: [
+    Exclude<PartTypeToChunkTypes<UI_MESSAGE, PT>, EXCLUDED_CHUNK_TYPE>,
+  ] extends [never]
+    ? never
+    : PT;
+}[InferUIMessagePartType<UI_MESSAGE>];

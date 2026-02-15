@@ -3,8 +3,14 @@ export { ChunkPipeline } from "./chunk-pipeline.js";
 export {
   type ChunkInput,
   type ChunkMapFn,
-  type ChunkPredicate,
-  type ChunkTypeGuard,
-  type PartTypeGuard,
+  type ChunkFilterFn as ChunkPredicate,
+  type FilterGuard,
+  type OnGuard,
 } from "./types.js";
-export { isChunkType, isPartType } from "./type-guards.js";
+export {
+  excludeChunks,
+  excludeParts,
+  includeChunks,
+  includeParts,
+  isChunk,
+} from "./type-guards.js";

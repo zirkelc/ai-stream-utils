@@ -13,18 +13,18 @@ import {
   TOOL_WITH_DATA_CHUNKS,
 } from "../test/ui-message.js";
 import { pipe } from "./pipe.js";
-import { isChunkType, isPartType } from "./type-guards.js";
+import { includeChunks, includeParts, isChunk } from "./type-guards.js";
 
 describe(`pipe`, () => {
   describe(`filter`, () => {
-    describe(`isChunkType`, () => {
+    describe(`includeChunks`, () => {
       it(`should filter by single chunk type`, async () => {
         // Arrange
         const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
 
         // Act
         const result = await convertAsyncIterableToArray(
-          pipe<MyUIMessage>(stream).filter(isChunkType(`text-delta`)).toStream(),
+          pipe<MyUIMessage>(stream).filter(includeChunks(`text-delta`)).toStream(),
         );
 
         // Assert - only text-delta chunks + meta/step chunks pass through
@@ -45,7 +45,7 @@ describe(`pipe`, () => {
         // Act
         const result = await convertAsyncIterableToArray(
           pipe<MyUIMessage>(stream)
-            .filter(isChunkType([`text-start`, `text-delta`]))
+            .filter(includeChunks([`text-start`, `text-delta`]))
             .toStream(),
         );
 
@@ -62,7 +62,7 @@ describe(`pipe`, () => {
       });
     });
 
-    describe(`isPartType`, () => {
+    describe(`includeParts`, () => {
       it(`should filter by single part type (meta/step chunks always pass through)`, async () => {
         // Arrange
         const stream = convertArrayToStream([
@@ -74,7 +74,7 @@ describe(`pipe`, () => {
 
         // Act
         const result = await convertAsyncIterableToArray(
-          pipe<MyUIMessage>(stream).filter(isPartType(`text`)).toStream(),
+          pipe<MyUIMessage>(stream).filter(includeParts(`text`)).toStream(),
         );
 
         // Assert - text content + meta/step chunks (partType: undefined always passes)
@@ -99,7 +99,7 @@ describe(`pipe`, () => {
         // Act
         const result = await convertAsyncIterableToArray(
           pipe<MyUIMessage>(stream)
-            .filter(isPartType([`text`, `reasoning`]))
+            .filter(includeParts([`text`, `reasoning`]))
             .toStream(),
         );
 
@@ -113,7 +113,7 @@ describe(`pipe`, () => {
 
         // Act - filter to only tool chunks
         const result = await convertAsyncIterableToArray(
-          pipe<MyUIMessage>(stream).filter(isPartType(`tool-weather`)).toStream(),
+          pipe<MyUIMessage>(stream).filter(includeParts(`tool-weather`)).toStream(),
         );
 
         // Assert - tool chunks + meta/step chunks
@@ -132,7 +132,7 @@ describe(`pipe`, () => {
 
         // Act - filter to only data chunks
         const result = await convertAsyncIterableToArray(
-          pipe<MyUIMessage>(stream).filter(isPartType(`data-weather`)).toStream(),
+          pipe<MyUIMessage>(stream).filter(includeParts(`data-weather`)).toStream(),
         );
 
         // Assert - data chunk + meta/step chunks (partType: undefined passes through)
@@ -174,7 +174,7 @@ describe(`pipe`, () => {
         ]);
       });
 
-      it(`should chain isPartType with predicate filter`, async () => {
+      it(`should chain includeParts with predicate filter`, async () => {
         // Arrange
         const stream = convertArrayToStream([
           START_CHUNK,
@@ -186,7 +186,7 @@ describe(`pipe`, () => {
         // Act
         const result = await convertAsyncIterableToArray(
           pipe<MyUIMessage>(stream)
-            .filter(isPartType([`text`, `reasoning`]))
+            .filter(includeParts([`text`, `reasoning`]))
             .filter(({ part }) => part.type !== `reasoning`)
             .toStream(),
         );
@@ -204,7 +204,7 @@ describe(`pipe`, () => {
   });
 
   describe(`on`, () => {
-    describe(`isChunkType`, () => {
+    describe(`isChunk`, () => {
       it(`should call callback for matching chunks without filtering`, async () => {
         // Arrange
         const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
@@ -213,7 +213,7 @@ describe(`pipe`, () => {
         // Act
         const result = await convertAsyncIterableToArray(
           pipe<MyUIMessage>(stream)
-            .on(isChunkType(`text-delta`), ({ chunk }) => {
+            .on(isChunk(`text-delta`), ({ chunk }) => {
               observed.push(chunk);
             })
             .toStream(),
@@ -235,7 +235,7 @@ describe(`pipe`, () => {
         // Act
         await convertAsyncIterableToArray(
           pipe<MyUIMessage>(stream)
-            .on(isChunkType(`text-delta`), async ({ chunk }) => {
+            .on(isChunk(`text-delta`), async ({ chunk }) => {
               await new Promise((r) => setTimeout(r, 10));
               observed.push(chunk.delta);
             })
@@ -253,7 +253,7 @@ describe(`pipe`, () => {
         // Act
         const result = convertAsyncIterableToArray(
           pipe<MyUIMessage>(stream)
-            .on(isChunkType(`text-delta`), () => {
+            .on(isChunk(`text-delta`), () => {
               throw new Error(`Observer error`);
             })
             .toStream(),
@@ -272,10 +272,10 @@ describe(`pipe`, () => {
         // Act
         await convertAsyncIterableToArray(
           pipe<MyUIMessage>(stream)
-            .on(isChunkType(`text-start`), () => {
+            .on(isChunk(`text-start`), () => {
               log1.push(`start`);
             })
-            .on(isChunkType(`text-delta`), ({ chunk }) => {
+            .on(isChunk(`text-delta`), ({ chunk }) => {
               log2.push(chunk.delta);
             })
             .toStream(),
@@ -294,10 +294,10 @@ describe(`pipe`, () => {
         // Act
         await convertAsyncIterableToArray(
           pipe<MyUIMessage>(stream)
-            .on(isChunkType(`start`), () => {
+            .on(isChunk(`start`), () => {
               observed.push(`start`);
             })
-            .on(isChunkType(`finish`), () => {
+            .on(isChunk(`finish`), () => {
               observed.push(`finish`);
             })
             .toStream(),
@@ -371,7 +371,7 @@ describe(`pipe`, () => {
       // Act
       const result = await convertAsyncIterableToArray(
         pipe<MyUIMessage>(stream)
-          .filter(isPartType([`text`, `reasoning`]))
+          .filter(includeParts([`text`, `reasoning`]))
           .filter(({ part }) => part.type !== `reasoning`)
           .map(({ chunk }) => chunk)
           .toStream(),
@@ -399,7 +399,7 @@ describe(`pipe`, () => {
       // Act
       const result = await convertAsyncIterableToArray(
         pipe<MyUIMessage>(stream)
-          .filter(isPartType(`text`))
+          .filter(includeParts(`text`))
           .map(({ chunk }) => {
             if (chunk.type === `text-delta`) {
               return { ...chunk, delta: chunk.delta.toUpperCase() };
@@ -435,7 +435,7 @@ describe(`pipe`, () => {
             }
             return chunk;
           })
-          .filter(isPartType(`text`))
+          .filter(includeParts(`text`))
           .toStream(),
       );
 
@@ -491,7 +491,7 @@ describe(`pipe`, () => {
     it(`should throw error when toStream is called twice`, async () => {
       // Arrange
       const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
-      const pipeline = pipe<MyUIMessage>(stream).filter(isPartType(`text`));
+      const pipeline = pipe<MyUIMessage>(stream).filter(includeParts(`text`));
 
       // Act
       pipeline.toStream();
@@ -504,7 +504,7 @@ describe(`pipe`, () => {
     it(`should throw error when iterating twice`, async () => {
       // Arrange
       const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
-      const pipeline = pipe<MyUIMessage>(stream).filter(isPartType(`text`));
+      const pipeline = pipe<MyUIMessage>(stream).filter(includeParts(`text`));
 
       // Act
       await convertAsyncIterableToArray(pipeline);
@@ -517,7 +517,7 @@ describe(`pipe`, () => {
     it(`should throw error when toStream called after iteration`, async () => {
       // Arrange
       const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
-      const pipeline = pipe<MyUIMessage>(stream).filter(isPartType(`text`));
+      const pipeline = pipe<MyUIMessage>(stream).filter(includeParts(`text`));
 
       // Act
       await convertAsyncIterableToArray(pipeline);
