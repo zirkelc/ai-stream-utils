@@ -15,8 +15,9 @@ This library provides composable filter and transformation utilities for UI mess
 
 The AI SDK UI message stream created by [`toUIMessageStream()`](https://ai-sdk.dev/docs/reference/ai-sdk-core/stream-text#to-ui-message-stream) streams all parts (text, tools, reasoning, etc.) to the client by default. However, you may want to:
 
-- **Filter**: Tool calls like database queries often contain large amounts of data or sensitive information that should not be visible on the client
+- **Filter**: Tool calls like database queries often contain large amounts of data or sensitive information that should not be streamed to the client
 - **Transform**: Modify text or tool outputs while they are streamed to the client
+- **Observe**: Log stream lifecycle events, tool calls, or other chunks without consuming or modifying the stream
 
 This library provides type-safe, composable utilities for all these use cases.
 

@@ -2,17 +2,25 @@ import { describe, expectTypeOf, it } from "vitest";
 import type {
   DataWeatherChunk,
   FileChunk,
+  FinishChunk,
   MyUIMessage,
   MyUIMessageChunk,
   ReasoningChunk,
   SourceDocumentChunk,
   SourceUrlChunk,
+  StartChunk,
   TextChunk,
   TextDeltaChunk,
   ToolChunk,
 } from "../test/ui-message.js";
 import { pipe } from "./pipe.js";
-import { excludeChunks, excludeParts, includeChunks, includeParts } from "./type-guards.js";
+import {
+  chunkType,
+  excludeChunks,
+  excludeParts,
+  includeChunks,
+  includeParts,
+} from "./type-guards.js";
 
 /** Mock stream for type tests */
 const mockStream = null as unknown as ReadableStream<MyUIMessageChunk>;
@@ -155,6 +163,49 @@ describe(`type-guards`, () => {
           expectTypeOf<{ type: `reasoning` }>().not.toExtend<typeof part>();
           return chunk;
         });
+    });
+  });
+
+  describe(`chunkType`, () => {
+    it(`should narrow to single content chunk type`, () => {
+      pipe<MyUIMessage>(mockStream).on(chunkType(`text-delta`), ({ chunk, part }) => {
+        expectTypeOf(chunk).toEqualTypeOf<TextDeltaChunk>();
+        expectTypeOf(part).toEqualTypeOf<{ type: `text` }>();
+      });
+    });
+
+    it(`should narrow to multiple content chunk types`, () => {
+      pipe<MyUIMessage>(mockStream).on(
+        chunkType([`text-start`, `text-delta`, `text-end`]),
+        ({ chunk, part }) => {
+          expectTypeOf(chunk).toEqualTypeOf<TextChunk>();
+          expectTypeOf(part).toEqualTypeOf<{ type: `text` }>();
+        },
+      );
+    });
+
+    it(`should narrow to single meta chunk type`, () => {
+      pipe<MyUIMessage>(mockStream).on(chunkType(`start`), ({ chunk, part }) => {
+        expectTypeOf(chunk).toEqualTypeOf<StartChunk>();
+        expectTypeOf(part).toEqualTypeOf<undefined>();
+      });
+    });
+
+    it(`should narrow to multiple meta chunk types`, () => {
+      pipe<MyUIMessage>(mockStream).on(chunkType([`start`, `finish`]), ({ chunk, part }) => {
+        expectTypeOf(chunk).toEqualTypeOf<StartChunk | FinishChunk>();
+        expectTypeOf(part).toEqualTypeOf<undefined>();
+      });
+    });
+
+    it(`should narrow to mixed content and meta chunk types`, () => {
+      pipe<MyUIMessage>(mockStream).on(
+        chunkType([`text-delta`, `start`, `finish`]),
+        ({ chunk, part }) => {
+          expectTypeOf(chunk).toEqualTypeOf<TextDeltaChunk | StartChunk | FinishChunk>();
+          expectTypeOf(part).toEqualTypeOf<{ type: `text` } | undefined>();
+        },
+      );
     });
   });
 });
