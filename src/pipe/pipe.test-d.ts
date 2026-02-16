@@ -1,5 +1,4 @@
 import { describe, expectTypeOf, it } from "vitest";
-import type { ExtractChunk } from "../types.js";
 import type {
   FileChunk,
   MyUIMessage,
@@ -11,13 +10,14 @@ import type {
   TextDeltaChunk,
   ToolChunk,
 } from "../test/ui-message.js";
+import type { ExtractChunk } from "../types.js";
 import { pipe } from "./pipe.js";
 import {
+  chunkType,
   excludeChunks,
   excludeParts,
   includeChunks,
   includeParts,
-  isChunk,
 } from "./type-guards.js";
 
 const mockStream = null as unknown as ReadableStream<MyUIMessageChunk>;
@@ -211,30 +211,30 @@ describe(`pipe types`, () => {
   });
 
   describe(`on`, () => {
-    describe(`isChunk`, () => {
+    describe(`chunkType`, () => {
       it(`should narrow chunk type in callback`, () => {
-        pipe<MyUIMessage>(mockStream).on(isChunk(`text-delta`), ({ chunk, part }) => {
+        pipe<MyUIMessage>(mockStream).on(chunkType(`text-delta`), ({ chunk, part }) => {
           expectTypeOf(chunk).toEqualTypeOf<TextDeltaChunk>();
           expectTypeOf(part).toEqualTypeOf<{ type: `text` }>();
         });
       });
 
       it(`should narrow chunk type for meta chunks`, () => {
-        pipe<MyUIMessage>(mockStream).on(isChunk(`start`), ({ chunk, part }) => {
+        pipe<MyUIMessage>(mockStream).on(chunkType(`start`), ({ chunk, part }) => {
           expectTypeOf(chunk).toEqualTypeOf<StartChunk>();
           expectTypeOf(part).toEqualTypeOf<undefined>();
         });
       });
 
       it(`should infer part type from content chunk type`, () => {
-        pipe<MyUIMessage>(mockStream).on(isChunk(`text-delta`), ({ chunk, part }) => {
+        pipe<MyUIMessage>(mockStream).on(chunkType(`text-delta`), ({ chunk, part }) => {
           expectTypeOf(chunk).toEqualTypeOf<TextDeltaChunk>();
           expectTypeOf(part).toEqualTypeOf<{ type: `text` }>();
         });
       });
 
       it(`should infer undefined part for meta chunk type`, () => {
-        pipe<MyUIMessage>(mockStream).on(isChunk(`start`), ({ chunk, part }) => {
+        pipe<MyUIMessage>(mockStream).on(chunkType(`start`), ({ chunk, part }) => {
           expectTypeOf(chunk).toEqualTypeOf<StartChunk>();
           expectTypeOf(part).toEqualTypeOf<undefined>();
         });
@@ -242,7 +242,7 @@ describe(`pipe types`, () => {
 
       it(`should infer union part type for multiple chunk types`, () => {
         pipe<MyUIMessage>(mockStream).on(
-          isChunk([`text-delta`, `reasoning-delta`]),
+          chunkType([`text-delta`, `reasoning-delta`]),
           ({ chunk, part }) => {
             expectTypeOf(chunk).toEqualTypeOf<
               Extract<MyUIMessageChunk, { type: `text-delta` | `reasoning-delta` }>
@@ -253,7 +253,7 @@ describe(`pipe types`, () => {
       });
 
       it(`should infer part type for content and meta chunk types`, () => {
-        pipe<MyUIMessage>(mockStream).on(isChunk([`text-delta`, `start`]), ({ chunk, part }) => {
+        pipe<MyUIMessage>(mockStream).on(chunkType([`text-delta`, `start`]), ({ chunk, part }) => {
           expectTypeOf(chunk).toEqualTypeOf<
             Extract<MyUIMessageChunk, { type: `text-delta` | `start` }>
           >();
@@ -264,7 +264,7 @@ describe(`pipe types`, () => {
       it(`should preserve pipeline types after on()`, () => {
         pipe<MyUIMessage>(mockStream)
           .filter(includeParts(`text`))
-          .on(isChunk(`text-delta`), () => {})
+          .on(chunkType(`text-delta`), () => {})
           .map(({ chunk, part }) => {
             expectTypeOf(chunk).toEqualTypeOf<TextChunk>();
             expectTypeOf(part).toEqualTypeOf<{ type: `text` }>();

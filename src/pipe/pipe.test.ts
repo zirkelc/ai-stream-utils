@@ -1,6 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { convertArrayToStream } from "../utils/convert-array-to-stream.js";
-import { convertAsyncIterableToArray } from "../utils/convert-async-iterable-to-array.js";
 import {
   FINISH_CHUNK,
   FINISH_STEP_CHUNK,
@@ -12,8 +10,10 @@ import {
   TEXT_CHUNKS,
   TOOL_WITH_DATA_CHUNKS,
 } from "../test/ui-message.js";
+import { convertArrayToStream } from "../utils/convert-array-to-stream.js";
+import { convertAsyncIterableToArray } from "../utils/convert-async-iterable-to-array.js";
 import { pipe } from "./pipe.js";
-import { includeChunks, includeParts, isChunk } from "./type-guards.js";
+import { chunkType, includeChunks, includeParts } from "./type-guards.js";
 
 describe(`pipe`, () => {
   describe(`filter`, () => {
@@ -204,7 +204,7 @@ describe(`pipe`, () => {
   });
 
   describe(`on`, () => {
-    describe(`isChunk`, () => {
+    describe(`chunkType`, () => {
       it(`should call callback for matching chunks without filtering`, async () => {
         // Arrange
         const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
@@ -213,7 +213,7 @@ describe(`pipe`, () => {
         // Act
         const result = await convertAsyncIterableToArray(
           pipe<MyUIMessage>(stream)
-            .on(isChunk(`text-delta`), ({ chunk }) => {
+            .on(chunkType(`text-delta`), ({ chunk }) => {
               observed.push(chunk);
             })
             .toStream(),
@@ -223,8 +223,16 @@ describe(`pipe`, () => {
         expect(result).toEqual([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
         // Assert - only text-delta chunks were observed
         expect(observed.length).toBe(2);
-        expect(observed[0]).toEqual({ type: `text-delta`, id: `1`, delta: `Hello` });
-        expect(observed[1]).toEqual({ type: `text-delta`, id: `1`, delta: ` World` });
+        expect(observed[0]).toEqual({
+          type: `text-delta`,
+          id: `1`,
+          delta: `Hello`,
+        });
+        expect(observed[1]).toEqual({
+          type: `text-delta`,
+          id: `1`,
+          delta: ` World`,
+        });
       });
 
       it(`should support async callbacks`, async () => {
@@ -235,7 +243,7 @@ describe(`pipe`, () => {
         // Act
         await convertAsyncIterableToArray(
           pipe<MyUIMessage>(stream)
-            .on(isChunk(`text-delta`), async ({ chunk }) => {
+            .on(chunkType(`text-delta`), async ({ chunk }) => {
               await new Promise((r) => setTimeout(r, 10));
               observed.push(chunk.delta);
             })
@@ -253,7 +261,7 @@ describe(`pipe`, () => {
         // Act
         const result = convertAsyncIterableToArray(
           pipe<MyUIMessage>(stream)
-            .on(isChunk(`text-delta`), () => {
+            .on(chunkType(`text-delta`), () => {
               throw new Error(`Observer error`);
             })
             .toStream(),
@@ -272,10 +280,10 @@ describe(`pipe`, () => {
         // Act
         await convertAsyncIterableToArray(
           pipe<MyUIMessage>(stream)
-            .on(isChunk(`text-start`), () => {
+            .on(chunkType(`text-start`), () => {
               log1.push(`start`);
             })
-            .on(isChunk(`text-delta`), ({ chunk }) => {
+            .on(chunkType(`text-delta`), ({ chunk }) => {
               log2.push(chunk.delta);
             })
             .toStream(),
@@ -294,10 +302,10 @@ describe(`pipe`, () => {
         // Act
         await convertAsyncIterableToArray(
           pipe<MyUIMessage>(stream)
-            .on(isChunk(`start`), () => {
+            .on(chunkType(`start`), () => {
               observed.push(`start`);
             })
-            .on(isChunk(`finish`), () => {
+            .on(chunkType(`finish`), () => {
               observed.push(`finish`);
             })
             .toStream(),

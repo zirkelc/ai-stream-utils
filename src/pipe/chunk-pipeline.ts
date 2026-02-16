@@ -6,11 +6,11 @@ import { createAsyncIterableStream } from "../utils/create-async-iterable-stream
 import type { BasePipeline, InternalChunk } from "./base-pipeline.js";
 import type {
   ChunkBuilder,
+  ChunkFilterFn,
   ChunkInput,
   ChunkMapFn,
   ChunkOnFn,
   ChunkOnInput,
-  ChunkFilterFn,
   FilterGuard,
   OnGuard,
 } from "./types.js";

@@ -1,4 +1,3 @@
-import { convertArrayToStream } from "../utils/convert-array-to-stream.js";
 import { describe, expect, it } from "vitest";
 import {
   ABORT_CHUNK,
@@ -12,6 +11,7 @@ import {
   TEXT_CHUNKS,
   TOOL_SERVER_CHUNKS,
 } from "../test/ui-message.js";
+import { convertArrayToStream } from "../utils/convert-array-to-stream.js";
 import { createUIMessageStreamReader } from "./create-ui-message-stream-reader.js";
 
 describe("createUIMessageStreamReader", () => {

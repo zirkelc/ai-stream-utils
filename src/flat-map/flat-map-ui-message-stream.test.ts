@@ -1,5 +1,3 @@
-import { convertArrayToStream } from "../utils/convert-array-to-stream.js";
-import { convertAsyncIterableToArray } from "../utils/convert-async-iterable-to-array.js";
 import type { UIMessageChunk } from "ai";
 import { describe, expect, it } from "vitest";
 import {
@@ -17,6 +15,8 @@ import {
   TOOL_SERVER_CHUNKS,
   TOOL_WITH_DATA_CHUNKS,
 } from "../test/ui-message.js";
+import { convertArrayToStream } from "../utils/convert-array-to-stream.js";
+import { convertAsyncIterableToArray } from "../utils/convert-async-iterable-to-array.js";
 import { flatMapUIMessageStream, partTypeIs } from "./flat-map-ui-message-stream.js";
 
 describe("flatMapUIMessageStream", () => {
@@ -32,9 +32,18 @@ describe("flatMapUIMessageStream", () => {
     expect(result.length).toBe(7);
     expect(result[0]).toEqual(START_CHUNK);
     expect(result[1]).toEqual({ type: "start-step" });
-    expect(result[2]).toMatchObject({ type: "text-start", providerMetadata: undefined });
-    expect(result[3]).toMatchObject({ type: "text-delta", delta: "Hello World" });
-    expect(result[4]).toMatchObject({ type: "text-end", providerMetadata: undefined });
+    expect(result[2]).toMatchObject({
+      type: "text-start",
+      providerMetadata: undefined,
+    });
+    expect(result[3]).toMatchObject({
+      type: "text-delta",
+      delta: "Hello World",
+    });
+    expect(result[4]).toMatchObject({
+      type: "text-end",
+      providerMetadata: undefined,
+    });
     expect(result[5]).toEqual({ type: "finish-step" });
     expect(result[6]).toEqual(FINISH_CHUNK);
     // Verify all text chunks have the same generated ID
@@ -63,9 +72,18 @@ describe("flatMapUIMessageStream", () => {
     expect(result.length).toBe(7);
     expect(result[0]).toEqual(START_CHUNK);
     expect(result[1]).toEqual({ type: "start-step" });
-    expect(result[2]).toMatchObject({ type: "text-start", providerMetadata: undefined });
-    expect(result[3]).toMatchObject({ type: "text-delta", delta: "Hello World" });
-    expect(result[4]).toMatchObject({ type: "text-end", providerMetadata: undefined });
+    expect(result[2]).toMatchObject({
+      type: "text-start",
+      providerMetadata: undefined,
+    });
+    expect(result[3]).toMatchObject({
+      type: "text-delta",
+      delta: "Hello World",
+    });
+    expect(result[4]).toMatchObject({
+      type: "text-end",
+      providerMetadata: undefined,
+    });
     expect(result[5]).toEqual({ type: "finish-step" });
     expect(result[6]).toEqual(FINISH_CHUNK);
     // Verify all text chunks have the same generated ID

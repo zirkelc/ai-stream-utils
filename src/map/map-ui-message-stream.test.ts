@@ -1,5 +1,3 @@
-import { convertArrayToStream } from "../utils/convert-array-to-stream.js";
-import { convertAsyncIterableToArray } from "../utils/convert-async-iterable-to-array.js";
 import type { UIMessageChunk } from "ai";
 import { describe, expect, it } from "vitest";
 import {
@@ -15,6 +13,8 @@ import {
   TOOL_SERVER_CHUNKS,
   TOOL_WITH_DATA_CHUNKS,
 } from "../test/ui-message.js";
+import { convertArrayToStream } from "../utils/convert-array-to-stream.js";
+import { convertAsyncIterableToArray } from "../utils/convert-async-iterable-to-array.js";
 import { mapUIMessageStream } from "./map-ui-message-stream.js";
 
 describe("mapUIMessageStream", () => {

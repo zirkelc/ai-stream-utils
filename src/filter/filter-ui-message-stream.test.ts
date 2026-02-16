@@ -1,7 +1,6 @@
-import { convertArrayToStream } from "../utils/convert-array-to-stream.js";
-import { convertAsyncIterableToArray } from "../utils/convert-async-iterable-to-array.js";
 import { readUIMessageStream } from "ai";
 import { describe, expect, it } from "vitest";
+import { excludeParts, includeParts } from "../pipe/type-guards.js";
 import {
   ABORT_CHUNK,
   DATA_CHUNKS,
@@ -19,7 +18,9 @@ import {
   TOOL_SERVER_CHUNKS,
   TOOL_WITH_DATA_CHUNKS,
 } from "../test/ui-message.js";
-import { excludeParts, filterUIMessageStream, includeParts } from "./filter-ui-message-stream.js";
+import { convertArrayToStream } from "../utils/convert-array-to-stream.js";
+import { convertAsyncIterableToArray } from "../utils/convert-async-iterable-to-array.js";
+import { filterUIMessageStream } from "./filter-ui-message-stream.js";
 
 describe("filterUIMessageStream", () => {
   it("should filter chunks using include", async () => {
@@ -126,9 +127,9 @@ describe("filterUIMessageStream", () => {
       FINISH_CHUNK,
     ]);
 
-    const filteredStream = filterUIMessageStream(stream, ({ part }) => {
+    const filteredStream = filterUIMessageStream(stream, ({ part }: { part: { type: string } }) => {
       // Include any tool that starts with 'tool-weather'
-      return part.type.startsWith("tool-weather");
+      return part.type.startsWith(`tool-weather`);
     });
 
     const result = await convertAsyncIterableToArray(filteredStream);
@@ -319,7 +320,10 @@ describe("filterUIMessageStream", () => {
           FINISH_CHUNK,
         ]);
 
-        const filteredStream = filterUIMessageStream(stream, ({ part }) => part.type === partType);
+        const filteredStream = filterUIMessageStream(
+          stream,
+          ({ part }: { part: { type: string } }) => part.type === partType,
+        );
 
         const result = await convertAsyncIterableToArray(
           readUIMessageStream({ stream: filteredStream }),

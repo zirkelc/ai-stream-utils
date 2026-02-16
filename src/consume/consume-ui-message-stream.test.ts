@@ -1,6 +1,5 @@
 import { convertArrayToReadableStream } from "@ai-sdk/provider-utils/test";
 import { describe, expect, it } from "vitest";
-import { consumeUIMessageStream } from "./consume-ui-message-stream.js";
 import {
   DATA_CHUNKS,
   DYNAMIC_TOOL_CHUNKS,
@@ -13,6 +12,7 @@ import {
   TEXT_CHUNKS,
   TOOL_SERVER_CHUNKS,
 } from "../test/ui-message.js";
+import { consumeUIMessageStream } from "./consume-ui-message-stream.js";
 
 describe("consumeUIMessageStream", () => {
   it("should consume a stream with text chunks and return the final message", async () => {

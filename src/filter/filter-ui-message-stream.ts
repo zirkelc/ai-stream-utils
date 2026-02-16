@@ -1,103 +1,14 @@
 import type { AsyncIterableStream, InferUIMessageChunk, UIMessage } from "ai";
 import { mapUIMessageStream } from "../map/map-ui-message-stream.js";
-import type {
-  ExcludePart,
-  ExtractPart,
-  InferUIMessagePart,
-  InferUIMessagePartType,
-} from "../types.js";
+import type { FilterGuard } from "../pipe/types.js";
 
 /**
- * Unique symbol for type branding filter predicates.
- * This symbol only exists in the type system and is used to carry
- * the narrowed part type through the pipeline.
+ * Filter function type for filterUIMessageStream.
+ * Can be either a FilterGuard (from includeParts/excludeParts) or a plain predicate.
  */
-declare const FilterPredicatePartType: unique symbol;
-
-/**
- * Filter predicate for UIMessageStream filtering.
- *
- * Uses a unique symbol to carry type information for narrowing.
- * When used with `includeParts()` or `excludeParts()`, the narrowed type flows through
- * the pipeline to subsequent operations.
- *
- * - When `NARROWED_PART` is explicitly set (via `includeParts`/`excludeParts`), it narrows the type
- * - When `NARROWED_PART` uses the default, it represents "all parts" (no narrowing)
- */
-export type FilterPredicate<
-  UI_MESSAGE extends UIMessage,
-  NARROWED_PART extends InferUIMessagePart<UI_MESSAGE> = InferUIMessagePart<UI_MESSAGE>,
-> = ((input: { chunk: InferUIMessageChunk<UI_MESSAGE>; part: { type: string } }) => boolean) & {
-  readonly [FilterPredicatePartType]?: NARROWED_PART;
-};
-
-/* ============================================================================
- * Helper Functions
- * ============================================================================ */
-
-/**
- * Creates a typed filter predicate that includes only the specified part types.
- * The returned predicate carries type information that narrows the part type
- * in subsequent pipeline operations.
- *
- * @example
- * ```typescript
- * // Standalone usage
- * filterUIMessageStream(stream, includeParts(['text', 'tool-weather']));
- *
- * // Pipeline usage - part type is narrowed in subsequent .map()
- * pipe<MyUIMessage>(stream)
- *   .filter(includeParts(['text', 'reasoning']))
- *   .map(({ chunk, part }) => {
- *     // part is typed as TextPart | ReasoningPart
- *     return chunk;
- *   });
- * ```
- */
-export function includeParts<
-  UI_MESSAGE extends UIMessage,
-  PART_TYPE extends InferUIMessagePartType<UI_MESSAGE>,
->(
-  includePartTypes: Array<PART_TYPE>,
-): FilterPredicate<UI_MESSAGE, ExtractPart<UI_MESSAGE, PART_TYPE>> {
-  const predicate = ({ part }: { part: { type: string } }) => {
-    return includePartTypes.includes(part.type as PART_TYPE);
-  };
-
-  return predicate as FilterPredicate<UI_MESSAGE, ExtractPart<UI_MESSAGE, PART_TYPE>>;
-}
-
-/**
- * Creates a typed filter predicate that excludes the specified part types.
- * The returned predicate carries type information that narrows the part type
- * in subsequent pipeline operations.
- *
- * @example
- * ```typescript
- * // Standalone usage
- * filterUIMessageStream(stream, excludeParts(['reasoning', 'tool-calculator']));
- *
- * // Pipeline usage - part type is narrowed in subsequent .map()
- * pipe<MyUIMessage>(stream)
- *   .filter(excludeParts(['reasoning']))
- *   .map(({ chunk, part }) => {
- *     // part is typed as all parts except ReasoningPart
- *     return chunk;
- *   });
- * ```
- */
-export function excludeParts<
-  UI_MESSAGE extends UIMessage,
-  PART_TYPE extends InferUIMessagePartType<UI_MESSAGE>,
->(
-  excludePartTypes: Array<PART_TYPE>,
-): FilterPredicate<UI_MESSAGE, ExcludePart<UI_MESSAGE, PART_TYPE>> {
-  const predicate = ({ part }: { part: { type: string } }) => {
-    return !excludePartTypes.includes(part.type as PART_TYPE);
-  };
-
-  return predicate as FilterPredicate<UI_MESSAGE, ExcludePart<UI_MESSAGE, PART_TYPE>>;
-}
+type FilterFn<UI_MESSAGE extends UIMessage> =
+  | FilterGuard<UI_MESSAGE, any, any>
+  | ((input: { chunk: InferUIMessageChunk<UI_MESSAGE>; part: { type: string } }) => boolean);
 
 /**
  * Filters a UIMessageStream to include or exclude specific chunks.
@@ -136,7 +47,7 @@ export function excludeParts<
  */
 export function filterUIMessageStream<UI_MESSAGE extends UIMessage>(
   stream: ReadableStream<InferUIMessageChunk<UI_MESSAGE>>,
-  predicate: FilterPredicate<UI_MESSAGE>,
+  predicate: FilterFn<UI_MESSAGE>,
 ): AsyncIterableStream<InferUIMessageChunk<UI_MESSAGE>> {
   return mapUIMessageStream(stream, (input) => {
     return predicate(input) ? input.chunk : null;

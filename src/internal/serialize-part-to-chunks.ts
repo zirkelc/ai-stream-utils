@@ -9,6 +9,7 @@ import type {
   UITools,
 } from "ai";
 import {
+  createIdGenerator,
   getToolOrDynamicToolName,
   isDataUIPart,
   isFileUIPart,
@@ -17,7 +18,6 @@ import {
   isToolOrDynamicToolUIPart,
 } from "ai";
 import type { InferUIMessagePart } from "../types.js";
-import { createIdGenerator } from "ai";
 
 const generateId = createIdGenerator({ prefix: `aitxt`, size: 24 });
 

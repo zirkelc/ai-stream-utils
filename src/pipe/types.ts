@@ -69,7 +69,12 @@ export type FilterGuard<
   NARROWED_CHUNK extends InferUIMessageChunk<UI_MESSAGE>,
   NARROWED_PART extends { type: string },
 > = {
-  <T extends { chunk: InferUIMessageChunk<UI_MESSAGE>; part?: { type: string } | undefined }>(
+  <
+    T extends {
+      chunk: InferUIMessageChunk<UI_MESSAGE>;
+      part?: { type: string } | undefined;
+    },
+  >(
     input: T,
   ): input is T & {
     chunk: NARROWED_CHUNK;
@@ -89,7 +94,12 @@ export type OnGuard<
   NARROWED_CHUNK extends InferUIMessageChunk<UI_MESSAGE>,
   NARROWED_PART extends { type: string } | undefined,
 > = {
-  <T extends { chunk: InferUIMessageChunk<UI_MESSAGE>; part?: { type: string } | undefined }>(
+  <
+    T extends {
+      chunk: InferUIMessageChunk<UI_MESSAGE>;
+      part?: { type: string } | undefined;
+    },
+  >(
     input: T,
   ): input is T & {
     chunk: NARROWED_CHUNK;

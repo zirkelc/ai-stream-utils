@@ -40,7 +40,10 @@ export function includeChunks<
   const typeArray = Array.isArray(types) ? types : [types];
 
   const guard = <
-    T extends { chunk: InferUIMessageChunk<UI_MESSAGE>; part?: { type: string } | undefined },
+    T extends {
+      chunk: InferUIMessageChunk<UI_MESSAGE>;
+      part?: { type: string } | undefined;
+    },
   >(
     input: T,
   ): input is T & {
@@ -83,7 +86,10 @@ export function includeParts<
   const typeArray = Array.isArray(types) ? types : [types];
 
   const guard = <
-    T extends { chunk: InferUIMessageChunk<UI_MESSAGE>; part?: { type: string } | undefined },
+    T extends {
+      chunk: InferUIMessageChunk<UI_MESSAGE>;
+      part?: { type: string } | undefined;
+    },
   >(
     input: T,
   ): input is T & {
@@ -129,7 +135,10 @@ export function excludeChunks<
   const typeArray = Array.isArray(types) ? types : [types];
 
   const guard = <
-    T extends { chunk: InferUIMessageChunk<UI_MESSAGE>; part?: { type: string } | undefined },
+    T extends {
+      chunk: InferUIMessageChunk<UI_MESSAGE>;
+      part?: { type: string } | undefined;
+    },
   >(
     input: T,
   ): input is T & {
@@ -181,7 +190,10 @@ export function excludeParts<
   const typeArray = Array.isArray(types) ? types : [types];
 
   const guard = <
-    T extends { chunk: InferUIMessageChunk<UI_MESSAGE>; part?: { type: string } | undefined },
+    T extends {
+      chunk: InferUIMessageChunk<UI_MESSAGE>;
+      part?: { type: string } | undefined;
+    },
   >(
     input: T,
   ): input is T & {
@@ -210,24 +222,24 @@ export function excludeParts<
  * ```typescript
  * // Observe content chunks
  * pipe<MyUIMessage>(stream)
- *   .on(isChunk('text-delta'), ({ chunk, part }) => {
+ *   .on(chunkType('text-delta'), ({ chunk, part }) => {
  *     // chunk is text-delta, part is { type: 'text' }
  *   });
  *
  * // Observe meta chunks
  * pipe<MyUIMessage>(stream)
- *   .on(isChunk('start'), ({ chunk, part }) => {
+ *   .on(chunkType('start'), ({ chunk, part }) => {
  *     // chunk is start chunk, part is undefined
  *   });
  *
  * // Observe multiple chunk types
  * pipe<MyUIMessage>(stream)
- *   .on(isChunk(['text-delta', 'start']), ({ chunk, part }) => {
+ *   .on(chunkType(['text-delta', 'start']), ({ chunk, part }) => {
  *     // chunk is text-delta | start, part is { type: 'text' } | undefined
  *   });
  * ```
  */
-export function isChunk<
+export function chunkType<
   UI_MESSAGE extends UIMessage,
   CHUNK_TYPE extends InferUIMessageChunkType<UI_MESSAGE>,
 >(
@@ -240,7 +252,10 @@ export function isChunk<
   const typeArray = Array.isArray(types) ? types : [types];
 
   const guard = <
-    T extends { chunk: InferUIMessageChunk<UI_MESSAGE>; part?: { type: string } | undefined },
+    T extends {
+      chunk: InferUIMessageChunk<UI_MESSAGE>;
+      part?: { type: string } | undefined;
+    },
   >(
     input: T,
   ): input is T & {

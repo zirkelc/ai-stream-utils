@@ -30,13 +30,13 @@ npm install ai-stream-utils
 
 ## Overview
 
-| Function                                               | Input                                                                                                           | Returns                    | Use Case                                                                      |
-| ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- | -------------------------- | ----------------------------------------------------------------------------- |
-| [`mapUIMessageStream`](#mapuimessagestream)            | [UIMessageChunk](https://github.com/vercel/ai/blob/main/packages/ai/src/ui-message-stream/ui-message-chunks.ts) | `chunk \| chunk[] \| null` | Transform or filter chunks in real-time (e.g., smooth streaming)              |
-| [`flatMapUIMessageStream`](#flatmapuimessagestream)    | [UIMessagePart](https://ai-sdk.dev/docs/reference/ai-sdk-core/ui-message#uimessagepart-types)                   | `part \| part[] \| null`   | Buffer until complete, then transform (e.g., redact tool output)              |
-| [`filterUIMessageStream`](#filteruimessagestream)      | [UIMessageChunk](https://github.com/vercel/ai/blob/main/packages/ai/src/ui-message-stream/ui-message-chunks.ts) | `boolean`                  | Include/exclude parts by type (e.g., hide reasoning)                          |
-| [`experimental_pipe`](#experimental_pipe-experimental) | [UIMessageChunk](https://github.com/vercel/ai/blob/main/packages/ai/src/ui-message-stream/ui-message-chunks.ts) | `ChunkPipeline`            | Composable pipeline API for chaining operations (experimental)                |
-| [`consumeUIMessageStream`](#consumeuimessagestream)    | [UIMessageChunk](https://github.com/vercel/ai/blob/main/packages/ai/src/ui-message-stream/ui-message-chunks.ts) | `Promise<UIMessage>`       | Consume entire stream and return final message (e.g., server-side processing) |
+| Function                                            | Input                                                                                                           | Returns                    | Use Case                                                                      |
+| --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | -------------------------- | ----------------------------------------------------------------------------- |
+| [`mapUIMessageStream`](#mapuimessagestream)         | [UIMessageChunk](https://github.com/vercel/ai/blob/main/packages/ai/src/ui-message-stream/ui-message-chunks.ts) | `chunk \| chunk[] \| null` | Transform or filter chunks in real-time (e.g., smooth streaming)              |
+| [`flatMapUIMessageStream`](#flatmapuimessagestream) | [UIMessagePart](https://ai-sdk.dev/docs/reference/ai-sdk-core/ui-message#uimessagepart-types)                   | `part \| part[] \| null`   | Buffer until complete, then transform (e.g., redact tool output)              |
+| [`filterUIMessageStream`](#filteruimessagestream)   | [UIMessageChunk](https://github.com/vercel/ai/blob/main/packages/ai/src/ui-message-stream/ui-message-chunks.ts) | `boolean`                  | Include/exclude parts by type (e.g., hide reasoning)                          |
+| [`pipe`](#pipe-experimental)                        | [UIMessageChunk](https://github.com/vercel/ai/blob/main/packages/ai/src/ui-message-stream/ui-message-chunks.ts) | `ChunkPipeline`            | Composable pipeline API for chaining operations (experimental)                |
+| [`consumeUIMessageStream`](#consumeuimessagestream) | [UIMessageChunk](https://github.com/vercel/ai/blob/main/packages/ai/src/ui-message-stream/ui-message-chunks.ts) | `Promise<UIMessage>`       | Consume entire stream and return final message (e.g., server-side processing) |
 
 ## Usage
 
@@ -112,28 +112,28 @@ const stream = filterUIMessageStream(result.toUIMessageStream<MyUIMessage>(), ({
 });
 ```
 
-### `experimental_pipe` (Experimental)
+### `pipe` (Experimental)
 
 > [!WARN]
 > This API is experimental and subject to change in future releases.
 
-The `experimental_pipe` function provides a composable pipeline API for chaining filter, map, and observer operations on UI message streams.
+The `pipe` function provides a composable pipeline API for chaining filter, map, and observer operations on UI message streams.
 
 ```typescript
 import {
-  experimental_pipe,
+  pipe,
   includeChunks,
   includeParts,
   excludeChunks,
   excludeParts,
-  isChunk,
+  chunkType,
 } from "ai-stream-utils";
 ```
 
 **Basic usage:**
 
 ```typescript
-const stream = experimental_pipe(result.toUIMessageStream<MyUIMessage>())
+const stream = pipe(result.toUIMessageStream<MyUIMessage>())
   .filter(includeParts(["text", "reasoning"]))
   .map(({ chunk }) => {
     if (chunk.type === "text-delta") {
@@ -160,12 +160,12 @@ const stream = experimental_pipe(result.toUIMessageStream<MyUIMessage>())
 
 **Type guards for `.on()`:**
 
-- `isChunk('text-delta')` or `isChunk(['text-delta', 'start'])` - Observe specific chunk types (including meta chunks)
+- `chunkType('text-delta')` or `chunkType(['text-delta', 'start'])` - Observe specific chunk types (including meta chunks)
 
 **Type-safe filtering example:**
 
 ```typescript
-const stream = experimental_pipe<MyUIMessage>(result.toUIMessageStream())
+const stream = pipe<MyUIMessage>(result.toUIMessageStream())
   .filter(includeParts("text"))
   .map(({ chunk, part }) => {
     // chunk is narrowed to text chunks only
@@ -178,14 +178,14 @@ const stream = experimental_pipe<MyUIMessage>(result.toUIMessageStream())
 **Observer example with `.on()`:**
 
 ```typescript
-const stream = experimental_pipe(result.toUIMessageStream<MyUIMessage>())
-  .on(isChunk("start"), ({ chunk }) => {
+const stream = pipe(result.toUIMessageStream<MyUIMessage>())
+  .on(chunkType("start"), ({ chunk }) => {
     console.log("Stream started");
   })
-  .on(isChunk("text-delta"), ({ chunk }) => {
+  .on(chunkType("text-delta"), ({ chunk }) => {
     console.log("Received text:", chunk.delta);
   })
-  .on(isChunk("finish"), ({ chunk }) => {
+  .on(chunkType("finish"), ({ chunk }) => {
     console.log("Stream finished");
   })
   .toStream();

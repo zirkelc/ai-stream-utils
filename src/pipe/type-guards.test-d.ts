@@ -80,7 +80,9 @@ describe(`type-guards`, () => {
         .filter(includeParts([`tool-weather`, `dynamic-tool`]))
         .map(({ chunk, part }) => {
           expectTypeOf(chunk).toEqualTypeOf<ToolChunk>();
-          expectTypeOf(part).toEqualTypeOf<{ type: `tool-weather` | `dynamic-tool` }>();
+          expectTypeOf(part).toEqualTypeOf<{
+            type: `tool-weather` | `dynamic-tool`;
+          }>();
           return chunk;
         });
     });

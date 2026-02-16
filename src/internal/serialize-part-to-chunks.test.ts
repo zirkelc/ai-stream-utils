@@ -20,9 +20,18 @@ describe("serializePartToChunks", () => {
 
     // Assert
     expect(result.length).toBe(3);
-    expect(result[0]).toMatchObject({ type: "text-start", providerMetadata: undefined });
-    expect(result[1]).toMatchObject({ type: "text-delta", delta: "Hello World" });
-    expect(result[2]).toMatchObject({ type: "text-end", providerMetadata: undefined });
+    expect(result[0]).toMatchObject({
+      type: "text-start",
+      providerMetadata: undefined,
+    });
+    expect(result[1]).toMatchObject({
+      type: "text-delta",
+      delta: "Hello World",
+    });
+    expect(result[2]).toMatchObject({
+      type: "text-end",
+      providerMetadata: undefined,
+    });
     // All chunks should have the same generated ID
     const id0 = (result[0] as any).id;
     const id1 = (result[1] as any).id;
@@ -38,9 +47,18 @@ describe("serializePartToChunks", () => {
 
     // Assert
     expect(result.length).toBe(3);
-    expect(result[0]).toMatchObject({ type: "reasoning-start", providerMetadata: undefined });
-    expect(result[1]).toMatchObject({ type: "reasoning-delta", delta: "Thinking..." });
-    expect(result[2]).toMatchObject({ type: "reasoning-end", providerMetadata: undefined });
+    expect(result[0]).toMatchObject({
+      type: "reasoning-start",
+      providerMetadata: undefined,
+    });
+    expect(result[1]).toMatchObject({
+      type: "reasoning-delta",
+      delta: "Thinking...",
+    });
+    expect(result[2]).toMatchObject({
+      type: "reasoning-end",
+      providerMetadata: undefined,
+    });
     // All chunks should have the same generated ID
     const id0 = (result[0] as any).id;
     const id1 = (result[1] as any).id;
