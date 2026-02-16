@@ -30,7 +30,7 @@ npm install ai-stream-utils
 
 ## Usage
 
-The `pipe` function provides a composable pipeline API for filtering, transforming, and observing UI message streams.
+The `pipe` function provides a composable pipeline API for filtering, transforming, and observing UI message streams. Multiple operators can be chained together, and type guards automatically narrow chunk and part types, thus enabling type-safe stream transformations with autocomplete.
 
 ### `.filter()`
 
