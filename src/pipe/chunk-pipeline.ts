@@ -9,10 +9,10 @@ import type {
   ChunkFilterFn,
   ChunkInput,
   ChunkMapFn,
-  ChunkOnFn,
-  ChunkOnInput,
+  ChunkObserveFn,
+  ChunkObserveInput,
   FilterGuard,
-  OnGuard,
+  ObserveGuard,
 } from "./types.js";
 
 /**
@@ -45,8 +45,9 @@ export class ChunkPipeline<
   }
 
   /**
-   * Filters chunks using a FilterGuard and narrows both chunk and part types.
+   * Filters chunks using a type guard and narrows both chunk and part types.
    * Use with includeChunks(), includeParts(), excludeChunks(), or excludeParts().
+   * The callback only receives content chunks because meta chunks pass through unchanged.
    */
   filter<
     NARROWED_CHUNK extends InferUIMessageChunk<UI_MESSAGE>,
@@ -57,7 +58,6 @@ export class ChunkPipeline<
 
   /**
    * Filters chunks using a generic predicate function.
-   * Type guards should use the specific overloads instead of this one.
    * The callback only receives content chunks because meta chunks pass through unchanged.
    */
   filter(
@@ -160,7 +160,7 @@ export class ChunkPipeline<
   }
 
   /**
-   * Observes chunks matching an OnGuard without filtering them.
+   * Observes chunks matching a type guard without filtering them.
    * The callback receives a narrowed chunk type and inferred part type.
    * Content chunks include a part object with the type, while meta chunks have undefined part.
    * All chunks pass through regardless of whether the callback is invoked.
@@ -169,8 +169,8 @@ export class ChunkPipeline<
     NARROWED_CHUNK extends InferUIMessageChunk<UI_MESSAGE>,
     NARROWED_PART extends { type: string } | undefined,
   >(
-    guard: OnGuard<UI_MESSAGE, NARROWED_CHUNK, NARROWED_PART>,
-    callback: ChunkOnFn<NARROWED_CHUNK, NARROWED_PART>,
+    guard: ObserveGuard<UI_MESSAGE, NARROWED_CHUNK, NARROWED_PART>,
+    callback: ChunkObserveFn<NARROWED_CHUNK, NARROWED_PART>,
   ): ChunkPipeline<UI_MESSAGE, CHUNK, PART>;
 
   /**
@@ -179,18 +179,18 @@ export class ChunkPipeline<
    * All chunks pass through regardless of whether the callback is invoked.
    */
   on(
-    predicate: (input: ChunkOnInput<CHUNK>) => boolean,
-    callback: ChunkOnFn<CHUNK, { type: PART[`type`] } | undefined>,
+    predicate: (input: ChunkObserveInput<CHUNK>) => boolean,
+    callback: ChunkObserveFn<CHUNK, { type: PART[`type`] } | undefined>,
   ): ChunkPipeline<UI_MESSAGE, CHUNK, PART>;
 
   on(
-    predicate: ((input: ChunkOnInput<CHUNK>) => boolean) | OnGuard<UI_MESSAGE, any, any>,
-    callback: ChunkOnFn<any, any>,
+    predicate: ((input: ChunkObserveInput<CHUNK>) => boolean) | ObserveGuard<UI_MESSAGE, any, any>,
+    callback: ChunkObserveFn<any, any>,
   ): ChunkPipeline<UI_MESSAGE, CHUNK, PART> {
     /**
      * The predicate is cast to a simple function type for runtime execution.
      */
-    const predicateFn = predicate as (input: ChunkOnInput<CHUNK>) => boolean;
+    const predicateFn = predicate as (input: ChunkObserveInput<CHUNK>) => boolean;
 
     const nextBuilder: ChunkBuilder<UI_MESSAGE> = (iterable) => {
       const prevIterable = this.prevBuilder(iterable);
@@ -204,7 +204,7 @@ export class ChunkPipeline<
           const input = {
             chunk: item.chunk,
             part: item.partType !== undefined ? { type: item.partType } : undefined,
-          } as ChunkOnInput<CHUNK>;
+          } as ChunkObserveInput<CHUNK>;
 
           if (predicateFn(input)) {
             await callback(input);

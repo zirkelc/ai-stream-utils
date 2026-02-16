@@ -17,7 +17,9 @@ import { ChunkPipeline } from "./chunk-pipeline.js";
 async function* createInternalIterable<UI_MESSAGE extends UIMessage>(
   stream: ReadableStream<InferUIMessageChunk<UI_MESSAGE>>,
 ): AsyncGenerator<InternalChunk<UI_MESSAGE>> {
-  /** Tracks toolCallId → partType mapping for tool chunks */
+  /**
+   * Tracks toolCallId → partType mapping for tool chunks
+   */
   const toolCallIdMap: ToolCallIdMap = new Map();
 
   for await (const chunk of createAsyncIterableStream(stream)) {
@@ -40,7 +42,9 @@ async function* createInternalIterable<UI_MESSAGE extends UIMessage>(
 export function pipe<UI_MESSAGE extends UIMessage>(
   stream: ReadableStream<InferUIMessageChunk<UI_MESSAGE>>,
 ): ChunkPipeline<UI_MESSAGE, InferUIMessageChunk<UI_MESSAGE>, InferUIMessagePart<UI_MESSAGE>> {
-  /** Create internal iterable with part type information */
+  /**
+   * Create internal iterable with part type information
+   */
   const sourceIterable = createInternalIterable<UI_MESSAGE>(stream);
   return new ChunkPipeline(sourceIterable);
 }

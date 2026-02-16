@@ -3,7 +3,6 @@ import type { InternalChunk } from "./base-pipeline.js";
 
 /**
  * Input for chunk-based operations.
- * Part only contains the type field for performance - full part is not assembled.
  */
 export type ChunkInput<CHUNK, PART extends { type: string }> = {
   chunk: CHUNK;
@@ -32,10 +31,10 @@ export type ChunkMapFn<
 ) => InferUIMessageChunk<UI_MESSAGE> | Array<InferUIMessageChunk<UI_MESSAGE>> | null;
 
 /**
- * Input for .on() observer operations.
+ * Input for observer operations.
  * Part is optional since meta chunks don't have a part type.
  */
-export type ChunkOnInput<
+export type ChunkObserveInput<
   CHUNK,
   PART extends { type: string } | undefined = { type: string } | undefined,
 > = {
@@ -44,24 +43,22 @@ export type ChunkOnInput<
 };
 
 /**
- * Callback function for .on() observer.
+ * Callback function for observer operations.
  * Called for each matching chunk. Can be sync or async.
  */
-export type ChunkOnFn<CHUNK, PART extends { type: string } | undefined = undefined> = (
-  input: ChunkOnInput<CHUNK, PART>,
+export type ChunkObserveFn<CHUNK, PART extends { type: string } | undefined = undefined> = (
+  input: ChunkObserveInput<CHUNK, PART>,
 ) => void | Promise<void>;
 
 /**
  * Builder function for ChunkPipeline operations.
- * Uses AsyncIterable instead of ReadableStream for deferred conversion.
  */
 export type ChunkBuilder<UI_MESSAGE extends UIMessage> = (
   iterable: AsyncIterable<InternalChunk<UI_MESSAGE>>,
 ) => AsyncIterable<InternalChunk<UI_MESSAGE>>;
 
 /**
- * Generic guard for filter() - carries pre-computed narrowed types.
- * Factory functions (includeChunks, includeParts, etc.) compute the types.
+ * Generic guard for filter() that carries pre-computed narrowed types.
  * The __brand property distinguishes this from plain predicates.
  */
 export type FilterGuard<
@@ -85,11 +82,11 @@ export type FilterGuard<
 };
 
 /**
- * Generic guard for on() - carries pre-computed narrowed types.
+ * Generic guard for on() that carries pre-computed narrowed types.
  * Part can be undefined for meta chunks.
  * The __brand property distinguishes this from plain predicates.
  */
-export type OnGuard<
+export type ObserveGuard<
   UI_MESSAGE extends UIMessage,
   NARROWED_CHUNK extends InferUIMessageChunk<UI_MESSAGE>,
   NARROWED_PART extends { type: string } | undefined,
@@ -106,5 +103,5 @@ export type OnGuard<
     part: NARROWED_PART;
   };
   /** @internal Type brand - never exists at runtime */
-  readonly __brand: `OnGuard`;
+  readonly __brand: `ObserveGuard`;
 };

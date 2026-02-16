@@ -10,7 +10,7 @@ import type {
   InferUIMessageChunkType,
   InferUIMessagePartType,
 } from "../types.js";
-import type { FilterGuard, OnGuard } from "./types.js";
+import type { FilterGuard, ObserveGuard } from "./types.js";
 
 /**
  * Creates a filter guard that includes specific content chunk types.
@@ -244,7 +244,7 @@ export function chunkType<
   CHUNK_TYPE extends InferUIMessageChunkType<UI_MESSAGE>,
 >(
   types: CHUNK_TYPE | Array<CHUNK_TYPE>,
-): OnGuard<
+): ObserveGuard<
   UI_MESSAGE,
   ExtractChunk<UI_MESSAGE, CHUNK_TYPE>,
   InferPartForChunk<UI_MESSAGE, CHUNK_TYPE>
@@ -263,7 +263,7 @@ export function chunkType<
     part: InferPartForChunk<UI_MESSAGE, CHUNK_TYPE>;
   } => (typeArray as Array<string>).includes((input.chunk as { type: string }).type);
 
-  return guard as OnGuard<
+  return guard as ObserveGuard<
     UI_MESSAGE,
     ExtractChunk<UI_MESSAGE, CHUNK_TYPE>,
     InferPartForChunk<UI_MESSAGE, CHUNK_TYPE>
