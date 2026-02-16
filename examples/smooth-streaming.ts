@@ -1,16 +1,15 @@
 /**
  * Smooth Streaming Example
  *
- * Demonstrates how to use pipe with smoothStreaming() operator.
+ * Demonstrates how to use pipe with map() and closure state for buffering.
  * Buffers text-delta chunks and re-emits them based on word or custom boundaries.
  *
  * This mirrors the AI SDK's smoothStream function behavior.
  */
 
-import { type InferUIMessageChunk, streamText, type UIMessage } from "ai";
-import { type ChunkInput, experimental_pipe as pipe, type ScanOperator } from "../src/index.js";
+import { streamText } from "ai";
+import { pipe } from "../src/index.js";
 import { createMockModel, textToChunks } from "../src/test/mock-model.js";
-import { InferUIMessagePart } from "../src/types.js";
 
 const result = streamText({
   model: createMockModel({
@@ -23,128 +22,78 @@ const result = streamText({
 });
 
 /**
- * State for smooth streaming operator.
+ * Regex pattern for splitting text.
+ * Default: /\S+\s+/m (word + trailing whitespace)
  */
-type SmoothStreamingState = {
-  buffer: string;
-  id: string;
-};
+const pattern = /\S+\s+/m;
 
 /**
- * Options for the smoothStreaming operator.
+ * Closure state for smooth streaming.
+ * These variables persist across map() calls.
  */
-export type SmoothStreamingOptions = {
-  /**
-   * Regex pattern for splitting text.
-   * Default: /\S+\s+/m (word + trailing whitespace)
-   */
-  pattern?: RegExp;
-};
+let buffer = ``;
+let currentId = ``;
 
 /**
- * Creates a ScanOperator that buffers text-delta chunks and re-emits them
- * on word or custom boundaries. Useful for smooth streaming effects.
- *
- * @example
- * ```typescript
- * // Default: emit on word boundaries
- * pipe.scan(smoothStreaming())
- *
- * // Custom: emit on sentence boundaries
- * pipe.scan(smoothStreaming({ pattern: /[.!?]\s+/m }))
- *
- * // Custom: apply to specific part types
- * pipe.scan(smoothStreaming({ partTypes: ['text', 'reasoning'] }))
- * ```
+ * Using pipe with map() and closure state for smooth streaming.
+ * The map callback buffers text and emits on word boundaries.
  */
-function smoothStreaming<UI_MESSAGE extends UIMessage>(
-  options?: SmoothStreamingOptions,
-): ScanOperator<
-  UI_MESSAGE,
-  SmoothStreamingState,
-  InferUIMessageChunk<UI_MESSAGE>,
-  InferUIMessagePart<UI_MESSAGE>
-> {
-  const pattern = options?.pattern ?? /\S+\s+/m;
-
-  return {
-    initial: () => ({ buffer: ``, id: `` }),
-    reducer: (
-      state: SmoothStreamingState,
-      { chunk, part }: ChunkInput<InferUIMessageChunk<UI_MESSAGE>, InferUIMessagePart<UI_MESSAGE>>,
-    ) => {
-      /** Non-text-delta: flush buffer, pass through */
-      if (chunk.type !== `text-delta`) {
-        if (state.buffer.length > 0) {
-          const flushed = {
-            type: `text-delta` as const,
-            id: state.id,
-            delta: state.buffer,
-          };
-          state.buffer = ``;
-          return [flushed, chunk] as Array<InferUIMessageChunk<UI_MESSAGE>>;
-        }
-        return chunk;
-      }
-
-      /** Handle id change: flush old buffer first */
-      const textDelta = chunk as {
-        type: `text-delta`;
-        id: string;
-        delta: string;
-      };
-      if (textDelta.id !== state.id && state.buffer.length > 0) {
+const smoothedStream = pipe(result.toUIMessageStream())
+  .map(({ chunk }) => {
+    /** Non-text-delta: flush buffer, pass through */
+    if (chunk.type !== `text-delta`) {
+      if (buffer.length > 0) {
         const flushed = {
           type: `text-delta` as const,
-          id: state.id,
-          delta: state.buffer,
+          id: currentId,
+          delta: buffer,
         };
-        state.buffer = textDelta.delta;
-        state.id = textDelta.id;
-        return [flushed] as Array<InferUIMessageChunk<UI_MESSAGE>>;
+        buffer = ``;
+        return [flushed, chunk];
       }
+      return chunk;
+    }
 
-      /** Buffer text deltas */
-      state.buffer += textDelta.delta;
-      state.id = textDelta.id;
+    /** Handle id change: flush old buffer first */
+    const textDelta = chunk as {
+      type: `text-delta`;
+      id: string;
+      delta: string;
+    };
+    if (textDelta.id !== currentId && buffer.length > 0) {
+      const flushed = {
+        type: `text-delta` as const,
+        id: currentId,
+        delta: buffer,
+      };
+      buffer = textDelta.delta;
+      currentId = textDelta.id;
+      return [flushed];
+    }
 
-      const chunks: Array<{ type: `text-delta`; id: string; delta: string }> = [];
-      let match: RegExpExecArray | null = null;
+    /** Buffer text deltas */
+    buffer += textDelta.delta;
+    currentId = textDelta.id;
 
-      /** Split text matching the regex into new chunks */
-      // biome-ignore lint/suspicious/noAssignInExpressions: okay to assign in while loop
-      while ((match = pattern.exec(state.buffer)) !== null) {
-        /** Only emit if match starts at beginning of buffer */
-        if (match.index === 0) {
-          chunks.push({ type: `text-delta`, id: state.id, delta: match[0] });
-          state.buffer = state.buffer.slice(match[0].length);
-        } else {
-          /** There's content before the match - wait for more data */
-          break;
-        }
+    const chunks: Array<{ type: `text-delta`; id: string; delta: string }> = [];
+    let match: RegExpExecArray | null = null;
+
+    /** Split text matching the regex into new chunks */
+    // biome-ignore lint/suspicious/noAssignInExpressions: okay to assign in while loop
+    while ((match = pattern.exec(buffer)) !== null) {
+      /** Only emit if match starts at beginning of buffer */
+      if (match.index === 0) {
+        chunks.push({ type: `text-delta`, id: currentId, delta: match[0] });
+        buffer = buffer.slice(match[0].length);
+      } else {
+        /** There's content before the match - wait for more data */
+        break;
       }
+    }
 
-      return chunks.length > 0 ? (chunks as Array<InferUIMessageChunk<UI_MESSAGE>>) : null;
-    },
-    finalize: (state: SmoothStreamingState) => {
-      /** Finalize remaining buffer at end */
-      if (state.buffer.length > 0) {
-        return {
-          type: `text-delta` as const,
-          id: state.id,
-          delta: state.buffer,
-        } as InferUIMessageChunk<UI_MESSAGE>;
-      }
-      return null;
-    },
-  };
-}
-
-/**
- * Using pipe with smoothStreaming() operator.
- * The smoothStreaming() operator buffers text and emits on word boundaries.
- */
-const smoothedStream = pipe(result.toUIMessageStream()).scan(smoothStreaming()).toStream();
+    return chunks.length > 0 ? chunks : null;
+  })
+  .toStream();
 
 for await (const chunk of smoothedStream) {
   console.log(chunk);

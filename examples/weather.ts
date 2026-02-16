@@ -1,7 +1,7 @@
 import { openai } from "@ai-sdk/openai";
 import { type InferUITools, stepCountIs, streamText, tool, type UIMessage } from "ai";
 import { z } from "zod";
-import { flatMapUIMessageStream, partTypeIs } from "../src/flat-map-ui-message-stream";
+import { flatMapUIMessageStream, partTypeIs } from "../src/flat-map";
 
 export type MyMetadata = { id: string };
 export type MyDataPart = { weather: { location: string; temperature: number } };
