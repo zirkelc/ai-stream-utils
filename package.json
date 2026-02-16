@@ -6,19 +6,23 @@
     "ai",
     "ai-sdk",
     "chunk",
+    "filter",
+    "map",
     "message",
     "sdk",
     "stream",
+    "transform",
     "ui",
     "ui-message",
     "ui-message-chunk",
-    "ui-message-stream"
+    "ui-message-stream",
+    "utils"
   ],
   "license": "MIT",
   "author": "Chris Cook",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/zirkelc/ai-stream-utils"
+    "url": "git+https://github.com/zirkelc/ai-stream-utils.git"
   },
   "files": [
     "dist"

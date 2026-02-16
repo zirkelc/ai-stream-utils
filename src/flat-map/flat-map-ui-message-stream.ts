@@ -1,4 +1,4 @@
-import { convertAsyncIteratorToReadableStream } from "@ai-sdk/provider-utils";
+import { convertAsyncIterableToStream } from "../utils/convert-async-iterable-to-stream.js";
 import type { AsyncIterableStream, InferUIMessageChunk, UIMessage } from "ai";
 import { createUIMessageStreamReader } from "../internal/create-ui-message-stream-reader.js";
 import { serializePartToChunks } from "../internal/serialize-part-to-chunks.js";
@@ -355,6 +355,6 @@ export function flatMapUIMessageStream<
     }
   }
 
-  const outputStream = convertAsyncIteratorToReadableStream(processChunks());
+  const outputStream = convertAsyncIterableToStream(processChunks());
   return createAsyncIterableStream(outputStream);
 }

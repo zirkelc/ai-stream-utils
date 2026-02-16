@@ -1,4 +1,4 @@
-import { convertAsyncIteratorToReadableStream } from "@ai-sdk/provider-utils";
+import { convertAsyncIterableToStream } from "../utils/convert-async-iterable-to-stream.js";
 import type { AsyncIterableStream, InferUIMessageChunk, UIMessage } from "ai";
 import { asArray } from "../internal/utils.js";
 import type { ContentChunkType, ExtractChunk } from "../types.js";
@@ -240,7 +240,7 @@ export class ChunkPipeline<
       }
     }
 
-    const outputStream = convertAsyncIteratorToReadableStream(generator());
+    const outputStream = convertAsyncIterableToStream(generator());
 
     return createAsyncIterableStream(outputStream);
   }
