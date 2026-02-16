@@ -1,16 +1,16 @@
-import { convertAsyncIteratorToReadableStream } from '@ai-sdk/provider-utils';
-import type { AsyncIterableStream, InferUIMessageChunk, UIMessage } from 'ai';
-import type { InferUIMessagePart, InferUIMessagePartType } from './types.js';
-import { createAsyncIterableStream } from './utils/create-async-iterable-stream.js';
-import { createUIMessageStreamReader } from './utils/internal/create-ui-message-stream-reader.js';
-import { serializePartToChunks } from './utils/internal/serialize-part-to-chunks.js';
+import { convertAsyncIteratorToReadableStream } from "@ai-sdk/provider-utils";
+import type { AsyncIterableStream, InferUIMessageChunk, UIMessage } from "ai";
+import { createUIMessageStreamReader } from "../internal/create-ui-message-stream-reader.js";
+import { serializePartToChunks } from "../internal/serialize-part-to-chunks.js";
 import {
   asArray,
   isMessageDataChunk,
   isMetaChunk,
   isStepEndChunk,
   isStepStartChunk,
-} from './utils/internal/stream-utils.js';
+} from "../internal/utils.js";
+import type { InferUIMessagePart, InferUIMessagePartType } from "../types.js";
+import { createAsyncIterableStream } from "../utils/create-async-iterable-stream.js";
 
 /**
  * Input object provided to the part flatMap function.
@@ -161,10 +161,7 @@ export function flatMapUIMessageStream<
   PART extends InferUIMessagePart<UI_MESSAGE>,
 >(
   ...args:
-    | [
-        ReadableStream<InferUIMessageChunk<UI_MESSAGE>>,
-        FlatMapUIMessageStreamFn<UI_MESSAGE, PART>,
-      ]
+    | [ReadableStream<InferUIMessageChunk<UI_MESSAGE>>, FlatMapUIMessageStreamFn<UI_MESSAGE, PART>]
     | [
         ReadableStream<InferUIMessageChunk<UI_MESSAGE>>,
         FlatMapUIMessageStreamPredicate<UI_MESSAGE, PART>,
@@ -172,16 +169,14 @@ export function flatMapUIMessageStream<
       ]
 ): AsyncIterableStream<InferUIMessageChunk<UI_MESSAGE>> {
   const [inputStream, predicate, flatMapFn] =
-    args.length === 2
-      ? [args[0], undefined, args[1]]
-      : [args[0], args[1], args[2]];
+    args.length === 2 ? [args[0], undefined, args[1]] : [args[0], args[1], args[2]];
 
   /**
    * Mode for processing the current part.
    * - 'buffering': predicate matched, collecting chunks to transform later
    * - 'streaming': predicate didn't match, passing chunks through immediately
    */
-  type PartMode = 'buffering' | 'streaming';
+  type PartMode = "buffering" | "streaming";
 
   /** Tracks the number of parts seen so far. Used to detect when a new part starts. */
   let lastPartCount = 0;
@@ -241,7 +236,7 @@ export function flatMapUIMessageStream<
     // Normalize to array and emit chunks for each part
     const parts = asArray(result);
     for (const part of parts) {
-      const chunksToEmit = serializePartToChunks(part, bufferedChunks);
+      const chunksToEmit = serializePartToChunks(part);
       yield* emitChunks(chunksToEmit);
     }
 
@@ -252,14 +247,10 @@ export function flatMapUIMessageStream<
   /**
    * Main processing generator.
    */
-  async function* processChunks(): AsyncGenerator<
-    InferUIMessageChunk<UI_MESSAGE>
-  > {
-    for await (const {
-      chunk,
-      message,
-      part,
-    } of createUIMessageStreamReader<UI_MESSAGE>(inputStream)) {
+  async function* processChunks(): AsyncGenerator<InferUIMessageChunk<UI_MESSAGE>> {
+    for await (const { chunk, message, part } of createUIMessageStreamReader<UI_MESSAGE>(
+      inputStream,
+    )) {
       // Meta chunks (start, finish, abort, error, message-metadata) always pass through unchanged.
       if (isMetaChunk(chunk)) {
         yield chunk;
@@ -276,7 +267,7 @@ export function flatMapUIMessageStream<
       // Step is ending. Flush any pending buffered part and emit finish-step if start-step was emitted.
       if (isStepEndChunk(chunk)) {
         // Part was still being buffered (e.g., tool without execute function). Flush it now.
-        if (currentMode === 'buffering' && lastBufferedPart) {
+        if (currentMode === `buffering` && lastBufferedPart) {
           yield* flushBufferedPart(lastBufferedPart);
         }
 
@@ -307,9 +298,7 @@ export function flatMapUIMessageStream<
         const parts = asArray(result);
         for (const part of parts) {
           // For data parts, the part IS the chunk
-          yield* emitChunks([
-            part as unknown as InferUIMessageChunk<UI_MESSAGE>,
-          ]);
+          yield* emitChunks([part as unknown as InferUIMessageChunk<UI_MESSAGE>]);
         }
         continue;
       }
@@ -317,28 +306,24 @@ export function flatMapUIMessageStream<
       // Content chunks should always have a message from readUIMessageStream.
       // If not, the stream reader behavior has changed unexpectedly.
       if (!message) {
-        throw new Error(
-          'Unexpected: received content chunk but message is undefined',
-        );
+        throw new Error(`Unexpected: received content chunk but message is undefined`);
       }
 
       // Content chunks should always have a corresponding part from the reader.
       // If not, the stream reader behavior has changed unexpectedly.
       const currentPart = part;
       if (!currentPart) {
-        throw new Error(
-          `Unexpected: received content chunk but part is undefined`,
-        );
+        throw new Error(`Unexpected: received content chunk but part is undefined`);
       }
 
       // New part started (part count increased). Previous part is now complete.
       if (message.parts.length > lastPartCount) {
         // Previous part was buffered. Flush it before starting the new one.
-        if (currentMode === 'buffering' && lastBufferedPart) {
+        if (currentMode === `buffering` && lastBufferedPart) {
           yield* flushBufferedPart(lastBufferedPart);
         }
         // Previous part was streamed. Add it to allParts for context tracking.
-        if (currentMode === 'streaming' && lastPartCount > 0) {
+        if (currentMode === `streaming` && lastPartCount > 0) {
           const previousPart = message.parts[lastPartCount - 1];
           if (previousPart) {
             allParts.push(previousPart);
@@ -349,22 +334,22 @@ export function flatMapUIMessageStream<
 
         // Predicate matched (or no predicate). Buffer this part for transformation.
         if (shouldBuffer) {
-          currentMode = 'buffering';
+          currentMode = `buffering`;
           bufferedChunks = [chunk];
           lastBufferedPart = currentPart;
           // Predicate didn't match. Stream this part through immediately.
         } else {
-          currentMode = 'streaming';
+          currentMode = `streaming`;
           yield* emitChunks([chunk]);
         }
 
         lastPartCount = message.parts.length;
         // Same part, still buffering. Add chunk to buffer and update lastBufferedPart.
-      } else if (currentMode === 'buffering') {
+      } else if (currentMode === `buffering`) {
         bufferedChunks.push(chunk);
         lastBufferedPart = currentPart;
         // Same part, still streaming. Pass chunk through immediately.
-      } else if (currentMode === 'streaming') {
+      } else if (currentMode === `streaming`) {
         yield* emitChunks([chunk]);
       }
     }

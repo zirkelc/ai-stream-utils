@@ -1,5 +1,5 @@
-import type { InferUIMessageChunk, UIMessage } from 'ai';
-import { readUIMessageStream } from 'ai';
+import type { InferUIMessageChunk, UIMessage } from "ai";
+import { readUIMessageStream } from "ai";
 
 /**
  * Consumes a UIMessageStream by fully reading it and returning the final UI message.
@@ -31,7 +31,7 @@ export async function consumeUIMessageStream<UI_MESSAGE extends UIMessage>(
   }
 
   if (!lastMessage) {
-    throw new Error('Unexpected: stream ended without producing any messages');
+    throw new Error("Unexpected: stream ended without producing any messages");
   }
 
   return lastMessage;

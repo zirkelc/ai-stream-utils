@@ -1,102 +1,114 @@
 /**
  * Smooth Streaming Example
  *
- * Demonstrates how to use mapUIMessageStream to implement smooth streaming.
- * Buffers text-delta chunks and re-emits them based on word/line boundaries.
+ * Demonstrates how to use pipe with map() and closure state for buffering.
+ * Buffers text-delta chunks and re-emits them based on word or custom boundaries.
  *
  * This mirrors the AI SDK's smoothStream function behavior.
  */
 
-import { openai } from '@ai-sdk/openai';
-import type { UIMessageChunk } from 'ai';
-import { streamText } from 'ai';
-import { mapUIMessageStream } from '../src/index.js';
+import { streamText } from "ai";
+import { pipe } from "../src/index.js";
+import { createMockModel, textToChunks } from "../src/test/mock-model.js";
 
-// Chunking patterns
-const WORD_REGEX = /\S+\s+/m; // Matches word + trailing whitespace
-const LINE_REGEX = /\n+/m; // Matches newline(s)
+const result = streamText({
+  model: createMockModel({
+    chunks: textToChunks({
+      text: `Why don't scientists trust atoms? Because they make up everything.`,
+      seperator: ` `,
+    }),
+  }),
+  prompt: `Tell me a joke.`,
+});
 
-function smoothUIMessageStream(
-  // Original UI message stream
-  stream: ReadableStream<UIMessageChunk>,
-  // Regex to split text into chunks
-  regex: RegExp,
-) {
-  // Buffer state
-  let buffer = '';
-  let currentId = '';
+/**
+ * Regex pattern for splitting text.
+ * Default: /\S+\s+/m (word + trailing whitespace)
+ */
+const pattern = /\S+\s+/m;
 
-  // Map returns a new UI message stream
-  return mapUIMessageStream(stream, ({ chunk }) => {
-    // Non-text-delta: flush buffer, pass through
-    if (chunk.type !== 'text-delta') {
+/**
+ * Closure state for smooth streaming.
+ * These variables persist across map() calls.
+ */
+let buffer = ``;
+let currentId = ``;
+
+/**
+ * Using pipe with map() and closure state for smooth streaming.
+ * The map callback buffers text and emits on word boundaries.
+ */
+const smoothedStream = pipe(result.toUIMessageStream())
+  .map(({ chunk }) => {
+    /** Non-text-delta: flush buffer, pass through */
+    if (chunk.type !== `text-delta`) {
       if (buffer.length > 0) {
-        const flushed: UIMessageChunk = {
-          type: 'text-delta',
+        const flushed = {
+          type: `text-delta` as const,
           id: currentId,
           delta: buffer,
         };
-        buffer = '';
+        buffer = ``;
         return [flushed, chunk];
       }
       return chunk;
     }
 
-    // Handle id change: flush old buffer first
-    if (chunk.id !== currentId && buffer.length > 0) {
-      const flushed: UIMessageChunk = {
-        type: 'text-delta',
+    /** Handle id change: flush old buffer first */
+    const textDelta = chunk as {
+      type: `text-delta`;
+      id: string;
+      delta: string;
+    };
+    if (textDelta.id !== currentId && buffer.length > 0) {
+      const flushed = {
+        type: `text-delta` as const,
         id: currentId,
         delta: buffer,
       };
-      buffer = chunk.delta;
-      currentId = chunk.id;
+      buffer = textDelta.delta;
+      currentId = textDelta.id;
       return [flushed];
     }
 
-    // Buffer text deltas
-    buffer += chunk.delta;
-    currentId = chunk.id;
+    /** Buffer text deltas */
+    buffer += textDelta.delta;
+    currentId = textDelta.id;
 
-    const chunks: UIMessageChunk[] = [];
+    const chunks: Array<{ type: `text-delta`; id: string; delta: string }> = [];
     let match: RegExpExecArray | null = null;
 
-    // Split text matching the regex into new chunks
+    /** Split text matching the regex into new chunks */
     // biome-ignore lint/suspicious/noAssignInExpressions: okay to assign in while loop
-    while ((match = regex.exec(buffer)) !== null) {
-      const text = buffer.slice(0, match.index) + match[0];
-      chunks.push({ type: 'text-delta', id: currentId, delta: text });
-      buffer = buffer.slice(text.length);
+    while ((match = pattern.exec(buffer)) !== null) {
+      /** Only emit if match starts at beginning of buffer */
+      if (match.index === 0) {
+        chunks.push({ type: `text-delta`, id: currentId, delta: match[0] });
+        buffer = buffer.slice(match[0].length);
+      } else {
+        /** There's content before the match - wait for more data */
+        break;
+      }
     }
 
-    // Return new chunks
-    return chunks;
-  });
-}
-
-const result = streamText({
-  model: openai('gpt-5'),
-  prompt: 'Tell me a joke.',
-});
-
-const smoothedStream = smoothUIMessageStream(
-  result.toUIMessageStream(), // Original stream
-  WORD_REGEX, // Split text into chunks
-);
+    return chunks.length > 0 ? chunks : null;
+  })
+  .toStream();
 
 for await (const chunk of smoothedStream) {
   console.log(chunk);
 }
-// Each text chunk is now a full word:
-// { type: 'text-start'}
-// { type: 'text-delta', delta: 'Why ' }
-// { type: 'text-delta', delta: 'don’t ' }
-// { type: 'text-delta', delta: 'scientists ' }
-// { type: 'text-delta', delta: 'trust ' }
-// { type: 'text-delta', delta: 'atoms? ' }
-// { type: 'text-delta', delta: 'Because ' }
-// { type: 'text-delta', delta: 'they ' }
-// { type: 'text-delta', delta: 'make ' }
-// { type: 'text-delta', delta: 'up ' }
-// { type: 'text-delta', delta: 'everything.' }
-// { type: 'text-end' }
+/** Each text chunk is now a full word:
+ * { type: 'text-start'}
+ * { type: 'text-delta', delta: 'Why ' }
+ * { type: 'text-delta', delta: "don't " }
+ * { type: 'text-delta', delta: 'scientists ' }
+ * { type: 'text-delta', delta: 'trust ' }
+ * { type: 'text-delta', delta: 'atoms? ' }
+ * { type: 'text-delta', delta: 'Because ' }
+ * { type: 'text-delta', delta: 'they ' }
+ * { type: 'text-delta', delta: 'make ' }
+ * { type: 'text-delta', delta: 'up ' }
+ * { type: 'text-delta', delta: 'everything.' }
+ * { type: 'text-end' }
+ */

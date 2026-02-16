@@ -1,5 +1,5 @@
-import { describe, expect, test } from 'vitest';
-import { convertAsyncIterableToArray } from './convert-async-iterable-to-array.js';
+import { describe, expect, test } from "vitest";
+import { convertAsyncIterableToArray } from "./convert-async-iterable-to-array.js";
 
 describe(`convertAsyncIterableToArray`, () => {
   test(`should convert async iterable to array`, async () => {

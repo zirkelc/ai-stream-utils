@@ -1,6 +1,6 @@
-import { describe, expect, test } from 'vitest';
-import { convertAsyncIterableToStream } from './convert-async-iterable-to-stream.js';
-import { convertStreamToArray } from './convert-stream-to-array.js';
+import { describe, expect, test } from "vitest";
+import { convertAsyncIterableToStream } from "./convert-async-iterable-to-stream.js";
+import { convertStreamToArray } from "./convert-stream-to-array.js";
 
 describe(`convertAsyncIterableToStream`, () => {
   test(`should convert async iterable to stream`, async () => {

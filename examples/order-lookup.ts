@@ -1,16 +1,7 @@
-import { openai } from '@ai-sdk/openai';
-import {
-  type InferUITools,
-  stepCountIs,
-  streamText,
-  tool,
-  type UIMessage,
-} from 'ai';
-import { z } from 'zod';
-import {
-  flatMapUIMessageStream,
-  partTypeIs,
-} from '../src/flat-map-ui-message-stream';
+import { openai } from "@ai-sdk/openai";
+import { type InferUITools, stepCountIs, streamText, tool, type UIMessage } from "ai";
+import { z } from "zod";
+import { flatMapUIMessageStream, partTypeIs } from "../src/flat-map-ui-message-stream";
 
 export type MyMetadata = { id: string };
 export type MyDataPart = {};
@@ -19,26 +10,26 @@ export type MyUIMessage = UIMessage<MyMetadata, MyDataPart, MyTools>;
 
 const tools = {
   lookupOrder: tool({
-    description: 'Look up order details by order ID',
+    description: "Look up order details by order ID",
     inputSchema: z.object({
-      orderId: z.string().describe('The order ID to look up'),
+      orderId: z.string().describe("The order ID to look up"),
     }),
     execute: ({ orderId }) => {
       return {
         orderId,
-        status: 'shipped',
-        items: ['iPhone 15'],
+        status: "shipped",
+        items: ["iPhone 15"],
         total: 1299.99,
-        email: 'customer@example.com',
-        address: '123 Main St, San Francisco, CA 94102',
+        email: "customer@example.com",
+        address: "123 Main St, San Francisco, CA 94102",
       };
     },
   }),
 };
 
 const result = streamText({
-  model: openai('gpt-4o'),
-  prompt: 'Where is my order #12345?',
+  model: openai("gpt-4o"),
+  prompt: "Where is my order #12345?",
   tools,
   stopWhen: stepCountIs(5),
 });
@@ -49,18 +40,18 @@ const uiMessageStream = result.toUIMessageStream<MyUIMessage>();
 const flatMappedStream = flatMapUIMessageStream(
   uiMessageStream,
   // Buffer only tool-lookupOrder parts
-  partTypeIs('tool-lookupOrder'),
+  partTypeIs("tool-lookupOrder"),
   ({ part }) => {
     // Part is already typed as tool-lookupOrder due to the predicate
     // Onyl use the part.state to check if the part already has output available
-    if (part.state === 'output-available') {
+    if (part.state === "output-available") {
       const { output } = part;
       return {
         ...part,
         output: {
           ...output,
-          email: '[REDACTED]',
-          address: '[REDACTED]',
+          email: "[REDACTED]",
+          address: "[REDACTED]",
         },
       };
     }

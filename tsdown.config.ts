@@ -1,4 +1,4 @@
-import { defineConfig } from 'tsdown';
+import { defineConfig } from "tsdown";
 
 export default defineConfig({
   /**
@@ -6,7 +6,7 @@ export default defineConfig({
    * Requires @arethetypeswrong/core to be installed.
    */
   attw: {
-    profile: 'esm-only',
+    profile: "esm-only",
   },
   /**
    * Run publint after bundling.
@@ -14,6 +14,6 @@ export default defineConfig({
    */
   publint: true,
   exports: true,
-  entry: 'src/**/index.ts',
-  format: ['esm'],
+  entry: ["./src/index.ts", "./src/utils/index.ts"],
+  format: ["esm"],
 });

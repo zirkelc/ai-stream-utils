@@ -1,4 +1,4 @@
-import { openai } from '@ai-sdk/openai';
+import { openai } from "@ai-sdk/openai";
 import {
   type InferUITools,
   readUIMessageStream,
@@ -6,12 +6,9 @@ import {
   streamText,
   tool,
   type UIMessage,
-} from 'ai';
-import { z } from 'zod';
-import {
-  flatMapUIMessageStream,
-  partTypeIs,
-} from '../src/flat-map-ui-message-stream';
+} from "ai";
+import { z } from "zod";
+import { flatMapUIMessageStream, partTypeIs } from "../src/flat-map";
 
 export type MyMetadata = { id: string };
 export type MyDataPart = {};
@@ -20,9 +17,9 @@ export type MyUIMessage = UIMessage<MyMetadata, MyDataPart, MyTools>;
 
 const tools = {
   askForPermission: tool({
-    description: 'Ask for permission to access current location',
+    description: "Ask for permission to access current location",
     inputSchema: z.object({
-      message: z.string().describe('The message to ask for permission'),
+      message: z.string().describe("The message to ask for permission"),
     }),
   }),
 };
@@ -30,8 +27,8 @@ const tools = {
 // The model will generate tool call with a message to ask for permission
 // It may also generate a text part before the tool call asking for permission
 const result = streamText({
-  model: openai('gpt-5'),
-  prompt: 'Is it sunny today?',
+  model: openai("gpt-5"),
+  prompt: "Is it sunny today?",
   tools,
   stopWhen: stepCountIs(5),
 });
@@ -45,7 +42,7 @@ const uiMessageStream = result.toUIMessageStream<MyUIMessage>();
 const flatMappedStream = flatMapUIMessageStream(
   uiMessageStream,
   // Predicate to only buffer tool-askForPermission parts and pass through other parts
-  partTypeIs('tool-askForPermission'),
+  partTypeIs("tool-askForPermission"),
 
   // Current: contains the buffered tool call part
   // Context: contains the previous parts already streamed to the client
@@ -54,16 +51,16 @@ const flatMappedStream = flatMapUIMessageStream(
     const toolPart = current.part;
 
     // Check state to see if it has input available
-    if (toolPart.state === 'input-available') {
+    if (toolPart.state === "input-available") {
       // Did the model generate a text part already?
-      const textPart = context.parts.find((part) => part.type === 'text');
+      const textPart = context.parts.find((part) => part.type === "text");
 
       // If no text part was generated before the tool call, we will create one
       if (!textPart) {
         // New: Returning an array to expand the part into multiple parts
         return [
           // New text part with the tool call message
-          { type: 'text', text: toolPart.input.message },
+          { type: "text", text: toolPart.input.message },
           // Original tool call part
           toolPart,
         ];

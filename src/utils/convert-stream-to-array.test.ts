@@ -1,6 +1,6 @@
-import { describe, expect, test } from 'vitest';
-import { convertArrayToStream } from './convert-array-to-stream.js';
-import { convertStreamToArray } from './convert-stream-to-array.js';
+import { describe, expect, test } from "vitest";
+import { convertArrayToStream } from "./convert-array-to-stream.js";
+import { convertStreamToArray } from "./convert-stream-to-array.js";
 
 describe(`convertStreamToArray`, () => {
   test(`should convert stream to array`, async () => {

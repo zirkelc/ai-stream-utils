@@ -1,1 +1,1 @@
-export type { AsyncIterableStream } from 'ai';
+export type { AsyncIterableStream } from "ai";

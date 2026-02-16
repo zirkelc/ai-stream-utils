@@ -1,8 +1,4 @@
-import {
-  parseJsonEventStream,
-  type UIMessageChunk,
-  uiMessageChunkSchema,
-} from 'ai';
+import { parseJsonEventStream, type UIMessageChunk, uiMessageChunkSchema } from "ai";
 
 /**
  * Converts an SSE stream to a UI message stream.

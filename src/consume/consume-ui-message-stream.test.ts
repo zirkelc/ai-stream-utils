@@ -1,6 +1,5 @@
-import { convertArrayToReadableStream } from '@ai-sdk/provider-utils/test';
-import { describe, expect, it } from 'vitest';
-import { consumeUIMessageStream } from './consume-ui-message-stream.js';
+import { convertArrayToReadableStream } from "@ai-sdk/provider-utils/test";
+import { describe, expect, it } from "vitest";
 import {
   DATA_CHUNKS,
   DYNAMIC_TOOL_CHUNKS,
@@ -12,15 +11,12 @@ import {
   START_CHUNK,
   TEXT_CHUNKS,
   TOOL_SERVER_CHUNKS,
-} from './utils/internal/test-utils.js';
+} from "../test/ui-message.js";
+import { consumeUIMessageStream } from "./consume-ui-message-stream.js";
 
-describe('consumeUIMessageStream', () => {
-  it('should consume a stream with text chunks and return the final message', async () => {
-    const stream = convertArrayToReadableStream([
-      START_CHUNK,
-      ...TEXT_CHUNKS,
-      FINISH_CHUNK,
-    ]);
+describe("consumeUIMessageStream", () => {
+  it("should consume a stream with text chunks and return the final message", async () => {
+    const stream = convertArrayToReadableStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
 
     const message = await consumeUIMessageStream<MyUIMessage>(stream);
 
@@ -38,13 +34,13 @@ describe('consumeUIMessageStream', () => {
       ]
     `);
 
-    const textPart = message.parts.find((part) => part.type === 'text');
+    const textPart = message.parts.find((part) => part.type === "text");
     expect(textPart).toBeDefined();
-    expect(textPart?.type).toBe('text');
-    expect((textPart as { text: string }).text).toBe('Hello World');
+    expect(textPart?.type).toBe("text");
+    expect((textPart as { text: string }).text).toBe("Hello World");
   });
 
-  it('should consume a stream with all part types', async () => {
+  it("should consume a stream with all part types", async () => {
     const stream = convertArrayToReadableStream([
       START_CHUNK,
       ...TEXT_CHUNKS,
@@ -81,11 +77,11 @@ describe('consumeUIMessageStream', () => {
     `);
   });
 
-  it('should throw when stream produces no messages', async () => {
+  it("should throw when stream produces no messages", async () => {
     const stream = convertArrayToReadableStream([START_CHUNK, FINISH_CHUNK]);
 
     await expect(consumeUIMessageStream<MyUIMessage>(stream)).rejects.toThrow(
-      'Unexpected: stream ended without producing any messages',
+      "Unexpected: stream ended without producing any messages",
     );
   });
 });

@@ -1,4 +1,4 @@
-import { JsonToSseTransformStream, type UIMessageChunk } from 'ai';
+import { JsonToSseTransformStream, type UIMessageChunk } from "ai";
 
 /**
  * Converts a UI message stream to an SSE stream.

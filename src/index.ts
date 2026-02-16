@@ -1,24 +1,6 @@
-export { consumeUIMessageStream } from './consume-ui-message-stream.js';
-export {
-  excludeParts,
-  type FilterUIMessageStreamPredicate,
-  filterUIMessageStream,
-  includeParts,
-} from './filter-ui-message-stream.js';
-export {
-  type FlatMapContext,
-  type FlatMapInput,
-  type FlatMapUIMessageStreamFn,
-  type FlatMapUIMessageStreamPredicate,
-  flatMapUIMessageStream,
-  partTypeIs,
-} from './flat-map-ui-message-stream.js';
-export {
-  type MapInput,
-  type MapUIMessageStreamFn,
-  mapUIMessageStream,
-} from './map-ui-message-stream.js';
-export type {
-  InferUIMessagePart,
-  InferUIMessagePartType,
-} from './types.js';
+export * from "./consume/index.js";
+export * from "./filter/index.js";
+export * from "./flat-map/index.js";
+export * from "./map/index.js";
+export * from "./pipe/index.js";
+export * from "./utils/index.js";
