@@ -2,6 +2,7 @@ import { openai } from "@ai-sdk/openai";
 import { type InferUITools, stepCountIs, streamText, tool, type UIMessage } from "ai";
 import { z } from "zod";
 import { flatMapUIMessageStream, partTypeIs } from "../src/flat-map";
+import { excludeParts, includeParts, pipe } from "../src/pipe";
 
 export type MyMetadata = { id: string };
 export type MyDataPart = { weather: { location: string; temperature: number } };
@@ -33,37 +34,25 @@ const result = streamText({
   stopWhen: stepCountIs(5),
 });
 
-const uiMessageStream = result.toUIMessageStream<MyUIMessage>();
-
-// FlatMap: Buffer tool-call chunks until part is complete, then convert to Fahrenheit
-const flatMappedStream = flatMapUIMessageStream(
-  uiMessageStream,
-  partTypeIs("tool-weather"),
-  ({ part }) => {
-    if (part.type === "tool-weather" && part.state === "output-available") {
-      const { output } = part;
+const stream = pipe(result.toUIMessageStream<MyUIMessage>())
+  .filter(excludeParts(["tool-weather"]))
+  .filter(includeParts(["text", "data-weather"]))
+  .map(({ chunk, part }) => {
+    if (chunk.type === "data-weather") {
       return {
-        ...part,
-        output: {
-          ...output,
-          temperature: toFahrenheit(output.temperature),
+        ...chunk,
+        data: {
+          ...chunk.data,
+          temperature: toFahrenheit(chunk.data.temperature),
           unit: "F",
         },
       };
     }
 
-    return part;
-  },
-);
+    return chunk;
+  })
+  .toStream();
 
-for await (const chunk of flatMappedStream) {
+for await (const chunk of stream) {
   console.log(chunk);
 }
-
-// for await (const message of readUIMessageStream({
-//   stream: flatMappedStream,
-// })) {
-//   for (const part of message.parts) {
-//     console.log(part);
-//   }
-// }

@@ -68,7 +68,7 @@ const weatherTool = tool({
 //   },
 // });
 
-const tools = {
+export const tools = {
   weather: weatherTool,
   // calculator: calculatorTool,
 };
