@@ -15,9 +15,9 @@ This library provides composable filter and transformation utilities for UI mess
 
 The AI SDK UI message stream created by [`toUIMessageStream()`](https://ai-sdk.dev/docs/reference/ai-sdk-core/stream-text#to-ui-message-stream) streams all parts (text, tools, reasoning, etc.) to the client by default. However, you may want to:
 
-- **Filter**: Tool calls like database queries often contain large amounts of data or sensitive information that should not be streamed to the client
+- **Filter**: Tool calls like database searches often contain large amounts of data or sensitive information that should not be streamed to the client
 - **Transform**: Modify text or tool outputs while they are streamed to the client
-- **Observe**: Log stream lifecycle events, tool calls, or other chunks without consuming or modifying the stream
+- **Observe**: Log stream lifecycle events, update states, or run side-effects without modifying the stream
 
 This library provides type-safe, composable utilities for all these use cases.
 
@@ -139,14 +139,17 @@ const stream = pipe(result.toUIMessageStream())
 
 ```typescript
 const stream = pipe(result.toUIMessageStream())
-  .on(chunkType("start"), () => {
-    console.log("Stream started");
+  .on(chunkType("start"), ({ chunk }) => {
+    console.log("Stream started:", chunk.messageId);
   })
   .on(chunkType("finish"), ({ chunk }) => {
     console.log("Stream finished:", chunk.finishReason);
   })
   .on(chunkType("tool-input-available"), ({ chunk }) => {
-    console.log("Tool called:", chunk.toolName, chunk.input);
+    console.log("Tool input:", chunk.toolName, chunk.input);
+  })
+  .on(chunkType("tool-output-available"), ({ chunk }) => {
+    console.log("Tool output:", chunk.toolName, chunk.output);
   })
   .toStream();
 ```
@@ -183,8 +186,8 @@ Multiple operators can be chained together. After filtering with type guards, ch
 const stream = pipe<MyUIMessage>(result.toUIMessageStream())
   .filter(includeParts("text"))
   .map(({ chunk, part }) => {
-    // chunk is narrowed to text chunks only
-    // part.type is narrowed to "text"
+    // chunk is narrowed to text chunks: "text-start" | "text-delta" | "text-end"
+    // part is narrowed to "text"
     return chunk;
   })
   .toStream();

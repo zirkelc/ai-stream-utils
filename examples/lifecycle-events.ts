@@ -34,7 +34,7 @@ const stream = pipe(result.toUIMessageStream({ generateMessageId: generateId }))
     thinkingStart = Date.now();
     console.log(`Thinking...`);
   })
-  // Reasoning finsihed
+  // Reasoning finished
   .on(chunkType(`reasoning-end`), () => {
     const thinkingDuration = Date.now() - thinkingStart;
     console.log(`Thought for ${thinkingDuration}ms`);
