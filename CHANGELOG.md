@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.1](https://github.com/zirkelc/ai-stream-utils/compare/v2.0.0...v2.0.1) (2026-02-17)
+
+
+### Bug Fixes
+
+* carry narrowed types through the chain ([aa569dd](https://github.com/zirkelc/ai-stream-utils/commit/aa569dde40f29f4ecea0475cffa55f69c45ca4d1))
+
 ## [2.0.0](https://github.com/zirkelc/ai-stream-utils/compare/v1.6.0...v2.0.0) (2026-02-17)
 
 
