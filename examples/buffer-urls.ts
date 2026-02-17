@@ -184,13 +184,8 @@ const MARKDOWN_URL_PATTERN: BufferPattern = {
   // replace: (url) => `https://example.com`, // Example replacer
 };
 
-/* LIVE STREAM */
-// const result = streamText({
-//   model: openai(`gpt-4o`),
-//   prompt: `Give me 3 useful programming resources. Include the full URLs.`,
-// });
-
 const result = streamText({
+  // model: openai(`gpt-4o`),
   model: createMockModel({
     chunks: [
       {
@@ -753,7 +748,7 @@ const result = streamText({
       },
     ],
   }),
-  prompt: `Tell me a joke.`,
+  prompt: `Give me 3 useful programming resources. Include the full URLs.`,
 });
 
 const bufferedStream = bufferPatternsUIMessageStream(result.toUIMessageStream(), [
