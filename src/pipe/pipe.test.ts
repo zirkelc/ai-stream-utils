@@ -15,7 +15,14 @@ import { convertArrayToStream } from "../utils/convert-array-to-stream.js";
 import { convertAsyncIterableToArray } from "../utils/convert-async-iterable-to-array.js";
 import { createAsyncIterableStream } from "../utils/create-async-iterable-stream.js";
 import { pipe } from "./pipe.js";
-import { chunkType, includeChunks, includeParts, partType } from "./type-guards.js";
+import {
+  chunkType,
+  excludeChunks,
+  excludeParts,
+  includeChunks,
+  includeParts,
+  partType,
+} from "./type-guards.js";
 
 describe(`pipe`, () => {
   describe(`filter`, () => {
@@ -38,6 +45,12 @@ describe(`pipe`, () => {
           FINISH_STEP_CHUNK,
           FINISH_CHUNK,
         ]);
+
+        // Assert - text-start and text-end chunks are excluded
+        const textStartChunks = result.filter((c) => c.type === `text-start`);
+        const textEndChunks = result.filter((c) => c.type === `text-end`);
+        expect(textStartChunks.length).toBe(0);
+        expect(textEndChunks.length).toBe(0);
       });
 
       it(`should filter by multiple chunk types`, async () => {
@@ -61,6 +74,120 @@ describe(`pipe`, () => {
           FINISH_STEP_CHUNK,
           FINISH_CHUNK,
         ]);
+
+        // Assert - text-end chunks are excluded
+        const textEndChunks = result.filter((c) => c.type === `text-end`);
+        expect(textEndChunks.length).toBe(0);
+      });
+
+      it(`should chain multiple filters`, async () => {
+        // Arrange
+        const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+
+        // Act - first filter to text-start+text-delta, then narrow to just text-delta
+        const result = await convertAsyncIterableToArray(
+          pipe<MyUIMessage>(stream)
+            .filter(includeChunks([`text-start`, `text-delta`]))
+            .filter(includeChunks(`text-delta`))
+            .toStream(),
+        );
+
+        // Assert - only text-delta + meta/step chunks pass
+        expect(result).toEqual([
+          START_CHUNK,
+          START_STEP_CHUNK,
+          { type: `text-delta`, id: `1`, delta: `Hello` },
+          { type: `text-delta`, id: `1`, delta: ` World` },
+          FINISH_STEP_CHUNK,
+          FINISH_CHUNK,
+        ]);
+
+        // Assert - text-start and text-end are excluded
+        const textStartChunks = result.filter((c) => c.type === `text-start`);
+        const textEndChunks = result.filter((c) => c.type === `text-end`);
+        expect(textStartChunks.length).toBe(0);
+        expect(textEndChunks.length).toBe(0);
+      });
+    });
+
+    describe(`excludeChunks`, () => {
+      it(`should filter by single chunk type`, async () => {
+        // Arrange
+        const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+
+        // Act
+        const result = await convertAsyncIterableToArray(
+          pipe<MyUIMessage>(stream).filter(excludeChunks(`text-delta`)).toStream(),
+        );
+
+        // Assert - text-start and text-end chunks + meta/step chunks pass through
+        expect(result).toEqual([
+          START_CHUNK,
+          START_STEP_CHUNK,
+          { type: `text-start`, id: `1` },
+          { type: `text-end`, id: `1` },
+          FINISH_STEP_CHUNK,
+          FINISH_CHUNK,
+        ]);
+
+        // Assert - text-delta chunks are excluded
+        const textDeltaChunks = result.filter((c) => c.type === `text-delta`);
+        expect(textDeltaChunks.length).toBe(0);
+      });
+
+      it(`should filter by multiple chunk types`, async () => {
+        // Arrange
+        const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+
+        // Act
+        const result = await convertAsyncIterableToArray(
+          pipe<MyUIMessage>(stream)
+            .filter(excludeChunks([`text-start`, `text-delta`]))
+            .toStream(),
+        );
+
+        // Assert - only text-end + meta/step chunks pass through
+        expect(result).toEqual([
+          START_CHUNK,
+          START_STEP_CHUNK,
+          { type: `text-end`, id: `1` },
+          FINISH_STEP_CHUNK,
+          FINISH_CHUNK,
+        ]);
+
+        // Assert - text-start and text-delta chunks are excluded
+        const textStartChunks = result.filter((c) => c.type === `text-start`);
+        const textDeltaChunks = result.filter((c) => c.type === `text-delta`);
+        expect(textStartChunks.length).toBe(0);
+        expect(textDeltaChunks.length).toBe(0);
+      });
+
+      it(`should chain multiple filters`, async () => {
+        // Arrange
+        const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+
+        // Act - exclude text-start, then exclude text-delta
+        const result = await convertAsyncIterableToArray(
+          pipe<MyUIMessage>(stream)
+            .filter(excludeChunks(`text-start`))
+            .filter(excludeChunks(`text-delta`))
+            .toStream(),
+        );
+
+        // Assert - only text-end + meta/step chunks pass through
+        expect(result).toEqual([
+          START_CHUNK,
+          START_STEP_CHUNK,
+          { type: `text-end`, id: `1` },
+          FINISH_STEP_CHUNK,
+          FINISH_CHUNK,
+        ]);
+
+        // Assert - text-start and text-delta chunks are excluded
+        const textStartChunks = result.filter((c) => c.type === `text-start`);
+        const textDeltaChunks = result.filter((c) => c.type === `text-delta`);
+        expect(textStartChunks.length).toBe(0);
+        expect(textDeltaChunks.length).toBe(0);
       });
     });
 
@@ -87,6 +214,10 @@ describe(`pipe`, () => {
           FINISH_STEP_CHUNK,
           FINISH_CHUNK,
         ]);
+
+        // Assert - reasoning chunks are excluded
+        const reasoningChunks = result.filter((c) => c.type.startsWith(`reasoning-`));
+        expect(reasoningChunks.length).toBe(0);
       });
 
       it(`should filter by multiple part types`, async () => {
@@ -95,6 +226,7 @@ describe(`pipe`, () => {
           START_CHUNK,
           ...TEXT_CHUNKS,
           ...REASONING_CHUNKS,
+          ...TOOL_WITH_DATA_CHUNKS,
           FINISH_CHUNK,
         ]);
 
@@ -106,12 +238,31 @@ describe(`pipe`, () => {
         );
 
         // Assert - text and reasoning content + meta/step chunks
-        expect(result).toEqual([START_CHUNK, ...TEXT_CHUNKS, ...REASONING_CHUNKS, FINISH_CHUNK]);
+        expect(result).toEqual([
+          START_CHUNK,
+          ...TEXT_CHUNKS,
+          ...REASONING_CHUNKS,
+          START_STEP_CHUNK,
+          FINISH_STEP_CHUNK,
+          FINISH_CHUNK,
+        ]);
+
+        // Assert - tool and data chunks are excluded
+        const toolChunks = result.filter((c) => c.type.startsWith(`tool-`));
+        const dataChunks = result.filter((c) => c.type === `data-weather`);
+        expect(toolChunks.length).toBe(0);
+        expect(dataChunks.length).toBe(0);
       });
 
       it(`should filter tool chunks correctly when data chunk is interleaved`, async () => {
         // Arrange
-        const stream = convertArrayToStream([START_CHUNK, ...TOOL_WITH_DATA_CHUNKS, FINISH_CHUNK]);
+        const stream = convertArrayToStream([
+          START_CHUNK,
+          ...TEXT_CHUNKS,
+          ...REASONING_CHUNKS,
+          ...TOOL_WITH_DATA_CHUNKS,
+          FINISH_CHUNK,
+        ]);
 
         // Act - filter to only tool chunks
         const result = await convertAsyncIterableToArray(
@@ -123,14 +274,30 @@ describe(`pipe`, () => {
         expect(toolChunks.length).toBe(4);
         expect(toolChunks.every((c) => c.type.startsWith(`tool-`))).toBe(true);
 
-        // Meta/step chunks also pass through
-        expect(result.filter((c) => c.type === `start`).length).toBe(1);
-        expect(result.filter((c) => c.type === `finish`).length).toBe(1);
+        // Assert - meta/step chunks pass through
+        const startChunks = result.filter((c) => c.type === `start`);
+        const finishChunks = result.filter((c) => c.type === `finish`);
+        expect(startChunks.length).toBe(1);
+        expect(finishChunks.length).toBe(1);
+
+        // Assert - text, reasoning, and data chunks are excluded
+        const textChunks = result.filter((c) => c.type.startsWith(`text-`));
+        const reasoningChunks = result.filter((c) => c.type.startsWith(`reasoning-`));
+        const dataChunks = result.filter((c) => c.type === `data-weather`);
+        expect(textChunks.length).toBe(0);
+        expect(reasoningChunks.length).toBe(0);
+        expect(dataChunks.length).toBe(0);
       });
 
       it(`should filter data chunks correctly when interleaved with tool chunks`, async () => {
         // Arrange
-        const stream = convertArrayToStream([START_CHUNK, ...TOOL_WITH_DATA_CHUNKS, FINISH_CHUNK]);
+        const stream = convertArrayToStream([
+          START_CHUNK,
+          ...TEXT_CHUNKS,
+          ...REASONING_CHUNKS,
+          ...TOOL_WITH_DATA_CHUNKS,
+          FINISH_CHUNK,
+        ]);
 
         // Act - filter to only data chunks
         const result = await convertAsyncIterableToArray(
@@ -141,11 +308,323 @@ describe(`pipe`, () => {
         const dataChunks = result.filter((c) => c.type === `data-weather`);
         expect(dataChunks.length).toBe(1);
 
-        // Meta/step chunks also pass through
-        expect(result.filter((c) => c.type === `start`).length).toBe(1);
-        expect(result.filter((c) => c.type === `finish`).length).toBe(1);
-        expect(result.filter((c) => c.type === `start-step`).length).toBe(1);
-        expect(result.filter((c) => c.type === `finish-step`).length).toBe(1);
+        // Assert - meta/step chunks pass through
+        const startChunks = result.filter((c) => c.type === `start`);
+        const finishChunks = result.filter((c) => c.type === `finish`);
+        expect(startChunks.length).toBe(1);
+        expect(finishChunks.length).toBe(1);
+
+        // Assert - text, reasoning, and tool chunks are excluded
+        const textChunks = result.filter((c) => c.type.startsWith(`text-`));
+        const reasoningChunks = result.filter((c) => c.type.startsWith(`reasoning-`));
+        const toolChunks = result.filter((c) => c.type.startsWith(`tool-`));
+        expect(textChunks.length).toBe(0);
+        expect(reasoningChunks.length).toBe(0);
+        expect(toolChunks.length).toBe(0);
+      });
+
+      it(`should chain multiple filters`, async () => {
+        // Arrange
+        const stream = convertArrayToStream([
+          START_CHUNK,
+          ...TEXT_CHUNKS,
+          ...REASONING_CHUNKS,
+          FINISH_CHUNK,
+        ]);
+
+        // Act - first filter to text+reasoning, then narrow to just text
+        const result = await convertAsyncIterableToArray(
+          pipe<MyUIMessage>(stream)
+            .filter(includeParts([`text`, `reasoning`]))
+            .filter(includeParts(`text`))
+            .toStream(),
+        );
+
+        // Assert - text content + meta/step chunks
+        expect(result).toEqual([
+          START_CHUNK,
+          ...TEXT_CHUNKS,
+          START_STEP_CHUNK,
+          FINISH_STEP_CHUNK,
+          FINISH_CHUNK,
+        ]);
+
+        // Assert - reasoning chunks are excluded
+        const reasoningChunks = result.filter((c) => c.type.startsWith(`reasoning-`));
+        expect(reasoningChunks.length).toBe(0);
+      });
+    });
+
+    describe(`excludeParts`, () => {
+      it(`should filter by single part type`, async () => {
+        // Arrange
+        const stream = convertArrayToStream([
+          START_CHUNK,
+          ...TEXT_CHUNKS,
+          ...REASONING_CHUNKS,
+          FINISH_CHUNK,
+        ]);
+
+        // Act
+        const result = await convertAsyncIterableToArray(
+          pipe<MyUIMessage>(stream).filter(excludeParts(`reasoning`)).toStream(),
+        );
+
+        // Assert - text content + meta/step chunks pass through
+        expect(result).toEqual([
+          START_CHUNK,
+          ...TEXT_CHUNKS,
+          START_STEP_CHUNK,
+          FINISH_STEP_CHUNK,
+          FINISH_CHUNK,
+        ]);
+
+        // Assert - reasoning chunks are excluded
+        const reasoningChunks = result.filter((c) => c.type.startsWith(`reasoning-`));
+        expect(reasoningChunks.length).toBe(0);
+      });
+
+      it(`should filter by multiple part types`, async () => {
+        // Arrange
+        const stream = convertArrayToStream([
+          START_CHUNK,
+          ...TEXT_CHUNKS,
+          ...REASONING_CHUNKS,
+          ...TOOL_WITH_DATA_CHUNKS,
+          FINISH_CHUNK,
+        ]);
+
+        // Act
+        const result = await convertAsyncIterableToArray(
+          pipe<MyUIMessage>(stream)
+            .filter(excludeParts([`text`, `reasoning`]))
+            .toStream(),
+        );
+
+        // Assert - tool and data chunks + meta/step chunks pass through
+        const toolChunks = result.filter((c) => c.type.startsWith(`tool-`));
+        const dataChunks = result.filter((c) => c.type === `data-weather`);
+        expect(toolChunks.length).toBe(4);
+        expect(dataChunks.length).toBe(1);
+
+        // Assert - text and reasoning chunks are excluded
+        const textChunks = result.filter((c) => c.type.startsWith(`text-`));
+        const reasoningChunks = result.filter((c) => c.type.startsWith(`reasoning-`));
+        expect(textChunks.length).toBe(0);
+        expect(reasoningChunks.length).toBe(0);
+      });
+
+      it(`should filter tool chunks correctly`, async () => {
+        // Arrange
+        const stream = convertArrayToStream([
+          START_CHUNK,
+          ...TEXT_CHUNKS,
+          ...REASONING_CHUNKS,
+          ...TOOL_WITH_DATA_CHUNKS,
+          FINISH_CHUNK,
+        ]);
+
+        // Act - exclude tool chunks
+        const result = await convertAsyncIterableToArray(
+          pipe<MyUIMessage>(stream).filter(excludeParts(`tool-weather`)).toStream(),
+        );
+
+        // Assert - text, reasoning, and data chunks + meta/step chunks pass through
+        const textChunks = result.filter((c) => c.type.startsWith(`text-`));
+        const reasoningChunks = result.filter((c) => c.type.startsWith(`reasoning-`));
+        const dataChunks = result.filter((c) => c.type === `data-weather`);
+        expect(textChunks.length).toBe(4);
+        expect(reasoningChunks.length).toBe(4);
+        expect(dataChunks.length).toBe(1);
+
+        // Assert - tool chunks are excluded
+        const toolChunks = result.filter((c) => c.type.startsWith(`tool-`));
+        expect(toolChunks.length).toBe(0);
+      });
+
+      it(`should filter data chunks correctly`, async () => {
+        // Arrange
+        const stream = convertArrayToStream([
+          START_CHUNK,
+          ...TEXT_CHUNKS,
+          ...REASONING_CHUNKS,
+          ...TOOL_WITH_DATA_CHUNKS,
+          FINISH_CHUNK,
+        ]);
+
+        // Act - exclude data chunks
+        const result = await convertAsyncIterableToArray(
+          pipe<MyUIMessage>(stream).filter(excludeParts(`data-weather`)).toStream(),
+        );
+
+        // Assert - text, reasoning, and tool chunks + meta/step chunks pass through
+        const textChunks = result.filter((c) => c.type.startsWith(`text-`));
+        const reasoningChunks = result.filter((c) => c.type.startsWith(`reasoning-`));
+        const toolChunks = result.filter((c) => c.type.startsWith(`tool-`));
+        expect(textChunks.length).toBe(4);
+        expect(reasoningChunks.length).toBe(4);
+        expect(toolChunks.length).toBe(4);
+
+        // Assert - data chunks are excluded
+        const dataChunks = result.filter((c) => c.type === `data-weather`);
+        expect(dataChunks.length).toBe(0);
+      });
+
+      it(`should chain multiple filters`, async () => {
+        // Arrange
+        const stream = convertArrayToStream([
+          START_CHUNK,
+          ...TEXT_CHUNKS,
+          ...REASONING_CHUNKS,
+          FINISH_CHUNK,
+        ]);
+
+        // Act - exclude text, then exclude reasoning
+        const result = await convertAsyncIterableToArray(
+          pipe<MyUIMessage>(stream)
+            .filter(excludeParts(`text`))
+            .filter(excludeParts(`reasoning`))
+            .toStream(),
+        );
+
+        // Assert - only meta/step chunks pass through
+        expect(result).toEqual([
+          START_CHUNK,
+          START_STEP_CHUNK,
+          FINISH_STEP_CHUNK,
+          START_STEP_CHUNK,
+          FINISH_STEP_CHUNK,
+          FINISH_CHUNK,
+        ]);
+
+        // Assert - text and reasoning chunks are excluded
+        const textChunks = result.filter((c) => c.type.startsWith(`text-`));
+        const reasoningChunks = result.filter((c) => c.type.startsWith(`reasoning-`));
+        expect(textChunks.length).toBe(0);
+        expect(reasoningChunks.length).toBe(0);
+      });
+    });
+
+    describe(`include then exclude`, () => {
+      it(`should narrow with includeParts then excludeParts`, async () => {
+        // Arrange
+        const stream = convertArrayToStream([
+          START_CHUNK,
+          ...TEXT_CHUNKS,
+          ...REASONING_CHUNKS,
+          FINISH_CHUNK,
+        ]);
+
+        // Act - include text + reasoning, then exclude reasoning
+        const result = await convertAsyncIterableToArray(
+          pipe<MyUIMessage>(stream)
+            .filter(includeParts([`text`, `reasoning`]))
+            .filter(excludeParts(`reasoning`))
+            .toStream(),
+        );
+
+        // Assert - only text content + meta/step chunks pass through
+        expect(result).toEqual([
+          START_CHUNK,
+          ...TEXT_CHUNKS,
+          START_STEP_CHUNK,
+          FINISH_STEP_CHUNK,
+          FINISH_CHUNK,
+        ]);
+
+        // Assert - reasoning chunks are excluded
+        const reasoningChunks = result.filter((c) => c.type.startsWith(`reasoning-`));
+        expect(reasoningChunks.length).toBe(0);
+      });
+
+      it(`should narrow with includeChunks then excludeChunks`, async () => {
+        // Arrange
+        const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+
+        // Act - include text-start + text-delta + text-end, then exclude text-end
+        const result = await convertAsyncIterableToArray(
+          pipe<MyUIMessage>(stream)
+            .filter(includeChunks([`text-start`, `text-delta`, `text-end`]))
+            .filter(excludeChunks(`text-end`))
+            .toStream(),
+        );
+
+        // Assert - text-start + text-delta + meta/step chunks pass through
+        expect(result).toEqual([
+          START_CHUNK,
+          START_STEP_CHUNK,
+          { type: `text-start`, id: `1` },
+          { type: `text-delta`, id: `1`, delta: `Hello` },
+          { type: `text-delta`, id: `1`, delta: ` World` },
+          FINISH_STEP_CHUNK,
+          FINISH_CHUNK,
+        ]);
+
+        // Assert - text-end chunks are excluded
+        const textEndChunks = result.filter((c) => c.type === `text-end`);
+        expect(textEndChunks.length).toBe(0);
+      });
+    });
+
+    describe(`exclude then include`, () => {
+      it(`should apply excludeParts then includeParts`, async () => {
+        // Arrange
+        const stream = convertArrayToStream([
+          START_CHUNK,
+          ...TEXT_CHUNKS,
+          ...REASONING_CHUNKS,
+          FINISH_CHUNK,
+        ]);
+
+        // Act - exclude reasoning, then include text
+        const result = await convertAsyncIterableToArray(
+          pipe<MyUIMessage>(stream)
+            .filter(excludeParts(`reasoning`))
+            .filter(includeParts(`text`))
+            .toStream(),
+        );
+
+        // Assert - only text content + meta/step chunks pass through (step chunks from REASONING_CHUNKS also pass)
+        expect(result).toEqual([
+          START_CHUNK,
+          ...TEXT_CHUNKS,
+          START_STEP_CHUNK,
+          FINISH_STEP_CHUNK,
+          FINISH_CHUNK,
+        ]);
+
+        // Assert - reasoning chunks are excluded
+        const reasoningChunks = result.filter((c) => c.type.startsWith(`reasoning-`));
+        expect(reasoningChunks.length).toBe(0);
+      });
+
+      it(`should apply excludeChunks then includeChunks`, async () => {
+        // Arrange
+        const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+
+        // Act - exclude text-end, then include text-delta
+        const result = await convertAsyncIterableToArray(
+          pipe<MyUIMessage>(stream)
+            .filter(excludeChunks(`text-end`))
+            .filter(includeChunks(`text-delta`))
+            .toStream(),
+        );
+
+        // Assert - only text-delta + meta/step chunks pass through
+        expect(result).toEqual([
+          START_CHUNK,
+          START_STEP_CHUNK,
+          { type: `text-delta`, id: `1`, delta: `Hello` },
+          { type: `text-delta`, id: `1`, delta: ` World` },
+          FINISH_STEP_CHUNK,
+          FINISH_CHUNK,
+        ]);
+
+        // Assert - text-start and text-end chunks are excluded
+        const textStartChunks = result.filter((c) => c.type === `text-start`);
+        const textEndChunks = result.filter((c) => c.type === `text-end`);
+        expect(textStartChunks.length).toBe(0);
+        expect(textEndChunks.length).toBe(0);
       });
     });
 
@@ -174,9 +653,49 @@ describe(`pipe`, () => {
           FINISH_STEP_CHUNK,
           FINISH_CHUNK,
         ]);
+
+        // Assert - reasoning chunks are excluded
+        const reasoningChunks = result.filter((c) => c.type.startsWith(`reasoning-`));
+        expect(reasoningChunks.length).toBe(0);
       });
 
-      it(`should chain includeParts with predicate filter`, async () => {
+      it(`should chain multiple predicate filters`, async () => {
+        // Arrange
+        const stream = convertArrayToStream([
+          START_CHUNK,
+          ...TEXT_CHUNKS,
+          ...REASONING_CHUNKS,
+          FINISH_CHUNK,
+        ]);
+
+        // Act - first exclude reasoning, then exclude text-delta
+        const result = await convertAsyncIterableToArray(
+          pipe<MyUIMessage>(stream)
+            .filter(({ part }) => part.type !== `reasoning`)
+            .filter(({ chunk }) => chunk.type !== `text-delta`)
+            .toStream(),
+        );
+
+        // Assert - text-start, text-end + meta/step chunks
+        expect(result).toEqual([
+          START_CHUNK,
+          START_STEP_CHUNK,
+          { type: `text-start`, id: `1` },
+          { type: `text-end`, id: `1` },
+          FINISH_STEP_CHUNK,
+          START_STEP_CHUNK,
+          FINISH_STEP_CHUNK,
+          FINISH_CHUNK,
+        ]);
+
+        // Assert - reasoning and text-delta chunks are excluded
+        const reasoningChunks = result.filter((c) => c.type.startsWith(`reasoning-`));
+        const textDeltaChunks = result.filter((c) => c.type === `text-delta`);
+        expect(reasoningChunks.length).toBe(0);
+        expect(textDeltaChunks.length).toBe(0);
+      });
+
+      it(`should chain with predicate filter`, async () => {
         // Arrange
         const stream = convertArrayToStream([
           START_CHUNK,
@@ -452,8 +971,8 @@ describe(`pipe`, () => {
       );
 
       // Assert
-      const textDeltas = result.filter((c) => c.type === `text-delta`);
-      expect(textDeltas).toEqual([
+      const textDeltaChunks = result.filter((c) => c.type === `text-delta`);
+      expect(textDeltaChunks).toEqual([
         { type: `text-delta`, id: `1`, delta: `HELLO` },
         { type: `text-delta`, id: `1`, delta: ` WORLD` },
       ]);
@@ -480,6 +999,8 @@ describe(`pipe`, () => {
       );
 
       // Assert - text content + meta/step chunks (reasoning content excluded)
+      const reasoningChunks = result.filter((c) => c.type.startsWith(`reasoning-`));
+      expect(reasoningChunks.length).toBe(0);
       expect(result).toEqual([
         START_CHUNK,
         ...TEXT_CHUNKS,
@@ -512,8 +1033,10 @@ describe(`pipe`, () => {
       );
 
       // Assert
-      const textDeltas = result.filter((c) => c.type === `text-delta`);
-      expect(textDeltas).toEqual([
+      const reasoningChunks = result.filter((c) => c.type.startsWith(`reasoning-`));
+      expect(reasoningChunks.length).toBe(0);
+      const textDeltaChunks = result.filter((c) => c.type === `text-delta`);
+      expect(textDeltaChunks).toEqual([
         { type: `text-delta`, id: `1`, delta: `HELLO` },
         { type: `text-delta`, id: `1`, delta: ` WORLD` },
       ]);
@@ -542,8 +1065,10 @@ describe(`pipe`, () => {
       );
 
       // Assert
-      const textDeltas = result.filter((c) => c.type === `text-delta`);
-      expect(textDeltas).toEqual([
+      const reasoningChunks = result.filter((c) => c.type.startsWith(`reasoning-`));
+      expect(reasoningChunks.length).toBe(0);
+      const textDeltaChunks = result.filter((c) => c.type === `text-delta`);
+      expect(textDeltaChunks).toEqual([
         { type: `text-delta`, id: `1`, delta: `HELLO` },
         { type: `text-delta`, id: `1`, delta: ` WORLD` },
       ]);

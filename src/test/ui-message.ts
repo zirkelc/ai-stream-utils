@@ -30,7 +30,9 @@ export type TextChunk = Extract<
   MyUIMessageChunk,
   { type: "text-start" | "text-delta" | "text-end" }
 >;
+export type TextStartChunk = Extract<MyUIMessageChunk, { type: "text-start" }>;
 export type TextDeltaChunk = Extract<MyUIMessageChunk, { type: "text-delta" }>;
+export type TextEndChunk = Extract<MyUIMessageChunk, { type: "text-end" }>;
 export type ReasoningChunk = Extract<
   MyUIMessageChunk,
   { type: "reasoning-start" | "reasoning-delta" | "reasoning-end" }
