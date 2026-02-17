@@ -1,5 +1,23 @@
 # Changelog
 
+## [2.0.0](https://github.com/zirkelc/ai-stream-utils/compare/v1.6.0...v2.0.0) (2026-02-17)
+
+
+### ⚠ BREAKING CHANGES
+
+* add `pipe()` function for composable stream transformation ([#14](https://github.com/zirkelc/ai-stream-utils/issues/14))
+
+### Features
+
+* add `pipe()` function for composable stream transformation ([#14](https://github.com/zirkelc/ai-stream-utils/issues/14)) ([2e6158c](https://github.com/zirkelc/ai-stream-utils/commit/2e6158c3631856598c3f8da9ba4a738ec13aaa3a))
+* add partyType type guard ([4f0e06a](https://github.com/zirkelc/ai-stream-utils/commit/4f0e06a957b90a3dfd6aaade105c952ebecd9d4a))
+* let pipe() accept AsyncIterable ([d37f33d](https://github.com/zirkelc/ai-stream-utils/commit/d37f33d3ff111b8e70ebc3697ae14c4834e95c8a))
+
+
+### Bug Fixes
+
+* use convertAsyncIterableToStream instead of ai-sdk/provider-utils ([7757113](https://github.com/zirkelc/ai-stream-utils/commit/775711322bb820065a576a4efdbbfb4e655e1bdb))
+
 ## [1.6.0](https://github.com/zirkelc/ai-stream-utils/compare/v1.5.0...v1.6.0) (2026-02-11)
 
 ### Features
