@@ -10,8 +10,10 @@ import {
   TEXT_CHUNKS,
   TOOL_WITH_DATA_CHUNKS,
 } from "../test/ui-message.js";
+import { convertArrayToAsyncIterable } from "../utils/convert-array-to-async-iterable.js";
 import { convertArrayToStream } from "../utils/convert-array-to-stream.js";
 import { convertAsyncIterableToArray } from "../utils/convert-async-iterable-to-array.js";
+import { createAsyncIterableStream } from "../utils/create-async-iterable-stream.js";
 import { pipe } from "./pipe.js";
 import { chunkType, includeChunks, includeParts, partType } from "./type-guards.js";
 
@@ -625,6 +627,80 @@ describe(`pipe`, () => {
 
       // Assert
       expect(result).toThrow();
+    });
+  });
+
+  describe(`input types`, () => {
+    it(`should work with ReadableStream input`, async () => {
+      // Arrange
+      const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+
+      // Act
+      const result = await convertAsyncIterableToArray(
+        pipe<MyUIMessage>(stream).filter(includeParts(`text`)).toStream(),
+      );
+
+      // Assert - TEXT_CHUNKS already includes start-step/finish-step
+      expect(result).toEqual([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+    });
+
+    it(`should work with AsyncIterable input (plain async generator)`, async () => {
+      // Arrange
+      const asyncIterable = convertArrayToAsyncIterable([
+        START_CHUNK,
+        ...TEXT_CHUNKS,
+        FINISH_CHUNK,
+      ]);
+
+      // Act
+      const result = await convertAsyncIterableToArray(
+        pipe<MyUIMessage>(asyncIterable).filter(includeParts(`text`)).toStream(),
+      );
+
+      // Assert - TEXT_CHUNKS already includes start-step/finish-step
+      expect(result).toEqual([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+    });
+
+    it(`should work with AsyncIterableStream input (AI SDK type)`, async () => {
+      // Arrange - AsyncIterableStream is both ReadableStream and AsyncIterable
+      const asyncIterableStream = createAsyncIterableStream(
+        convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]),
+      );
+
+      // Act
+      const result = await convertAsyncIterableToArray(
+        pipe<MyUIMessage>(asyncIterableStream).filter(includeParts(`text`)).toStream(),
+      );
+
+      // Assert - TEXT_CHUNKS already includes start-step/finish-step
+      expect(result).toEqual([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+    });
+
+    it(`should correctly associate part types with AsyncIterable input`, async () => {
+      // Arrange - use interleaved chunks to verify part type tracking works
+      const asyncIterable = convertArrayToAsyncIterable([
+        START_CHUNK,
+        ...TOOL_WITH_DATA_CHUNKS,
+        FINISH_CHUNK,
+      ]);
+      const partTypesEncountered: Array<string> = [];
+
+      // Act
+      await convertAsyncIterableToArray(
+        pipe<MyUIMessage>(asyncIterable)
+          .map(({ chunk, part }) => {
+            partTypesEncountered.push(`${chunk.type}:${part.type}`);
+            return chunk;
+          })
+          .toStream(),
+      );
+
+      // Assert - each chunk should be associated with the correct part type
+      expect(partTypesEncountered).toContain(`tool-input-start:tool-weather`);
+      expect(partTypesEncountered).toContain(`tool-input-delta:tool-weather`);
+      expect(partTypesEncountered).toContain(`data-weather:data-weather`);
+      expect(partTypesEncountered).toContain(`tool-input-available:tool-weather`);
+      expect(partTypesEncountered).toContain(`tool-output-available:tool-weather`);
     });
   });
 });

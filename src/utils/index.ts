@@ -1,3 +1,4 @@
+export { convertArrayToAsyncIterable } from "./convert-array-to-async-iterable.js";
 export { convertArrayToStream } from "./convert-array-to-stream.js";
 export { convertAsyncIterableToArray } from "./convert-async-iterable-to-array.js";
 export { convertAsyncIterableToStream } from "./convert-async-iterable-to-stream.js";
