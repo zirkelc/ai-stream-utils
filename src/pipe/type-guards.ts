@@ -9,6 +9,7 @@ import type {
   InferPartForChunk,
   InferUIMessageChunkType,
   InferUIMessagePartType,
+  PartTypeToChunkTypes,
 } from "../types.js";
 import type { FilterGuard, ObserveGuard } from "./types.js";
 
@@ -126,10 +127,7 @@ export function excludeChunks<
   types: CHUNK_TYPE | Array<CHUNK_TYPE>,
 ): FilterGuard<
   UI_MESSAGE,
-  Exclude<
-    ExtractChunk<UI_MESSAGE, ContentChunkType<UI_MESSAGE>>,
-    ExtractChunk<UI_MESSAGE, CHUNK_TYPE>
-  >,
+  ExtractChunk<UI_MESSAGE, Exclude<ContentChunkType<UI_MESSAGE>, CHUNK_TYPE>>,
   { type: ExcludePartForChunks<UI_MESSAGE, CHUNK_TYPE> }
 > {
   const typeArray = Array.isArray(types) ? types : [types];
@@ -142,19 +140,13 @@ export function excludeChunks<
   >(
     input: T,
   ): input is T & {
-    chunk: Exclude<
-      ExtractChunk<UI_MESSAGE, ContentChunkType<UI_MESSAGE>>,
-      ExtractChunk<UI_MESSAGE, CHUNK_TYPE>
-    >;
+    chunk: ExtractChunk<UI_MESSAGE, Exclude<ContentChunkType<UI_MESSAGE>, CHUNK_TYPE>>;
     part: { type: ExcludePartForChunks<UI_MESSAGE, CHUNK_TYPE> };
   } => !(typeArray as Array<string>).includes((input.chunk as { type: string }).type);
 
   return guard as FilterGuard<
     UI_MESSAGE,
-    Exclude<
-      ExtractChunk<UI_MESSAGE, ContentChunkType<UI_MESSAGE>>,
-      ExtractChunk<UI_MESSAGE, CHUNK_TYPE>
-    >,
+    ExtractChunk<UI_MESSAGE, Exclude<ContentChunkType<UI_MESSAGE>, CHUNK_TYPE>>,
     { type: ExcludePartForChunks<UI_MESSAGE, CHUNK_TYPE> }
   >;
 }
@@ -181,9 +173,9 @@ export function excludeParts<
   types: PART_TYPE | Array<PART_TYPE>,
 ): FilterGuard<
   UI_MESSAGE,
-  Exclude<
-    ExtractChunk<UI_MESSAGE, ContentChunkType<UI_MESSAGE>>,
-    ExtractChunkForPart<UI_MESSAGE, ExtractPart<UI_MESSAGE, PART_TYPE>>
+  ExtractChunk<
+    UI_MESSAGE,
+    Exclude<ContentChunkType<UI_MESSAGE>, PartTypeToChunkTypes<UI_MESSAGE, PART_TYPE>>
   >,
   { type: Exclude<InferUIMessagePartType<UI_MESSAGE>, PART_TYPE> }
 > {
@@ -197,18 +189,18 @@ export function excludeParts<
   >(
     input: T,
   ): input is T & {
-    chunk: Exclude<
-      ExtractChunk<UI_MESSAGE, ContentChunkType<UI_MESSAGE>>,
-      ExtractChunkForPart<UI_MESSAGE, ExtractPart<UI_MESSAGE, PART_TYPE>>
+    chunk: ExtractChunk<
+      UI_MESSAGE,
+      Exclude<ContentChunkType<UI_MESSAGE>, PartTypeToChunkTypes<UI_MESSAGE, PART_TYPE>>
     >;
     part: { type: Exclude<InferUIMessagePartType<UI_MESSAGE>, PART_TYPE> };
   } => !(typeArray as Array<string>).includes((input.part as { type: string })?.type);
 
   return guard as FilterGuard<
     UI_MESSAGE,
-    Exclude<
-      ExtractChunk<UI_MESSAGE, ContentChunkType<UI_MESSAGE>>,
-      ExtractChunkForPart<UI_MESSAGE, ExtractPart<UI_MESSAGE, PART_TYPE>>
+    ExtractChunk<
+      UI_MESSAGE,
+      Exclude<ContentChunkType<UI_MESSAGE>, PartTypeToChunkTypes<UI_MESSAGE, PART_TYPE>>
     >,
     { type: Exclude<InferUIMessagePartType<UI_MESSAGE>, PART_TYPE> }
   >;

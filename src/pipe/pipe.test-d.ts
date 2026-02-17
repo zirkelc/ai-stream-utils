@@ -8,6 +8,7 @@ import type {
   StartChunk,
   TextChunk,
   TextDeltaChunk,
+  TextEndChunk,
   ToolChunk,
 } from "../test/ui-message.js";
 import type { ExtractChunk } from "../types.js";
@@ -25,23 +26,35 @@ const mockStream = null as unknown as ReadableStream<MyUIMessageChunk>;
 describe(`pipe types`, () => {
   describe(`filter`, () => {
     describe(`includeChunks`, () => {
-      it(`should narrow chunk type for single type`, () => {
+      it(`should include single type`, () => {
         pipe<MyUIMessage>(mockStream)
           .filter(includeChunks(`text-delta`))
           .map(({ chunk, part }) => {
             expectTypeOf(chunk).toEqualTypeOf<TextDeltaChunk>();
+            expectTypeOf<TextEndChunk>().not.toExtend<typeof chunk>();
             expectTypeOf(part).toEqualTypeOf<{ type: `text` }>();
             return chunk;
           });
       });
 
-      it(`should narrow chunk type for multiple types`, () => {
+      it(`should include multiple types`, () => {
         pipe<MyUIMessage>(mockStream)
           .filter(includeChunks([`text-delta`, `text-end`]))
           .map(({ chunk, part }) => {
-            expectTypeOf(chunk).toEqualTypeOf<
-              ExtractChunk<MyUIMessage, `text-delta` | `text-end`>
-            >();
+            expectTypeOf(chunk).toEqualTypeOf<TextDeltaChunk | TextEndChunk>();
+            expectTypeOf<ReasoningChunk>().not.toExtend<typeof chunk>();
+            expectTypeOf(part).toEqualTypeOf<{ type: `text` }>();
+            return chunk;
+          });
+      });
+
+      it(`should narrow types for multiple type guards`, () => {
+        pipe<MyUIMessage>(mockStream)
+          .filter(includeChunks([`text-delta`, `text-end`]))
+          .filter(includeChunks(`text-delta`))
+          .map(({ chunk, part }) => {
+            expectTypeOf(chunk).toEqualTypeOf<TextDeltaChunk>();
+            expectTypeOf<TextEndChunk>().not.toExtend<typeof chunk>();
             expectTypeOf(part).toEqualTypeOf<{ type: `text` }>();
             return chunk;
           });
@@ -65,27 +78,31 @@ describe(`pipe types`, () => {
     });
 
     describe(`includeParts`, () => {
-      it(`should narrow part.type and chunk types for single type`, () => {
+      it(`should include single type`, () => {
         pipe<MyUIMessage>(mockStream)
           .filter(includeParts(`text`))
           .map(({ part, chunk }) => {
             expectTypeOf(part).toEqualTypeOf<{ type: `text` }>();
+            expectTypeOf<{ type: `reasoning` }>().not.toExtend<typeof part>();
             expectTypeOf(chunk).toEqualTypeOf<TextChunk>();
+            expectTypeOf<ReasoningChunk>().not.toExtend<typeof chunk>();
             return chunk;
           });
       });
 
-      it(`should narrow part.type and chunk types for multiple types`, () => {
+      it(`should include multiple types`, () => {
         pipe<MyUIMessage>(mockStream)
           .filter(includeParts([`text`, `reasoning`]))
           .map(({ part, chunk }) => {
             expectTypeOf(part).toEqualTypeOf<{ type: `text` | `reasoning` }>();
+            expectTypeOf<{ type: `file` }>().not.toExtend<typeof part>();
             expectTypeOf(chunk).toEqualTypeOf<TextChunk | ReasoningChunk>();
+            expectTypeOf<FileChunk>().not.toExtend<typeof chunk>();
             return chunk;
           });
       });
 
-      it(`should narrow part.type and chunk types for tool parts`, () => {
+      it(`should include tool parts`, () => {
         pipe<MyUIMessage>(mockStream)
           .filter(includeParts(`tool-weather`))
           .map(({ part, chunk }) => {
@@ -95,12 +112,24 @@ describe(`pipe types`, () => {
           });
       });
 
-      it(`should narrow part.type and chunk types for file parts`, () => {
+      it(`should include file parts`, () => {
         pipe<MyUIMessage>(mockStream)
           .filter(includeParts(`file`))
           .map(({ part, chunk }) => {
             expectTypeOf(part).toEqualTypeOf<{ type: `file` }>();
             expectTypeOf(chunk).toEqualTypeOf<FileChunk>();
+            return chunk;
+          });
+      });
+
+      it(`should narrow types for multiple type guards`, () => {
+        pipe<MyUIMessage>(mockStream)
+          .filter(includeParts([`text`, `reasoning`]))
+          .filter(includeParts(`text`))
+          .map(({ chunk, part }) => {
+            expectTypeOf(part).toEqualTypeOf<{ type: `text` }>();
+            expectTypeOf<{ type: `reasoning` }>().not.toExtend<typeof part>();
+            expectTypeOf(chunk).toEqualTypeOf<TextChunk>();
             return chunk;
           });
       });
@@ -122,9 +151,29 @@ describe(`pipe types`, () => {
         pipe<MyUIMessage>(mockStream)
           .filter(excludeChunks(`text-delta`))
           .map(({ chunk, part }) => {
-            /** text-delta should be excluded */
             expectTypeOf<TextDeltaChunk>().not.toExtend<typeof chunk>();
-            /** text part should still be in part type since text-start/text-end remain */
+            expectTypeOf<{ type: `text` }>().toExtend<typeof part>();
+            return chunk;
+          });
+      });
+
+      it(`should exclude multiple types`, () => {
+        pipe<MyUIMessage>(mockStream)
+          .filter(excludeChunks([`text-delta`, `text-end`]))
+          .map(({ chunk, part }) => {
+            expectTypeOf<TextDeltaChunk>().not.toExtend<typeof chunk>();
+            expectTypeOf<TextEndChunk>().not.toExtend<typeof chunk>();
+            expectTypeOf<{ type: `text` }>().toExtend<typeof part>();
+            return chunk;
+          });
+      });
+
+      it(`should preserve narrowed types through plain filter predicate`, () => {
+        pipe<MyUIMessage>(mockStream)
+          .filter(excludeChunks(`text-delta`))
+          .filter(({ chunk }) => chunk.type !== `text-end`)
+          .map(({ chunk, part }) => {
+            expectTypeOf<TextDeltaChunk>().not.toExtend<typeof chunk>();
             expectTypeOf<{ type: `text` }>().toExtend<typeof part>();
             return chunk;
           });
@@ -137,30 +186,37 @@ describe(`pipe types`, () => {
     });
 
     describe(`excludeParts`, () => {
-      it(`should exclude single part type`, () => {
+      it(`should exclude single type`, () => {
         pipe<MyUIMessage>(mockStream)
           .filter(excludeParts(`text`))
           .map(({ chunk, part }) => {
-            /** text chunks should be excluded */
             expectTypeOf<TextChunk>().not.toExtend<typeof chunk>();
-            /** text part should be excluded */
             expectTypeOf<{ type: `text` }>().not.toExtend<typeof part>();
-            /** Other content chunks should still be included */
             expectTypeOf<ReasoningChunk>().toExtend<typeof chunk>();
             return chunk;
           });
       });
 
-      it(`should exclude multiple part types`, () => {
+      it(`should exclude multiple types`, () => {
         pipe<MyUIMessage>(mockStream)
           .filter(excludeParts([`text`, `reasoning`]))
           .map(({ chunk, part }) => {
-            /** text and reasoning should be excluded */
             expectTypeOf<TextChunk>().not.toExtend<typeof chunk>();
             expectTypeOf<ReasoningChunk>().not.toExtend<typeof chunk>();
             expectTypeOf<{ type: `text` }>().not.toExtend<typeof part>();
             expectTypeOf<{ type: `reasoning` }>().not.toExtend<typeof part>();
-            /** Other content chunks should still be included */
+            expectTypeOf<ToolChunk>().toExtend<typeof chunk>();
+            return chunk;
+          });
+      });
+
+      it(`should preserve narrowed types through plain filter predicate`, () => {
+        pipe<MyUIMessage>(mockStream)
+          .filter(excludeParts(`text`))
+          .filter(({ part }) => part.type !== `reasoning`)
+          .map(({ chunk, part }) => {
+            expectTypeOf<TextChunk>().not.toExtend<typeof chunk>();
+            expectTypeOf<{ type: `text` }>().not.toExtend<typeof part>();
             expectTypeOf<ToolChunk>().toExtend<typeof chunk>();
             return chunk;
           });
@@ -170,9 +226,7 @@ describe(`pipe types`, () => {
     describe(`predicate`, () => {
       it(`should only receive content chunk types in filter predicate, not meta chunks`, () => {
         pipe<MyUIMessage>(mockStream).filter(({ chunk }) => {
-          /** Meta chunks like StartChunk should not be included */
           expectTypeOf<StartChunk>().not.toExtend<typeof chunk>();
-          /** Content chunks should be included */
           expectTypeOf<TextChunk>().toExtend<typeof chunk>();
           return true;
         });
@@ -180,7 +234,6 @@ describe(`pipe types`, () => {
 
       it(`should not allow meta chunk types in filter`, () => {
         pipe<MyUIMessage>(mockStream).filter(({ chunk }) => {
-          /** Should not allow meta chunk types like StartChunk */
           expectTypeOf<StartChunk>().not.toExtend<typeof chunk>();
           return true;
         });
@@ -191,9 +244,7 @@ describe(`pipe types`, () => {
   describe(`map`, () => {
     it(`should only receive content chunk types in map callback, not meta chunks`, () => {
       pipe<MyUIMessage>(mockStream).map(({ chunk }) => {
-        /** Meta chunks like StartChunk should not be included */
         expectTypeOf<StartChunk>().not.toExtend<typeof chunk>();
-        /** Content chunks should be included */
         expectTypeOf<TextChunk>().toExtend<typeof chunk>();
         return chunk;
       });
@@ -203,7 +254,6 @@ describe(`pipe types`, () => {
       pipe<MyUIMessage>(mockStream)
         .filter(includeParts(`text`))
         .map(({ chunk }) => {
-          /** Should be narrowed to just TextChunk, not all content chunks */
           expectTypeOf(chunk).toEqualTypeOf<TextChunk>();
           return chunk;
         });
@@ -215,6 +265,7 @@ describe(`pipe types`, () => {
       it(`should narrow chunk type in callback`, () => {
         pipe<MyUIMessage>(mockStream).on(chunkType(`text-delta`), ({ chunk, part }) => {
           expectTypeOf(chunk).toEqualTypeOf<TextDeltaChunk>();
+          expectTypeOf<TextEndChunk>().not.toExtend<typeof chunk>();
           expectTypeOf(part).toEqualTypeOf<{ type: `text` }>();
         });
       });
@@ -247,6 +298,7 @@ describe(`pipe types`, () => {
             expectTypeOf(chunk).toEqualTypeOf<
               Extract<MyUIMessageChunk, { type: `text-delta` | `reasoning-delta` }>
             >();
+            expectTypeOf<FileChunk>().not.toExtend<typeof chunk>();
             expectTypeOf(part).toEqualTypeOf<{ type: `text` | `reasoning` }>();
           },
         );

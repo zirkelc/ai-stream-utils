@@ -1,13 +1,27 @@
 import { openai } from "@ai-sdk/openai";
-import { streamText } from "ai";
-import { excludeParts, pipe as fromStream, includeParts } from "ai-stream-utils";
+import { streamText, tool } from "ai";
+import { excludeParts, pipe, includeParts } from "../src/index.js";
+import z from "zod";
 
 const result = streamText({
   model: openai("gpt-5"),
   prompt: "Tell me a joke.",
+  tools: {
+    weather: tool({
+      description: "Get the weather in a location",
+      inputSchema: z.object({
+        location: z.string().describe("The location to get the weather for"),
+      }),
+      execute: ({ location }) => ({
+        location,
+        temperature: 72 + Math.floor(Math.random() * 21) - 10,
+        unit: "C",
+      }),
+    }),
+  },
 });
 
-const stream = fromStream(result.toUIMessageStream())
+const stream = pipe(result.toUIMessageStream())
   .filter(includeParts(["text", "reasoning"])) // Filter narrows type to TextUIPart | ReasoningUIPart
   .filter(excludeParts(["reasoning"])) // Filter narrows type to TextUIPart
   .map(({ chunk, part }) => {
