@@ -20,6 +20,7 @@ import {
   excludeParts,
   includeChunks,
   includeParts,
+  partType,
 } from "./type-guards.js";
 
 /** Mock stream for type tests */
@@ -204,6 +205,32 @@ describe(`type-guards`, () => {
         ({ chunk, part }) => {
           expectTypeOf(chunk).toEqualTypeOf<TextDeltaChunk | StartChunk | FinishChunk>();
           expectTypeOf(part).toEqualTypeOf<{ type: `text` } | undefined>();
+        },
+      );
+    });
+  });
+
+  describe(`partType`, () => {
+    it(`should narrow to single part type`, () => {
+      pipe<MyUIMessage>(mockStream).on(partType(`text`), ({ chunk, part }) => {
+        expectTypeOf(chunk).toEqualTypeOf<TextChunk>();
+        expectTypeOf(part).toEqualTypeOf<{ type: `text` }>();
+      });
+    });
+
+    it(`should narrow to multiple part types`, () => {
+      pipe<MyUIMessage>(mockStream).on(partType([`text`, `reasoning`]), ({ chunk, part }) => {
+        expectTypeOf(chunk).toEqualTypeOf<TextChunk | ReasoningChunk>();
+        expectTypeOf(part).toEqualTypeOf<{ type: `text` | `reasoning` }>();
+      });
+    });
+
+    it(`should narrow to tool part types`, () => {
+      pipe<MyUIMessage>(mockStream).on(
+        partType([`tool-weather`, `dynamic-tool`]),
+        ({ chunk, part }) => {
+          expectTypeOf(chunk).toEqualTypeOf<ToolChunk>();
+          expectTypeOf(part).toEqualTypeOf<{ type: `tool-weather` | `dynamic-tool` }>();
         },
       );
     });

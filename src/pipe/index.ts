@@ -5,4 +5,5 @@ export {
   excludeParts,
   includeChunks,
   includeParts,
+  partType,
 } from "./type-guards.js";

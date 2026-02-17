@@ -130,6 +130,10 @@ const stream = pipe(result.toUIMessageStream())
 **Type guard** provides a type-safe way to observe specific chunk types:
 
 - `chunkType("text-delta")` or `chunkType(["start", "finish"])`: Observe specific chunk types
+- `partType("text")` or `partType(["text", "reasoning"])`: Observe chunks belonging to specific part types
+
+> [!NOTE]
+> The `partType` type guard still operates on chunks. That means `partType("text")` will match any text chunks such as `text-start`, `text-delta`, and `text-end`.
 
 **Example:** Log stream lifecycle events.
 

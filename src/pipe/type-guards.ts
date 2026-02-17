@@ -215,7 +215,7 @@ export function excludeParts<
 }
 
 /**
- * Creates an on() guard that matches specific chunk types, including meta chunks.
+ * Creates an observe guard that matches specific chunk types, including meta chunks.
  * Use with `.on()` to observe specific chunks without filtering.
  *
  * @example
@@ -267,5 +267,55 @@ export function chunkType<
     UI_MESSAGE,
     ExtractChunk<UI_MESSAGE, CHUNK_TYPE>,
     InferPartForChunk<UI_MESSAGE, CHUNK_TYPE>
+  >;
+}
+
+/**
+ * Creates an observe guard that matches specific part types.
+ * Use with `.on()` to observe chunks belonging to specific parts without filtering.
+ *
+ * @example
+ * ```typescript
+ * // Observe text parts
+ * pipe<MyUIMessage>(stream)
+ *   .on(partType('text'), ({ chunk, part }) => {
+ *     // chunk is text chunk, part is { type: 'text' }
+ *   });
+ *
+ * // Observe multiple part types
+ * pipe<MyUIMessage>(stream)
+ *   .on(partType(['text', 'reasoning']), ({ chunk, part }) => {
+ *     // chunk is text | reasoning chunk, part is { type: 'text' | 'reasoning' }
+ *   });
+ * ```
+ */
+export function partType<
+  UI_MESSAGE extends UIMessage,
+  PART_TYPE extends InferUIMessagePartType<UI_MESSAGE>,
+>(
+  types: PART_TYPE | Array<PART_TYPE>,
+): ObserveGuard<
+  UI_MESSAGE,
+  ExtractChunkForPart<UI_MESSAGE, ExtractPart<UI_MESSAGE, PART_TYPE>>,
+  { type: PART_TYPE }
+> {
+  const typeArray = Array.isArray(types) ? types : [types];
+
+  const guard = <
+    T extends {
+      chunk: InferUIMessageChunk<UI_MESSAGE>;
+      part?: { type: string } | undefined;
+    },
+  >(
+    input: T,
+  ): input is T & {
+    chunk: ExtractChunkForPart<UI_MESSAGE, ExtractPart<UI_MESSAGE, PART_TYPE>>;
+    part: { type: PART_TYPE };
+  } => (typeArray as Array<string>).includes((input.part as { type: string })?.type);
+
+  return guard as ObserveGuard<
+    UI_MESSAGE,
+    ExtractChunkForPart<UI_MESSAGE, ExtractPart<UI_MESSAGE, PART_TYPE>>,
+    { type: PART_TYPE }
   >;
 }

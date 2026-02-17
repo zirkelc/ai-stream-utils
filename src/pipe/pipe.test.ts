@@ -13,7 +13,7 @@ import {
 import { convertArrayToStream } from "../utils/convert-array-to-stream.js";
 import { convertAsyncIterableToArray } from "../utils/convert-async-iterable-to-array.js";
 import { pipe } from "./pipe.js";
-import { chunkType, includeChunks, includeParts } from "./type-guards.js";
+import { chunkType, includeChunks, includeParts, partType } from "./type-guards.js";
 
 describe(`pipe`, () => {
   describe(`filter`, () => {
@@ -335,6 +335,98 @@ describe(`pipe`, () => {
         );
 
         // Assert - text-start, text-delta x2, text-end
+        expect(observed.length).toBe(4);
+      });
+    });
+
+    describe(`partType`, () => {
+      it(`should call callback for matching part types without filtering`, async () => {
+        // Arrange
+        const stream = convertArrayToStream([
+          START_CHUNK,
+          ...TEXT_CHUNKS,
+          ...REASONING_CHUNKS,
+          FINISH_CHUNK,
+        ]);
+        const observed: Array<MyUIMessageChunk> = [];
+
+        // Act
+        const result = await convertAsyncIterableToArray(
+          pipe<MyUIMessage>(stream)
+            .on(partType(`text`), ({ chunk }) => {
+              observed.push(chunk);
+            })
+            .toStream(),
+        );
+
+        // Assert - all chunks pass through
+        expect(result).toEqual([START_CHUNK, ...TEXT_CHUNKS, ...REASONING_CHUNKS, FINISH_CHUNK]);
+        // Assert - only text chunks were observed
+        expect(observed.length).toBe(4);
+        expect(observed.every((c) => c.type.startsWith(`text-`))).toBe(true);
+      });
+
+      it(`should call callback for multiple part types`, async () => {
+        // Arrange
+        const stream = convertArrayToStream([
+          START_CHUNK,
+          ...TEXT_CHUNKS,
+          ...REASONING_CHUNKS,
+          FINISH_CHUNK,
+        ]);
+        const observed: Array<MyUIMessageChunk> = [];
+
+        // Act
+        const result = await convertAsyncIterableToArray(
+          pipe<MyUIMessage>(stream)
+            .on(partType([`text`, `reasoning`]), ({ chunk }) => {
+              observed.push(chunk);
+            })
+            .toStream(),
+        );
+
+        // Assert - all chunks pass through
+        expect(result).toEqual([START_CHUNK, ...TEXT_CHUNKS, ...REASONING_CHUNKS, FINISH_CHUNK]);
+        // Assert - text and reasoning chunks were observed
+        expect(observed.length).toBe(8);
+      });
+
+      it(`should support async callbacks`, async () => {
+        // Arrange
+        const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+        const observed: Array<string> = [];
+
+        // Act
+        await convertAsyncIterableToArray(
+          pipe<MyUIMessage>(stream)
+            .on(partType(`text`), async ({ chunk }) => {
+              await new Promise((r) => setTimeout(r, 10));
+              observed.push(chunk.type);
+            })
+            .toStream(),
+        );
+
+        // Assert
+        expect(observed).toEqual([`text-start`, `text-delta`, `text-delta`, `text-end`]);
+      });
+
+      it(`should not observe meta chunks`, async () => {
+        // Arrange
+        const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+        const observed: Array<string> = [];
+
+        // Act
+        await convertAsyncIterableToArray(
+          pipe<MyUIMessage>(stream)
+            .on(partType(`text`), ({ chunk }) => {
+              observed.push(chunk.type);
+            })
+            .toStream(),
+        );
+
+        // Assert - no meta chunks observed
+        expect(observed).not.toContain(`start`);
+        expect(observed).not.toContain(`finish`);
         expect(observed.length).toBe(4);
       });
     });
