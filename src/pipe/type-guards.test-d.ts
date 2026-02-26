@@ -18,8 +18,10 @@ import {
   chunkType,
   excludeChunks,
   excludeParts,
+  excludeTools,
   includeChunks,
   includeParts,
+  includeTools,
   partType,
 } from "./type-guards.js";
 
@@ -233,6 +235,118 @@ describe(`type-guards`, () => {
           expectTypeOf(part).toEqualTypeOf<{ type: `tool-weather` | `dynamic-tool` }>();
         },
       );
+    });
+  });
+
+  describe(`excludeTools`, () => {
+    it(`should exclude all tool chunks when called without arguments`, () => {
+      pipe<MyUIMessage>(mockStream)
+        .filter(excludeTools())
+        .map(({ chunk, part }) => {
+          /** Tool chunks should be excluded */
+          expectTypeOf<ToolChunk>().not.toExtend<typeof chunk>();
+          /** Other content chunks should still be included */
+          expectTypeOf<TextChunk>().toExtend<typeof chunk>();
+          expectTypeOf<ReasoningChunk>().toExtend<typeof chunk>();
+          expectTypeOf<FileChunk>().toExtend<typeof chunk>();
+          /** Tool part types should be excluded */
+          expectTypeOf<{ type: `tool-weather` }>().not.toExtend<typeof part>();
+          expectTypeOf<{ type: `dynamic-tool` }>().not.toExtend<typeof part>();
+          /** Other part types should be included */
+          expectTypeOf<{ type: `text` }>().toExtend<typeof part>();
+          expectTypeOf<{ type: `reasoning` }>().toExtend<typeof part>();
+          return chunk;
+        });
+    });
+
+    it(`should exclude specific tool when called with single tool name`, () => {
+      pipe<MyUIMessage>(mockStream)
+        .filter(excludeTools(`weather`))
+        .map(({ chunk, part }) => {
+          /** tool-weather part should be excluded */
+          expectTypeOf<{ type: `tool-weather` }>().not.toExtend<typeof part>();
+          /** Other part types should be included */
+          expectTypeOf<{ type: `text` }>().toExtend<typeof part>();
+          expectTypeOf<{ type: `dynamic-tool` }>().toExtend<typeof part>();
+          return chunk;
+        });
+    });
+
+    it(`should exclude multiple tools when called with array of tool names`, () => {
+      pipe<MyUIMessage>(mockStream)
+        .filter(excludeTools([`weather`]))
+        .map(({ chunk, part }) => {
+          /** Specified tool parts should be excluded */
+          expectTypeOf<{ type: `tool-weather` }>().not.toExtend<typeof part>();
+          /** Other part types should be included */
+          expectTypeOf<{ type: `text` }>().toExtend<typeof part>();
+          expectTypeOf<{ type: `dynamic-tool` }>().toExtend<typeof part>();
+          return chunk;
+        });
+    });
+
+    it(`should not allow invalid tool names`, () => {
+      // @ts-expect-error - invalid tool name should not be allowed
+      pipe<MyUIMessage>(mockStream).filter(excludeTools(`invalid-tool`));
+    });
+  });
+
+  describe(`includeTools`, () => {
+    it(`should be no-op when called without arguments (all chunks pass)`, () => {
+      pipe<MyUIMessage>(mockStream)
+        .filter(includeTools())
+        .map(({ chunk, part }) => {
+          /** All content chunks should still be included */
+          expectTypeOf<TextChunk>().toExtend<typeof chunk>();
+          expectTypeOf<ReasoningChunk>().toExtend<typeof chunk>();
+          expectTypeOf<ToolChunk>().toExtend<typeof chunk>();
+          expectTypeOf<FileChunk>().toExtend<typeof chunk>();
+          /** All part types should be included */
+          expectTypeOf<{ type: `text` }>().toExtend<typeof part>();
+          expectTypeOf<{ type: `tool-weather` }>().toExtend<typeof part>();
+          expectTypeOf<{ type: `dynamic-tool` }>().toExtend<typeof part>();
+          return chunk;
+        });
+    });
+
+    it(`should include specific tool when called with single tool name`, () => {
+      pipe<MyUIMessage>(mockStream)
+        .filter(includeTools(`weather`))
+        .map(({ chunk, part }) => {
+          /** Non-tool chunks should still be included */
+          expectTypeOf<TextChunk>().toExtend<typeof chunk>();
+          expectTypeOf<ReasoningChunk>().toExtend<typeof chunk>();
+          expectTypeOf<FileChunk>().toExtend<typeof chunk>();
+          /** tool-weather part should be included */
+          expectTypeOf<{ type: `tool-weather` }>().toExtend<typeof part>();
+          /** Non-tool part types should be included */
+          expectTypeOf<{ type: `text` }>().toExtend<typeof part>();
+          /** Other tools should be excluded */
+          expectTypeOf<{ type: `dynamic-tool` }>().not.toExtend<typeof part>();
+          return chunk;
+        });
+    });
+
+    it(`should include multiple tools when called with array of tool names`, () => {
+      pipe<MyUIMessage>(mockStream)
+        .filter(includeTools([`weather`]))
+        .map(({ chunk, part }) => {
+          /** Non-tool chunks should still be included */
+          expectTypeOf<TextChunk>().toExtend<typeof chunk>();
+          expectTypeOf<ReasoningChunk>().toExtend<typeof chunk>();
+          /** Specified tool parts should be included */
+          expectTypeOf<{ type: `tool-weather` }>().toExtend<typeof part>();
+          /** Non-tool part types should be included */
+          expectTypeOf<{ type: `text` }>().toExtend<typeof part>();
+          /** Other tools should be excluded */
+          expectTypeOf<{ type: `dynamic-tool` }>().not.toExtend<typeof part>();
+          return chunk;
+        });
+    });
+
+    it(`should not allow invalid tool names`, () => {
+      // @ts-expect-error - invalid tool name should not be allowed
+      pipe<MyUIMessage>(mockStream).filter(includeTools(`invalid-tool`));
     });
   });
 });

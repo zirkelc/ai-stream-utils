@@ -3,10 +3,13 @@ import type {
   ChunkTypeToPartType,
   ContentChunkType,
   ExcludePartForChunks,
+  ExcludeToolChunkTypes,
+  ExcludeToolPartTypes,
   ExtractChunk,
   ExtractChunkForPart,
   ExtractPart,
   InferPartForChunk,
+  InferToolName,
   InferUIMessageChunkType,
   InferUIMessagePartType,
   PartTypeToChunkTypes,
@@ -310,4 +313,136 @@ export function partType<
     ExtractChunkForPart<UI_MESSAGE, ExtractPart<UI_MESSAGE, PART_TYPE>>,
     { type: PART_TYPE }
   >;
+}
+
+/**
+ * Creates a filter guard that includes only specific tools while keeping non-tool chunks.
+ * Use with `.filter()` to include only specific tools.
+ *
+ * @example
+ * ```typescript
+ * // No-op: all chunks pass through
+ * pipe<MyUIMessage>(stream)
+ *   .filter(includeTools())
+ *   .map(({ chunk }) => chunk); // all chunks pass
+ *
+ * // Include specific tool (non-tool chunks still pass)
+ * pipe<MyUIMessage>(stream)
+ *   .filter(includeTools('weather'))
+ *   .map(({ chunk }) => chunk); // text + tool-weather chunks
+ *
+ * // Include multiple tools
+ * pipe<MyUIMessage>(stream)
+ *   .filter(includeTools(['weather', 'calculator']))
+ *   .map(({ chunk }) => chunk); // text + specified tool chunks
+ * ```
+ */
+export function includeTools<UI_MESSAGE extends UIMessage>(): FilterGuard<
+  UI_MESSAGE,
+  InferUIMessageChunk<UI_MESSAGE>,
+  { type: InferUIMessagePartType<UI_MESSAGE> }
+>;
+export function includeTools<
+  UI_MESSAGE extends UIMessage,
+  TOOL_NAME extends InferToolName<UI_MESSAGE>,
+>(
+  toolNames: TOOL_NAME | Array<TOOL_NAME>,
+): FilterGuard<
+  UI_MESSAGE,
+  InferUIMessageChunk<UI_MESSAGE>,
+  { type: ExcludeToolPartTypes<UI_MESSAGE> | `tool-${TOOL_NAME}` }
+>;
+export function includeTools<UI_MESSAGE extends UIMessage>(
+  toolNames?: string | Array<string>,
+): FilterGuard<UI_MESSAGE, InferUIMessageChunk<UI_MESSAGE>, { type: string }> {
+  const toolNameArray =
+    toolNames === undefined ? undefined : Array.isArray(toolNames) ? toolNames : [toolNames];
+
+  const guard = <T extends { chunk: { type: string }; part?: { type: string } | undefined }>(
+    input: T,
+  ): boolean => {
+    /** No args = no-op, all chunks pass */
+    if (toolNameArray === undefined) return true;
+
+    const partType = input.part?.type;
+    if (!partType) return true;
+
+    /** Non-tool chunks pass */
+    if (!partType.startsWith(`tool-`) && partType !== `dynamic-tool`) {
+      return true;
+    }
+
+    /** Only matching tool chunks pass */
+    for (const name of toolNameArray) {
+      if (partType === `tool-${name}`) return true;
+    }
+    return false;
+  };
+
+  return guard as FilterGuard<UI_MESSAGE, InferUIMessageChunk<UI_MESSAGE>, { type: string }>;
+}
+
+/**
+ * Creates a filter guard that excludes all or only specific tools while keeping non-tool chunks.
+ * Use with `.filter()` to exclude specific tools or all tools.
+ *
+ * @example
+ * ```typescript
+ * // Exclude all tools
+ * pipe<MyUIMessage>(stream)
+ *   .filter(excludeTools())
+ *   .map(({ chunk }) => chunk); // no tool chunks
+ *
+ * // Exclude specific tool
+ * pipe<MyUIMessage>(stream)
+ *   .filter(excludeTools('weather'))
+ *   .map(({ chunk }) => chunk); // excludes tool-weather chunks
+ *
+ * // Exclude multiple tools
+ * pipe<MyUIMessage>(stream)
+ *   .filter(excludeTools(['weather', 'calculator']))
+ *   .map(({ chunk }) => chunk); // excludes weather and calculator
+ * ```
+ */
+export function excludeTools<UI_MESSAGE extends UIMessage>(): FilterGuard<
+  UI_MESSAGE,
+  ExtractChunk<UI_MESSAGE, ExcludeToolChunkTypes<UI_MESSAGE>>,
+  { type: ExcludeToolPartTypes<UI_MESSAGE> }
+>;
+export function excludeTools<
+  UI_MESSAGE extends UIMessage,
+  TOOL_NAME extends InferToolName<UI_MESSAGE>,
+>(
+  toolNames: TOOL_NAME | Array<TOOL_NAME>,
+): FilterGuard<
+  UI_MESSAGE,
+  InferUIMessageChunk<UI_MESSAGE>,
+  { type: Exclude<InferUIMessagePartType<UI_MESSAGE>, `tool-${TOOL_NAME}`> }
+>;
+export function excludeTools<UI_MESSAGE extends UIMessage>(
+  toolNames?: string | Array<string>,
+): FilterGuard<UI_MESSAGE, InferUIMessageChunk<UI_MESSAGE>, { type: string }> {
+  const toolNameArray =
+    toolNames === undefined ? undefined : Array.isArray(toolNames) ? toolNames : [toolNames];
+
+  const guard = <T extends { chunk: { type: string }; part?: { type: string } | undefined }>(
+    input: T,
+  ): boolean => {
+    const partType = input.part?.type;
+    /** Meta chunks pass (no part type) */
+    if (!partType) return true;
+
+    /** No args = exclude all tool chunks */
+    if (toolNameArray === undefined) {
+      return !partType.startsWith(`tool-`) && partType !== `dynamic-tool`;
+    }
+
+    /** Exclude only matching tool chunks */
+    for (const name of toolNameArray) {
+      if (partType === `tool-${name}`) return false;
+    }
+    return true;
+  };
+
+  return guard as FilterGuard<UI_MESSAGE, InferUIMessageChunk<UI_MESSAGE>, { type: string }>;
 }

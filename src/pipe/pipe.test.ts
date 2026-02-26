@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  DYNAMIC_TOOL_CHUNKS,
   FINISH_CHUNK,
   FINISH_STEP_CHUNK,
   type MyUIMessage,
@@ -19,8 +20,10 @@ import {
   chunkType,
   excludeChunks,
   excludeParts,
+  excludeTools,
   includeChunks,
   includeParts,
+  includeTools,
   partType,
 } from "./type-guards.js";
 
@@ -502,6 +505,242 @@ describe(`pipe`, () => {
         const reasoningChunks = result.filter((c) => c.type.startsWith(`reasoning-`));
         expect(textChunks.length).toBe(0);
         expect(reasoningChunks.length).toBe(0);
+      });
+    });
+
+    describe(`excludeTools`, () => {
+      it(`should exclude all tools when called without arguments`, async () => {
+        // Arrange
+        const stream = convertArrayToStream([
+          START_CHUNK,
+          ...TEXT_CHUNKS,
+          ...TOOL_WITH_DATA_CHUNKS,
+          ...DYNAMIC_TOOL_CHUNKS,
+          FINISH_CHUNK,
+        ]);
+
+        // Act
+        const result = await convertAsyncIterableToArray(
+          pipe<MyUIMessage>(stream).filter(excludeTools()).toStream(),
+        );
+
+        // Assert - tool chunks are excluded
+        const toolChunks = result.filter((c) => c.type.startsWith(`tool-`));
+        expect(toolChunks.length).toBe(0);
+
+        // Assert - text chunks pass through
+        const textChunks = result.filter((c) => c.type.startsWith(`text-`));
+        expect(textChunks.length).toBe(4);
+
+        // Assert - data chunks pass through (they have their own part type)
+        const dataChunks = result.filter((c) => c.type === `data-weather`);
+        expect(dataChunks.length).toBe(1);
+
+        // Assert - meta/step chunks pass through
+        const startChunks = result.filter((c) => c.type === `start`);
+        const finishChunks = result.filter((c) => c.type === `finish`);
+        expect(startChunks.length).toBe(1);
+        expect(finishChunks.length).toBe(1);
+      });
+
+      it(`should exclude specific tool when called with tool name`, async () => {
+        // Arrange
+        const stream = convertArrayToStream([
+          START_CHUNK,
+          ...TEXT_CHUNKS,
+          ...TOOL_WITH_DATA_CHUNKS,
+          ...DYNAMIC_TOOL_CHUNKS,
+          FINISH_CHUNK,
+        ]);
+
+        // Act - exclude only weather tool
+        const result = await convertAsyncIterableToArray(
+          pipe<MyUIMessage>(stream).filter(excludeTools(`weather`)).toStream(),
+        );
+
+        // Assert - weather tool chunks are excluded (TOOL_WITH_DATA_CHUNKS has 4 tool chunks)
+        const weatherToolChunks = result.filter(
+          (c) => c.type.startsWith(`tool-`) && `toolName` in c && c.toolName === `weather`,
+        );
+        expect(weatherToolChunks.length).toBe(0);
+
+        // Assert - dynamic tool chunks pass through (DYNAMIC_TOOL_CHUNKS has 3 tool chunks)
+        const dynamicToolChunks = result.filter(
+          (c) => c.type.startsWith(`tool-`) && `dynamic` in c && c.dynamic === true,
+        );
+        expect(dynamicToolChunks.length).toBe(3);
+
+        // Assert - text chunks pass through
+        const textChunks = result.filter((c) => c.type.startsWith(`text-`));
+        expect(textChunks.length).toBe(4);
+      });
+
+      it(`should exclude multiple tools when called with array`, async () => {
+        // Arrange
+        const stream = convertArrayToStream([
+          START_CHUNK,
+          ...TEXT_CHUNKS,
+          ...TOOL_WITH_DATA_CHUNKS,
+          FINISH_CHUNK,
+        ]);
+
+        // Act - exclude weather tool
+        const result = await convertAsyncIterableToArray(
+          pipe<MyUIMessage>(stream)
+            .filter(excludeTools([`weather`]))
+            .toStream(),
+        );
+
+        // Assert - tool chunks are excluded
+        const toolChunks = result.filter((c) => c.type.startsWith(`tool-`));
+        expect(toolChunks.length).toBe(0);
+
+        // Assert - text chunks pass through
+        const textChunks = result.filter((c) => c.type.startsWith(`text-`));
+        expect(textChunks.length).toBe(4);
+
+        // Assert - meta/step chunks pass through
+        const startChunks = result.filter((c) => c.type === `start`);
+        const finishChunks = result.filter((c) => c.type === `finish`);
+        expect(startChunks.length).toBe(1);
+        expect(finishChunks.length).toBe(1);
+      });
+
+      it(`should let meta chunks pass through`, async () => {
+        // Arrange
+        const stream = convertArrayToStream([START_CHUNK, ...TOOL_WITH_DATA_CHUNKS, FINISH_CHUNK]);
+
+        // Act
+        const result = await convertAsyncIterableToArray(
+          pipe<MyUIMessage>(stream).filter(excludeTools()).toStream(),
+        );
+
+        // Assert - meta chunks always pass through
+        expect(result.filter((c) => c.type === `start`).length).toBe(1);
+        expect(result.filter((c) => c.type === `finish`).length).toBe(1);
+        expect(result.filter((c) => c.type === `start-step`).length).toBe(1);
+        expect(result.filter((c) => c.type === `finish-step`).length).toBe(1);
+      });
+    });
+
+    describe(`includeTools`, () => {
+      it(`should be no-op when called without arguments`, async () => {
+        // Arrange
+        const stream = convertArrayToStream([
+          START_CHUNK,
+          ...TEXT_CHUNKS,
+          ...TOOL_WITH_DATA_CHUNKS,
+          ...DYNAMIC_TOOL_CHUNKS,
+          FINISH_CHUNK,
+        ]);
+
+        // Act
+        const result = await convertAsyncIterableToArray(
+          pipe<MyUIMessage>(stream).filter(includeTools()).toStream(),
+        );
+
+        // Assert - all chunks pass through
+        const textChunks = result.filter((c) => c.type.startsWith(`text-`));
+        expect(textChunks.length).toBe(4);
+
+        const toolChunks = result.filter((c) => c.type.startsWith(`tool-`));
+        expect(toolChunks.length).toBe(7);
+
+        const dataChunks = result.filter((c) => c.type === `data-weather`);
+        expect(dataChunks.length).toBe(1);
+
+        const startChunks = result.filter((c) => c.type === `start`);
+        expect(startChunks.length).toBe(1);
+
+        const finishChunks = result.filter((c) => c.type === `finish`);
+        expect(finishChunks.length).toBe(1);
+      });
+
+      it(`should include specific tool when called with tool name`, async () => {
+        // Arrange
+        const stream = convertArrayToStream([
+          START_CHUNK,
+          ...TEXT_CHUNKS,
+          ...TOOL_WITH_DATA_CHUNKS,
+          ...DYNAMIC_TOOL_CHUNKS,
+          FINISH_CHUNK,
+        ]);
+
+        // Act - include only weather tool
+        const result = await convertAsyncIterableToArray(
+          pipe<MyUIMessage>(stream).filter(includeTools(`weather`)).toStream(),
+        );
+
+        // Assert - text chunks pass through (non-tool)
+        const textChunks = result.filter((c) => c.type.startsWith(`text-`));
+        expect(textChunks.length).toBe(4);
+
+        // Assert - weather tool chunks pass through (TOOL_WITH_DATA_CHUNKS has 4 tool chunks)
+        const weatherToolChunks = result.filter(
+          (c) => c.type.startsWith(`tool-`) && `toolName` in c && c.toolName === `weather`,
+        );
+        expect(weatherToolChunks.length).toBe(2);
+
+        // Assert - data chunks pass through (non-tool)
+        const dataChunks = result.filter((c) => c.type === `data-weather`);
+        expect(dataChunks.length).toBe(1);
+
+        // Assert - dynamic tool chunks excluded
+        const dynamicToolChunks = result.filter(
+          (c) => c.type.startsWith(`tool-`) && `dynamic` in c && c.dynamic === true,
+        );
+        expect(dynamicToolChunks.length).toBe(0);
+      });
+
+      it(`should include multiple tools when called with array`, async () => {
+        // Arrange
+        const stream = convertArrayToStream([
+          START_CHUNK,
+          ...TEXT_CHUNKS,
+          ...TOOL_WITH_DATA_CHUNKS,
+          FINISH_CHUNK,
+        ]);
+
+        // Act - include weather tool
+        const result = await convertAsyncIterableToArray(
+          pipe<MyUIMessage>(stream)
+            .filter(includeTools([`weather`]))
+            .toStream(),
+        );
+
+        // Assert - text chunks pass through (non-tool)
+        const textChunks = result.filter((c) => c.type.startsWith(`text-`));
+        expect(textChunks.length).toBe(4);
+
+        // Assert - weather tool chunks pass through (4 tool chunks)
+        const toolChunks = result.filter((c) => c.type.startsWith(`tool-`));
+        expect(toolChunks.length).toBe(4);
+
+        // Assert - data chunks pass through (non-tool)
+        const dataChunks = result.filter((c) => c.type === `data-weather`);
+        expect(dataChunks.length).toBe(1);
+
+        // Assert - meta/step chunks pass through
+        const startChunks = result.filter((c) => c.type === `start`);
+        const finishChunks = result.filter((c) => c.type === `finish`);
+        expect(startChunks.length).toBe(1);
+        expect(finishChunks.length).toBe(1);
+      });
+
+      it(`should let meta chunks pass through`, async () => {
+        // Arrange
+        const stream = convertArrayToStream([START_CHUNK, ...TOOL_WITH_DATA_CHUNKS, FINISH_CHUNK]);
+
+        // Act
+        const result = await convertAsyncIterableToArray(
+          pipe<MyUIMessage>(stream).filter(includeTools(`weather`)).toStream(),
+        );
+
+        // Assert - meta chunks always pass through
+        expect(result.filter((c) => c.type === `start`).length).toBe(1);
+        expect(result.filter((c) => c.type === `finish`).length).toBe(1);
+        expect(result.filter((c) => c.type === `start-step`).length).toBe(1);
+        expect(result.filter((c) => c.type === `finish-step`).length).toBe(1);
       });
     });
 

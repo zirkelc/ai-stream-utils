@@ -52,20 +52,55 @@ const stream = pipe(result.toUIMessageStream())
   .toStream();
 ```
 
-**Type guards** provide a simpler API for common filtering patterns:
+#### Type Guards
 
-- `includeChunks("text-delta")` or `includeChunks(["text-delta", "text-end"])`: Include specific chunk types
-- `excludeChunks("text-delta")` or `excludeChunks(["text-delta", "text-end"])`: Exclude specific chunk types
-- `includeParts("text")` or `includeParts(["text", "reasoning"])`: Include specific part types
-- `excludeParts("reasoning")` or `excludeParts(["reasoning", "tool-database"])`: Exclude specific part types
+Generic type guards provide a simpler API for common filtering patterns:
 
-**Example:** Exclude tool calls from the client.
+- `includeChunks("text-delta")` or `includeChunks(["text-delta", "text-end"])`: Include **only** specific chunk types
+- `excludeChunks("text-delta")` or `excludeChunks(["text-delta", "text-end"])`: Exclude **only** specific chunk types
+- `includeParts("text")` or `includeParts(["text", "reasoning"])`: Include **only** specific part types
+- `excludeParts("reasoning")` or `excludeParts(["reasoning", "tool-database"])`: Exclude **only** specific part types
+
+Filtering tools is the most common use case and the tool-filter type guards provide a convenient API for filtering tool chunks by tool name:
+
+- `excludeTools()` or `excludeTools("weather")` or `excludeTools(["weather", "database"])`: Exclude all tools or specific tools by name
+- `includeTools()` or `includeTools("weather")` or `includeTools(["weather", "database"])`: Include all tools or specific tools by name
+
+> [!NOTE]
+> The tool-filter type guards only affect tool chunks. Non-tool chunks will pass through.
+
+#### Examples
+
+Exclude tool calls from the client.
 
 ```typescript
+// Exclude by part type (requires "tool-" prefix)
 const stream = pipe(result.toUIMessageStream())
   .filter(excludeParts(["tool-weather", "tool-database"]))
   .toStream();
+
+// Exclude by tool name (without "tool-" prefix)
+const stream = pipe(result.toUIMessageStream())
+  .filter(excludeTools(["weather", "database"]))
+  .toStream();
+
+// Exclude all tools
+const stream = pipe(result.toUIMessageStream()).filter(excludeTools()).toStream();
+
+// Include only specific tools (without "tool-" prefix)
+const stream = pipe(result.toUIMessageStream())
+  .filter(includeTools(["weather"]))
+  .toStream();
 ```
+
+> [!NOTE]
+> `excludeTools()` and `includeTools()` filters tool chunks on the server before streaming to the client. This affects all tool types including:
+>
+> - Server-side tools with `execute` functions
+> - Client-side tools without `execute` functions
+> - Tools that require human approval via `needsApproval`
+>
+> Excluded tools will not appear in the client's message parts, so users won't see tool call UI or be able to approve/reject filtered tools.
 
 ### `.map()`
 
@@ -94,7 +129,9 @@ const stream = pipe(result.toUIMessageStream())
   .toStream();
 ```
 
-**Example:** Convert text to uppercase.
+#### Examples
+
+Convert text to uppercase.
 
 ```typescript
 const stream = pipe(result.toUIMessageStream())
@@ -127,6 +164,8 @@ const stream = pipe(result.toUIMessageStream())
   .toStream();
 ```
 
+#### Type Guards
+
 **Type guard** provides a type-safe way to observe specific chunk types:
 
 - `chunkType("text-delta")` or `chunkType(["start", "finish"])`: Observe specific chunk types
@@ -135,7 +174,9 @@ const stream = pipe(result.toUIMessageStream())
 > [!NOTE]
 > The `partType` type guard still operates on chunks. That means `partType("text")` will match any text chunks such as `text-start`, `text-delta`, and `text-end`.
 
-**Example:** Log stream lifecycle events.
+#### Examples
+
+Log stream lifecycle events.
 
 ```typescript
 const stream = pipe(result.toUIMessageStream())

@@ -1,4 +1,4 @@
-import type { InferUIMessageChunk, UIMessage } from "ai";
+import type { InferUIMessageChunk, UIDataTypes, UIMessage, UITools } from "ai";
 
 export type InferUIMessagePart<UI_MESSAGE extends UIMessage> = UI_MESSAGE["parts"][number];
 
@@ -7,6 +7,9 @@ export type InferUIMessagePartType<UI_MESSAGE extends UIMessage> =
 
 export type InferUIMessageChunkType<UI_MESSAGE extends UIMessage> =
   InferUIMessageChunk<UI_MESSAGE>["type"];
+
+type InferUIMessageTools<UI_MESSAGE extends UIMessage> =
+  UI_MESSAGE extends UIMessage<unknown, UIDataTypes, infer TOOLS> ? TOOLS : UITools;
 
 /**
  * Extracts chunk type strings that match the prefix exactly or as `${PREFIX}-*`.
@@ -219,3 +222,47 @@ export type ExcludePartForChunks<
     ? never
     : PT;
 }[InferUIMessagePartType<UI_MESSAGE>];
+
+/**
+ * Extract tool names from UIMessage tools.
+ *
+ * @example
+ * ```typescript
+ * type Tools = InferToolName<MyUIMessage>;
+ * // => 'weather' | 'calculator'
+ * ```
+ */
+export type InferToolName<UI_MESSAGE extends UIMessage> = keyof InferUIMessageTools<UI_MESSAGE> &
+  string;
+
+/**
+ * All tool-related part types (tool-* and dynamic-tool).
+ */
+export type ToolPartTypes<UI_MESSAGE extends UIMessage> = Extract<
+  InferUIMessagePartType<UI_MESSAGE>,
+  `tool-${string}` | `dynamic-tool`
+>;
+
+/**
+ * Part types remaining after excluding all tools.
+ */
+export type ExcludeToolPartTypes<UI_MESSAGE extends UIMessage> = Exclude<
+  InferUIMessagePartType<UI_MESSAGE>,
+  ToolPartTypes<UI_MESSAGE>
+>;
+
+/**
+ * Chunk types for tools (tool-input-*, tool-output-*, etc.).
+ */
+export type ToolChunkTypes<UI_MESSAGE extends UIMessage> = Extract<
+  InferUIMessageChunkType<UI_MESSAGE>,
+  `tool-${string}`
+>;
+
+/**
+ * Content chunk types remaining after excluding all tool chunks.
+ */
+export type ExcludeToolChunkTypes<UI_MESSAGE extends UIMessage> = Exclude<
+  ContentChunkType<UI_MESSAGE>,
+  ToolChunkTypes<UI_MESSAGE>
+>;
