@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.0](https://github.com/zirkelc/ai-stream-utils/compare/v2.0.1...v2.1.0) (2026-02-26)
+
+
+### Features
+
+* add tool type-guards for filtering tools by name ([44d3505](https://github.com/zirkelc/ai-stream-utils/commit/44d35059c93529e779ac70d6c961135654da991c))
+
 ## [2.0.1](https://github.com/zirkelc/ai-stream-utils/compare/v2.0.0...v2.0.1) (2026-02-17)
 
 
