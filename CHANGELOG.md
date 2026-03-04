@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.2.0](https://github.com/zirkelc/ai-stream-utils/compare/v2.1.0...v2.2.0) (2026-03-04)
+
+
+### Features
+
+* add toolCall() type guard ([211a1d0](https://github.com/zirkelc/ai-stream-utils/commit/211a1d09275f24f849afde4615d53b0ea5c93385))
+
+
+### Bug Fixes
+
+* add UIMessage generic ([8f3162f](https://github.com/zirkelc/ai-stream-utils/commit/8f3162fd3ec71276db7f6db870e9aaa7a681de7b))
+
 ## [2.1.0](https://github.com/zirkelc/ai-stream-utils/compare/v2.0.1...v2.1.0) (2026-02-26)
 
 
