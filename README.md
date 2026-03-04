@@ -172,16 +172,16 @@ const stream = pipe(result.toUIMessageStream())
 - `partType("text")` or `partType(["text", "reasoning"])`: Observe chunks belonging to specific part types
 - `toolCall()` or `toolCall({ tool: "weather" })` or `toolCall({ state: "output-available" })`: Observe tool state transitions
 
-The `toolCall()` guard matches tool chunks representing state transitions (not streaming events):
+> [!NOTE]
+> The `partType` type guard still operates on chunks. That means `partType("text")` will match any text chunks such as `text-start`, `text-delta`, and `text-end`.
+
+The `toolCall()` type guard matches tool chunks representing state transitions (not streaming events):
 
 - `input-available`: Tool input fully parsed
 - `approval-requested`: Tool awaiting user approval
 - `output-available`: Tool execution completed
 - `output-error`: Tool execution failed
 - `output-denied`: User denied approval
-
-> [!NOTE]
-> The `partType` type guard still operates on chunks. That means `partType("text")` will match any text chunks such as `text-start`, `text-delta`, and `text-end`.
 
 #### Examples
 
@@ -196,10 +196,10 @@ const stream = pipe(result.toUIMessageStream())
     console.log("Stream finished:", chunk.finishReason);
   })
   .on(chunkType("tool-input-available"), ({ chunk }) => {
-    console.log("Tool input:", chunk.toolName, chunk.input);
+    console.log("Tool input:", chunk.input);
   })
   .on(chunkType("tool-output-available"), ({ chunk }) => {
-    console.log("Tool output:", chunk.toolName, chunk.output);
+    console.log("Tool output:", chunk.output);
   })
   .toStream();
 ```
@@ -211,11 +211,14 @@ const stream = pipe(result.toUIMessageStream())
   .on(toolCall({ tool: "weather", state: "approval-requested" }), ({ chunk }) => {
     console.log("Weather tool needs approval");
   })
+  .on(toolCall({ tool: "weather", state: "output-available" }), ({ chunk }) => {
+    console.log("Weather output:", chunk.output);
+  })
+  .on(toolCall({ tool: "weather", state: "input-available" }), ({ chunk }) => {
+    console.log("Weather input:", chunk.input);
+  })
   .toStream();
 ```
-
-> [!NOTE]
-> The `tool` option filters by part type (`tool-{name}`). Dynamic tools have part type `dynamic-tool`, so `toolCall({ tool: "myTool" })` will not match dynamic tools. Use `toolCall()` without the `tool` option to observe all tools including dynamic ones.
 
 ### `.toStream()`
 

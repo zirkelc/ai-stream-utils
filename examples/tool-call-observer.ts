@@ -87,7 +87,7 @@ const stream3 = pipe(result.toUIMessageStream<MyUIMessage>())
  */
 const stream4 = pipe(result.toUIMessageStream<MyUIMessage>())
   .on(toolCall({ tool: "weather", state: "approval-requested" }), ({ chunk, part }) => {
-    console.log(`[Weather Complete]`, chunk.output);
+    console.log(`[Weather Approval] ${part.type} needs approval`);
   })
   .toStream();
 
