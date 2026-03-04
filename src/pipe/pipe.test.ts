@@ -25,6 +25,7 @@ import {
   includeParts,
   includeTools,
   partType,
+  toolCall,
 } from "./type-guards.js";
 
 describe(`pipe`, () => {
@@ -1188,6 +1189,214 @@ describe(`pipe`, () => {
         expect(observed).not.toContain(`start`);
         expect(observed).not.toContain(`finish`);
         expect(observed.length).toBe(4);
+      });
+    });
+
+    describe(`toolCall`, () => {
+      it(`should observe all tool state chunks when called without arguments`, async () => {
+        // Arrange
+        const stream = convertArrayToStream([
+          START_CHUNK,
+          ...TEXT_CHUNKS,
+          ...TOOL_WITH_DATA_CHUNKS,
+          FINISH_CHUNK,
+        ]);
+        const observed: Array<{ chunkType: string; partType: string }> = [];
+
+        // Act
+        const result = await convertAsyncIterableToArray(
+          pipe<MyUIMessage>(stream)
+            .on(toolCall(), ({ chunk, part }) => {
+              observed.push({ chunkType: chunk.type, partType: part.type });
+            })
+            .toStream(),
+        );
+
+        // Assert - all chunks pass through
+        expect(result).toEqual([
+          START_CHUNK,
+          ...TEXT_CHUNKS,
+          ...TOOL_WITH_DATA_CHUNKS,
+          FINISH_CHUNK,
+        ]);
+
+        // Assert - only tool state chunks were observed (tool-input-available, tool-output-available)
+        expect(observed.length).toBe(2);
+        expect(observed[0]).toEqual({
+          chunkType: `tool-input-available`,
+          partType: `tool-weather`,
+        });
+        expect(observed[1]).toEqual({
+          chunkType: `tool-output-available`,
+          partType: `tool-weather`,
+        });
+      });
+
+      it(`should observe tool chunks filtered by tool name`, async () => {
+        // Arrange
+        const stream = convertArrayToStream([
+          START_CHUNK,
+          ...TOOL_WITH_DATA_CHUNKS,
+          ...DYNAMIC_TOOL_CHUNKS,
+          FINISH_CHUNK,
+        ]);
+        const observed: Array<{ chunkType: string; partType: string }> = [];
+
+        // Act
+        await convertAsyncIterableToArray(
+          pipe<MyUIMessage>(stream)
+            .on(toolCall({ tool: `weather` }), ({ chunk, part }) => {
+              observed.push({ chunkType: chunk.type, partType: part.type });
+            })
+            .toStream(),
+        );
+
+        // Assert - only weather tool state chunks were observed
+        expect(observed.length).toBe(2);
+        expect(observed.every((o) => o.partType === `tool-weather`)).toBe(true);
+      });
+
+      it(`should observe tool chunks filtered by state`, async () => {
+        // Arrange
+        const stream = convertArrayToStream([START_CHUNK, ...TOOL_WITH_DATA_CHUNKS, FINISH_CHUNK]);
+        const observed: Array<{ chunkType: string; partType: string }> = [];
+
+        // Act
+        await convertAsyncIterableToArray(
+          pipe<MyUIMessage>(stream)
+            .on(toolCall({ state: `output-available` }), ({ chunk, part }) => {
+              observed.push({ chunkType: chunk.type, partType: part.type });
+            })
+            .toStream(),
+        );
+
+        // Assert - only tool-output-available chunks were observed
+        expect(observed.length).toBe(1);
+        expect(observed[0]).toEqual({
+          chunkType: `tool-output-available`,
+          partType: `tool-weather`,
+        });
+      });
+
+      it(`should observe tool chunks filtered by tool name AND state`, async () => {
+        // Arrange
+        const stream = convertArrayToStream([
+          START_CHUNK,
+          ...TOOL_WITH_DATA_CHUNKS,
+          ...DYNAMIC_TOOL_CHUNKS,
+          FINISH_CHUNK,
+        ]);
+        const observed: Array<{ chunkType: string; partType: string }> = [];
+
+        // Act
+        await convertAsyncIterableToArray(
+          pipe<MyUIMessage>(stream)
+            .on(toolCall({ tool: `weather`, state: `output-available` }), ({ chunk, part }) => {
+              observed.push({ chunkType: chunk.type, partType: part.type });
+            })
+            .toStream(),
+        );
+
+        // Assert - only weather tool's output-available was observed
+        expect(observed.length).toBe(1);
+        expect(observed[0]).toEqual({
+          chunkType: `tool-output-available`,
+          partType: `tool-weather`,
+        });
+      });
+
+      it(`should not observe streaming chunks (tool-input-start, tool-input-delta)`, async () => {
+        // Arrange
+        const stream = convertArrayToStream([START_CHUNK, ...TOOL_WITH_DATA_CHUNKS, FINISH_CHUNK]);
+        const observed: Array<string> = [];
+
+        // Act
+        await convertAsyncIterableToArray(
+          pipe<MyUIMessage>(stream)
+            .on(toolCall(), ({ chunk }) => {
+              observed.push(chunk.type);
+            })
+            .toStream(),
+        );
+
+        // Assert - streaming chunks should not be observed
+        expect(observed).not.toContain(`tool-input-start`);
+        expect(observed).not.toContain(`tool-input-delta`);
+      });
+
+      it(`should not observe non-tool chunks`, async () => {
+        // Arrange
+        const stream = convertArrayToStream([
+          START_CHUNK,
+          ...TEXT_CHUNKS,
+          ...TOOL_WITH_DATA_CHUNKS,
+          FINISH_CHUNK,
+        ]);
+        const observed: Array<string> = [];
+
+        // Act
+        await convertAsyncIterableToArray(
+          pipe<MyUIMessage>(stream)
+            .on(toolCall(), ({ chunk }) => {
+              observed.push(chunk.type);
+            })
+            .toStream(),
+        );
+
+        // Assert - no text or meta chunks observed
+        expect(observed).not.toContain(`text-start`);
+        expect(observed).not.toContain(`text-delta`);
+        expect(observed).not.toContain(`text-end`);
+        expect(observed).not.toContain(`start`);
+        expect(observed).not.toContain(`finish`);
+        expect(observed).not.toContain(`data-weather`);
+      });
+
+      it(`should support async callbacks`, async () => {
+        // Arrange
+        const stream = convertArrayToStream([START_CHUNK, ...TOOL_WITH_DATA_CHUNKS, FINISH_CHUNK]);
+        const observed: Array<string> = [];
+
+        // Act
+        await convertAsyncIterableToArray(
+          pipe<MyUIMessage>(stream)
+            .on(toolCall(), async ({ chunk }) => {
+              await new Promise((r) => setTimeout(r, 10));
+              observed.push(chunk.type);
+            })
+            .toStream(),
+        );
+
+        // Assert
+        expect(observed).toEqual([`tool-input-available`, `tool-output-available`]);
+      });
+
+      it(`should chain with other observers`, async () => {
+        // Arrange
+        const stream = convertArrayToStream([
+          START_CHUNK,
+          ...TEXT_CHUNKS,
+          ...TOOL_WITH_DATA_CHUNKS,
+          FINISH_CHUNK,
+        ]);
+        const toolObserved: Array<string> = [];
+        const textObserved: Array<string> = [];
+
+        // Act
+        await convertAsyncIterableToArray(
+          pipe<MyUIMessage>(stream)
+            .on(toolCall(), ({ chunk }) => {
+              toolObserved.push(chunk.type);
+            })
+            .on(partType(`text`), ({ chunk }) => {
+              textObserved.push(chunk.type);
+            })
+            .toStream(),
+        );
+
+        // Assert
+        expect(toolObserved).toEqual([`tool-input-available`, `tool-output-available`]);
+        expect(textObserved).toEqual([`text-start`, `text-delta`, `text-delta`, `text-end`]);
       });
     });
   });

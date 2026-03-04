@@ -23,6 +23,7 @@ import {
   includeParts,
   includeTools,
   partType,
+  toolCall,
 } from "./type-guards.js";
 
 /** Mock stream for type tests */
@@ -347,6 +348,72 @@ describe(`type-guards`, () => {
     it(`should not allow invalid tool names`, () => {
       // @ts-expect-error - invalid tool name should not be allowed
       pipe<MyUIMessage>(mockStream).filter(includeTools(`invalid-tool`));
+    });
+  });
+
+  describe(`toolCall`, () => {
+    type ToolInputAvailableChunk = Extract<MyUIMessageChunk, { type: "tool-input-available" }>;
+    type ToolApprovalRequestChunk = Extract<MyUIMessageChunk, { type: "tool-approval-request" }>;
+    type ToolOutputAvailableChunk = Extract<MyUIMessageChunk, { type: "tool-output-available" }>;
+    type ToolOutputErrorChunk = Extract<MyUIMessageChunk, { type: "tool-output-error" }>;
+    type ToolOutputDeniedChunk = Extract<MyUIMessageChunk, { type: "tool-output-denied" }>;
+    type AllToolStateChunks =
+      | ToolInputAvailableChunk
+      | ToolApprovalRequestChunk
+      | ToolOutputAvailableChunk
+      | ToolOutputErrorChunk
+      | ToolOutputDeniedChunk;
+
+    it(`should narrow to all tool state chunks when called without arguments`, () => {
+      pipe<MyUIMessage>(mockStream).on(toolCall(), ({ chunk, part }) => {
+        expectTypeOf(chunk).toEqualTypeOf<AllToolStateChunks>();
+        expectTypeOf(part).toEqualTypeOf<{
+          type: `tool-weather` | `dynamic-tool`;
+        }>();
+      });
+    });
+
+    it(`should narrow to specific tool when called with tool option`, () => {
+      pipe<MyUIMessage>(mockStream).on(toolCall({ tool: `weather` }), ({ chunk, part }) => {
+        expectTypeOf(chunk).toEqualTypeOf<AllToolStateChunks>();
+        expectTypeOf(part).toEqualTypeOf<{
+          type: `tool-weather`;
+        }>();
+      });
+    });
+
+    it(`should narrow to specific state when called with state option`, () => {
+      pipe<MyUIMessage>(mockStream).on(
+        toolCall({ state: `output-available` }),
+        ({ chunk, part }) => {
+          expectTypeOf(chunk).toEqualTypeOf<ToolOutputAvailableChunk>();
+          expectTypeOf(part).toEqualTypeOf<{
+            type: `tool-weather` | `dynamic-tool`;
+          }>();
+        },
+      );
+    });
+
+    it(`should narrow to specific tool AND state when both are provided`, () => {
+      pipe<MyUIMessage>(mockStream).on(
+        toolCall({ tool: `weather`, state: `output-available` }),
+        ({ chunk, part }) => {
+          expectTypeOf(chunk).toEqualTypeOf<ToolOutputAvailableChunk>();
+          expectTypeOf(part).toEqualTypeOf<{
+            type: `tool-weather`;
+          }>();
+        },
+      );
+    });
+
+    it(`should not allow invalid tool names`, () => {
+      // @ts-expect-error - invalid tool name should not be allowed
+      pipe<MyUIMessage>(mockStream).on(toolCall({ tool: `invalid-tool` }), () => {});
+    });
+
+    it(`should not allow invalid state names`, () => {
+      // @ts-expect-error - invalid state should not be allowed
+      pipe<MyUIMessage>(mockStream).on(toolCall({ state: `invalid-state` }), () => {});
     });
   });
 });

@@ -8,4 +8,5 @@ export {
   includeParts,
   includeTools,
   partType,
+  toolCall,
 } from "./type-guards.js";

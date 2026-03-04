@@ -170,6 +170,15 @@ const stream = pipe(result.toUIMessageStream())
 
 - `chunkType("text-delta")` or `chunkType(["start", "finish"])`: Observe specific chunk types
 - `partType("text")` or `partType(["text", "reasoning"])`: Observe chunks belonging to specific part types
+- `toolCall()` or `toolCall({ tool: "weather" })` or `toolCall({ state: "output-available" })`: Observe tool state transitions
+
+The `toolCall()` guard matches tool chunks representing state transitions (not streaming events):
+
+- `input-available`: Tool input fully parsed
+- `approval-requested`: Tool awaiting user approval
+- `output-available`: Tool execution completed
+- `output-error`: Tool execution failed
+- `output-denied`: User denied approval
 
 > [!NOTE]
 > The `partType` type guard still operates on chunks. That means `partType("text")` will match any text chunks such as `text-start`, `text-delta`, and `text-end`.
@@ -194,6 +203,19 @@ const stream = pipe(result.toUIMessageStream())
   })
   .toStream();
 ```
+
+Observe tool state transitions.
+
+```typescript
+const stream = pipe(result.toUIMessageStream())
+  .on(toolCall({ tool: "weather", state: "approval-requested" }), ({ chunk }) => {
+    console.log("Weather tool needs approval");
+  })
+  .toStream();
+```
+
+> [!NOTE]
+> The `tool` option filters by part type (`tool-{name}`). Dynamic tools have part type `dynamic-tool`, so `toolCall({ tool: "myTool" })` will not match dynamic tools. Use `toolCall()` without the `tool` option to observe all tools including dynamic ones.
 
 ### `.toStream()`
 

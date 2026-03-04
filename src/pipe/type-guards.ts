@@ -13,6 +13,8 @@ import type {
   InferUIMessageChunkType,
   InferUIMessagePartType,
   PartTypeToChunkTypes,
+  ToolCallState,
+  ToolStateToChunkType,
 } from "../types.js";
 import type { FilterGuard, ObserveGuard } from "./types.js";
 
@@ -445,4 +447,128 @@ export function excludeTools<UI_MESSAGE extends UIMessage>(
   };
 
   return guard as FilterGuard<UI_MESSAGE, InferUIMessageChunk<UI_MESSAGE>, { type: string }>;
+}
+
+/**
+ * Maps tool call states to their corresponding chunk types.
+ */
+const stateToChunkType: Record<ToolCallState, string> = {
+  "input-available": "tool-input-available",
+  "approval-requested": "tool-approval-request",
+  "output-available": "tool-output-available",
+  "output-error": "tool-output-error",
+  "output-denied": "tool-output-denied",
+};
+
+/**
+ * Reverse mapping from chunk type to state.
+ */
+const chunkTypeToState: Record<string, ToolCallState> = Object.fromEntries(
+  Object.entries(stateToChunkType).map(([state, chunkType]) => [chunkType, state as ToolCallState]),
+);
+
+/**
+ * Creates an observe guard that matches tool call chunks by tool name and/or state.
+ * Use with `.on()` to observe tool call state transitions without filtering.
+ *
+ * @example
+ * ```typescript
+ * // Match all tool state transitions (any tool, any state)
+ * pipe<MyUIMessage>(stream)
+ *   .on(toolCall(), ({ chunk, part }) => {
+ *     // Observes: tool-input-available, tool-approval-request,
+ *     // tool-output-available, tool-output-error, tool-output-denied
+ *   });
+ *
+ * // Match specific tool (any state)
+ * pipe<MyUIMessage>(stream)
+ *   .on(toolCall({ tool: "weather" }), ({ chunk, part }) => {
+ *     // part.type is 'tool-weather'
+ *   });
+ *
+ * // Match specific state (all tools)
+ * pipe<MyUIMessage>(stream)
+ *   .on(toolCall({ state: "output-available" }), ({ chunk, part }) => {
+ *     // chunk.type is 'tool-output-available'
+ *   });
+ *
+ * // Match specific tool AND state
+ * pipe<MyUIMessage>(stream)
+ *   .on(toolCall({ tool: "weather", state: "output-available" }), ({ chunk, part }) => {
+ *     // chunk.type is 'tool-output-available', part.type is 'tool-weather'
+ *   });
+ * ```
+ */
+export function toolCall<UI_MESSAGE extends UIMessage>(): ObserveGuard<
+  UI_MESSAGE,
+  ExtractChunk<UI_MESSAGE, ToolStateToChunkType[ToolCallState]>,
+  { type: `tool-${InferToolName<UI_MESSAGE>}` | "dynamic-tool" }
+>;
+export function toolCall<
+  UI_MESSAGE extends UIMessage,
+  TOOL_NAME extends InferToolName<UI_MESSAGE>,
+  STATE extends ToolCallState,
+>(options: {
+  tool: TOOL_NAME;
+  state: STATE;
+}): ObserveGuard<
+  UI_MESSAGE,
+  ExtractChunk<UI_MESSAGE, ToolStateToChunkType[STATE]>,
+  { type: `tool-${TOOL_NAME}` }
+>;
+export function toolCall<
+  UI_MESSAGE extends UIMessage,
+  TOOL_NAME extends InferToolName<UI_MESSAGE>,
+>(options: {
+  tool: TOOL_NAME;
+  state?: undefined;
+}): ObserveGuard<
+  UI_MESSAGE,
+  ExtractChunk<UI_MESSAGE, ToolStateToChunkType[ToolCallState]>,
+  { type: `tool-${TOOL_NAME}` }
+>;
+export function toolCall<UI_MESSAGE extends UIMessage, STATE extends ToolCallState>(options: {
+  tool?: undefined;
+  state: STATE;
+}): ObserveGuard<
+  UI_MESSAGE,
+  ExtractChunk<UI_MESSAGE, ToolStateToChunkType[STATE]>,
+  { type: `tool-${InferToolName<UI_MESSAGE>}` | "dynamic-tool" }
+>;
+export function toolCall<UI_MESSAGE extends UIMessage>(options?: {
+  tool?: string;
+  state?: ToolCallState;
+}): ObserveGuard<UI_MESSAGE, InferUIMessageChunk<UI_MESSAGE>, { type: string }> {
+  const toolName = options?.tool;
+  const state = options?.state;
+
+  const guard = <
+    T extends {
+      chunk: InferUIMessageChunk<UI_MESSAGE>;
+      part?: { type: string } | undefined;
+    },
+  >(
+    input: T,
+  ): boolean => {
+    const chunkType = (input.chunk as { type: string }).type;
+    const partType = (input.part as { type: string } | undefined)?.type;
+
+    /** Must be a tool chunk type that maps to a state */
+    const matchingState = chunkTypeToState[chunkType];
+    if (!matchingState) return false;
+
+    /** Check state match */
+    if (state && matchingState !== state) {
+      return false;
+    }
+
+    /** Check tool name match */
+    if (toolName && partType) {
+      if (partType !== `tool-${toolName}`) return false;
+    }
+
+    return true;
+  };
+
+  return guard as ObserveGuard<UI_MESSAGE, InferUIMessageChunk<UI_MESSAGE>, { type: string }>;
 }

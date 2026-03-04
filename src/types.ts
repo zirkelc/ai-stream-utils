@@ -266,3 +266,25 @@ export type ExcludeToolChunkTypes<UI_MESSAGE extends UIMessage> = Exclude<
   ContentChunkType<UI_MESSAGE>,
   ToolChunkTypes<UI_MESSAGE>
 >;
+
+/**
+ * Tool states that have corresponding stream chunks.
+ * These are the "final" states from UIToolInvocation, not streaming events.
+ */
+export type ToolCallState =
+  | "input-available"
+  | "approval-requested"
+  | "output-available"
+  | "output-error"
+  | "output-denied";
+
+/**
+ * Map tool states to their corresponding chunk types.
+ */
+export type ToolStateToChunkType = {
+  "input-available": "tool-input-available";
+  "approval-requested": "tool-approval-request";
+  "output-available": "tool-output-available";
+  "output-error": "tool-output-error";
+  "output-denied": "tool-output-denied";
+};

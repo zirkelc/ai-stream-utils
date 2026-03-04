@@ -162,7 +162,10 @@ export class ChunkPipeline<
    * Content chunks include a part object with the type, while meta chunks have undefined part.
    * All chunks pass through regardless of whether the callback is invoked.
    */
-  on<NARROWED_CHUNK extends CHUNK, NARROWED_PART extends { type: PART[`type`] } | undefined>(
+  on<
+    NARROWED_CHUNK extends InferUIMessageChunk<UI_MESSAGE>,
+    NARROWED_PART extends { type: string } | undefined,
+  >(
     guard: ObserveGuard<UI_MESSAGE, NARROWED_CHUNK, NARROWED_PART>,
     callback: ChunkObserveFn<NARROWED_CHUNK, NARROWED_PART>,
   ): ChunkPipeline<UI_MESSAGE, CHUNK, PART>;
