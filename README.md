@@ -204,7 +204,7 @@ const stream = pipe(result.toUIMessageStream())
   .toStream();
 ```
 
-Observe tool state transitions.
+Observe tool state transitions for a specific tool.
 
 ```typescript
 const stream = pipe(result.toUIMessageStream())
@@ -216,6 +216,25 @@ const stream = pipe(result.toUIMessageStream())
   })
   .on(toolCall({ tool: "weather", state: "input-available" }), ({ chunk }) => {
     console.log("Weather input:", chunk.input);
+  })
+  .toStream();
+```
+
+Observe all tool calls.
+
+```typescript
+const stream = pipe(result.toUIMessageStream())
+  // on
+  .on(toolCall({ state: `input-available` }), ({ chunk, part }) => {
+    console.log(`Tool call ${part.type} (${chunk.toolCallId}) input=`, chunk.input);
+  })
+  /** onResult */
+  .on(toolCall({ state: `output-available` }), ({ chunk, part }) => {
+    console.log(`Tool result ${part.type} (${chunk.toolCallId}) output=`, chunk.output);
+  })
+  /** onError */
+  .on(toolCall({ state: `output-error` }), ({ chunk, part }) => {
+    console.log(`Tool error ${part.type} (${chunk.toolCallId}) error=`, chunk.errorText);
   })
   .toStream();
 ```

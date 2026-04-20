@@ -57,6 +57,7 @@
     "@total-typescript/tsconfig": "^1.0.4",
     "@types/node": "^25.2.3",
     "ai": "^6.0.86",
+    "dotenv": "^17.4.2",
     "husky": "^9.1.7",
     "lint-staged": "^16.2.7",
     "msw": "^2.12.10",
