@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.3.0](https://github.com/zirkelc/ai-stream-utils/compare/v2.2.0...v2.3.0) (2026-06-09)
+
+
+### Features
+
+* add transformProviderMetadata() map helper ([3ffec47](https://github.com/zirkelc/ai-stream-utils/commit/3ffec471cf1a7f1bb6b8415e8ee4e9313a83bf3b))
+
 ## [2.2.0](https://github.com/zirkelc/ai-stream-utils/compare/v2.1.0...v2.2.0) (2026-03-04)
 
 
