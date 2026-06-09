@@ -1,3 +1,4 @@
+export { transformProviderMetadata } from "./transform-provider-metadata.js";
 export { pipe } from "./pipe.js";
 export {
   chunkType,

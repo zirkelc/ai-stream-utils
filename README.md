@@ -145,6 +145,31 @@ const stream = pipe(result.toUIMessageStream())
   .toStream();
 ```
 
+#### Helpers
+
+`transformProviderMetadata()` changes `providerMetadata` on the chunks that carry it (`text-*`, `reasoning-*`, `tool-input-*`, `source-*`, `file`). Every other chunk passes through untouched, so you don't have to narrow by chunk type yourself.
+
+The callback receives the current `metadata` (may be `undefined`) and returns one of three things:
+
+- an **object** to set/replace the metadata (merge by spreading `metadata`)
+- **`undefined`** to leave the chunk unchanged
+- **`null`** to remove the `providerMetadata` field entirely (the chunk still passes through)
+
+```typescript
+const stream = pipe(result.toUIMessageStream())
+  .map(
+    transformProviderMetadata(({ chunk, part, metadata }) => {
+      if (chunk.type === "tool-input-available")
+        return { ...metadata, app: { toolCallId: chunk.toolCallId } }; // add to tool input chunks
+
+      if (part.type === "text") return null; // delete for text parts
+
+      return undefined; // leave everything else unchanged
+    }),
+  )
+  .toStream();
+```
+
 ### `.on()`
 
 Observe chunks without modifying the stream. The callback is invoked for matching chunks.
@@ -152,11 +177,13 @@ Observe chunks without modifying the stream. The callback is invoked for matchin
 ```typescript
 const stream = pipe(result.toUIMessageStream())
   .on(
-    ({ chunk, part }) => {
+    (predicate) => {
+      const { chunk, part } = predicate;
       // return true to invoke callback, false to skip
       return chunk.type === "text-delta";
     },
-    ({ chunk, part }) => {
+    (callback) => {
+      const { chunk, part } = callback;
       // callback invoked for matching chunks
       console.log(chunk, part);
     },
