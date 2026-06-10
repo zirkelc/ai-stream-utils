@@ -4,7 +4,7 @@
 
 # ai-stream-utils
 
-<p align="center">AI SDK: Stream transformation utilities for UI message streams</p>
+<p align="center">AI SDK: Filter and transform UI messages while streaming to the client</p>
 <p align="center">
   <a href="https://www.npmjs.com/package/ai-stream-utils" alt="ai-stream-utils"><img src="https://img.shields.io/npm/dt/ai-stream-utils?label=ai-stream-utils"></a> <a href="https://github.com/zirkelc/ai-stream-utils/actions/workflows/ci.yml" alt="CI"><img src="https://img.shields.io/github/actions/workflow/status/zirkelc/ai-stream-utils/ci.yml?branch=main"></a>
 </p>
