@@ -1,0 +1,48 @@
+<svg width="1280" height="640" viewBox="0 0 1280 640" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="acc" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#22d3ee"/>
+      <stop offset="1" stop-color="#818cf8"/>
+    </linearGradient>
+    <linearGradient id="accText" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#22d3ee"/>
+      <stop offset="1" stop-color="#818cf8"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.36" r="0.6">
+      <stop offset="0" stop-color="#1b2435"/>
+      <stop offset="1" stop-color="#0d1117"/>
+    </radialGradient>
+  </defs>
+
+  <!-- background -->
+  <rect width="1280" height="640" fill="#0d1117"/>
+  <rect width="1280" height="640" fill="url(#glow)"/>
+
+  <!-- ===== STREAM MOTIF (scaled logo) ===== -->
+  <g transform="translate(328,150) scale(0.8)">
+    <!-- input: 3 grey chunks -->
+    <rect x="30" y="52" width="60" height="60" rx="13" fill="#6b7482"/>
+    <polygon points="160,52 190,112 130,112" fill="#6b7482"/>
+    <polygon points="260,52 290,82 260,112 230,82" fill="#6b7482"/>
+
+    <!-- pipe operator with circle inside -->
+    <path d="M315 30 L395 30 L455 82 L395 134 L315 134 Z"
+          fill="none" stroke="url(#acc)" stroke-width="18" stroke-linejoin="round"/>
+    <circle cx="362" cy="82" r="30" fill="url(#acc)"/>
+
+    <!-- output: 3 chunks, last transformed -->
+    <rect x="490" y="52" width="60" height="60" rx="13" fill="#e6eaf0"/>
+    <polygon points="620,52 650,112 590,112" fill="#e6eaf0"/>
+    <polygon points="720,52 750,82 720,112 690,82" fill="url(#acc)"/>
+  </g>
+
+  <!-- ===== WORDMARK ===== -->
+  <text x="640" y="425" text-anchor="middle"
+        font-family="Helvetica, Arial, sans-serif" font-weight="700" font-size="86"
+        letter-spacing="-1" fill="#e6eaf0">ai-<tspan fill="url(#accText)">stream</tspan>-utils</text>
+
+  <!-- ===== TAGLINE ===== -->
+  <text x="640" y="486" text-anchor="middle"
+        font-family="Helvetica, Arial, sans-serif" font-weight="400" font-size="30"
+        letter-spacing="0.2" fill="#9aa4b2">Filter and transform UI messages while streaming to the client</text>
+</svg>

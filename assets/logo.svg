@@ -1,0 +1,30 @@
+<svg width="780" height="164" viewBox="0 0 780 164" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="accA" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#22d3ee"/>
+      <stop offset="1" stop-color="#818cf8"/>
+    </linearGradient>
+  </defs>
+
+  <!-- ===== INPUT: 3 grey chunks entering ===== -->
+  <!-- square -->
+  <rect x="30" y="52" width="60" height="60" rx="13" fill="#6b7482"/>
+  <!-- triangle -->
+  <polygon points="160,52 190,112 130,112" fill="#6b7482"/>
+  <!-- diamond -->
+  <polygon points="260,52 290,82 260,112 230,82" fill="#6b7482"/>
+
+  <!-- ===== PIPE OPERATOR with a chunk inside it (being transformed) ===== -->
+  <path d="M315 30 L395 30 L455 82 L395 134 L315 134 Z"
+        fill="none" stroke="url(#accA)" stroke-width="18" stroke-linejoin="round"/>
+  <!-- circle inside the pipe -->
+  <circle cx="362" cy="82" r="30" fill="url(#accA)"/>
+
+  <!-- ===== OUTPUT: 3 chunks exiting; one transformed (accent) ===== -->
+  <!-- square (kept, unchanged) -->
+  <rect x="490" y="52" width="60" height="60" rx="13" fill="#e6eaf0"/>
+  <!-- triangle (kept, unchanged) -->
+  <polygon points="620,52 650,112 590,112" fill="#e6eaf0"/>
+  <!-- diamond (TRANSFORMED -> accent color) -->
+  <polygon points="720,52 750,82 720,112 690,82" fill="url(#accA)"/>
+</svg>
