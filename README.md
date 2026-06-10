@@ -1,5 +1,7 @@
 <div align='center'>
 
+<img src="assets/logo.png" alt="ai-stream-utils logo" width="520" />
+
 # ai-stream-utils
 
 <p align="center">AI SDK: Stream transformation utilities for UI message streams</p>
