@@ -1,8 +1,9 @@
 <div align='center'>
 
-<img src="assets/logo.png" alt="ai-stream-utils logo" width="520" />
-
-# ai-stream-utils
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/logo.png" />
+  <img src="assets/logo-light.png" alt="ai-stream-utils logo" width="440" />
+</picture>
 
 <p align="center">AI SDK: Filter and transform UI messages while streaming to the client</p>
 <p align="center">
