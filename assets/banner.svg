@@ -20,29 +20,29 @@
 
   <!-- ===== STREAM MOTIF (scaled logo) ===== -->
   <g transform="translate(328,150) scale(0.8)">
-    <!-- input: 3 grey chunks -->
-    <rect x="30" y="52" width="60" height="60" rx="13" fill="#6b7482"/>
-    <polygon points="160,52 190,112 130,112" fill="#6b7482"/>
-    <polygon points="260,52 290,82 260,112 230,82" fill="#6b7482"/>
+    <!-- input: 3 chunks, grey -> white -->
+    <rect x="30" y="52" width="60" height="60" rx="13" fill="#565e6b"/>
+    <polygon points="160,52 190,112 130,112" fill="#8e97a4"/>
+    <polygon points="260,52 290,82 260,112 230,82" fill="#e6eaf0"/>
 
     <!-- pipe operator with circle inside -->
     <path d="M315 30 L395 30 L455 82 L395 134 L315 134 Z"
           fill="none" stroke="url(#acc)" stroke-width="18" stroke-linejoin="round"/>
     <circle cx="362" cy="82" r="30" fill="url(#acc)"/>
 
-    <!-- output: 3 chunks, last transformed -->
-    <rect x="490" y="52" width="60" height="60" rx="13" fill="#e6eaf0"/>
-    <polygon points="620,52 650,112 590,112" fill="#e6eaf0"/>
+    <!-- output: 3 chunks, deep blue -> bright accent -->
+    <rect x="490" y="52" width="60" height="60" rx="13" fill="#3b4d9e"/>
+    <polygon points="620,52 650,112 590,112" fill="#4f86d6"/>
     <polygon points="720,52 750,82 720,112 690,82" fill="url(#acc)"/>
   </g>
 
   <!-- ===== WORDMARK ===== -->
-  <text x="640" y="425" text-anchor="middle"
-        font-family="Helvetica, Arial, sans-serif" font-weight="700" font-size="86"
-        letter-spacing="-1" fill="#e6eaf0">ai-<tspan fill="url(#accText)">stream</tspan>-utils</text>
+  <text x="640" y="427" text-anchor="middle"
+        font-family="'JetBrains Mono', monospace" font-weight="700" font-size="74"
+        letter-spacing="-2" fill="#e6eaf0">ai-<tspan fill="url(#accText)">stream</tspan>-utils</text>
 
   <!-- ===== TAGLINE ===== -->
-  <text x="640" y="486" text-anchor="middle"
-        font-family="Helvetica, Arial, sans-serif" font-weight="400" font-size="30"
-        letter-spacing="0.2" fill="#9aa4b2">Filter and transform UI messages while streaming to the client</text>
+  <text x="640" y="488" text-anchor="middle"
+        font-family="'JetBrains Mono', monospace" font-weight="400" font-size="24"
+        letter-spacing="0" fill="#9aa4b2">Filter and transform UI messages while streaming to the client</text>
 </svg>
