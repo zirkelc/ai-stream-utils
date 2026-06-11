@@ -9,19 +9,23 @@
  * while `for await...of` completion waits for the stream to close.
  */
 import { readUIMessageStream, streamText } from "ai";
+import { MockLanguageModel, StreamParts } from "ai-test-kit/language";
 import { chunkType, convertAsyncIterableToStream, pipe } from "../src/index.js";
-import { createMockModel, textToChunks } from "../src/test/mock-model.js";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function server() {
   const result = streamText({
-    model: createMockModel({
-      chunks: textToChunks({
-        text: `Hello, this is a streaming response from the LLM!`,
-        seperator: ` `,
-      }),
-      chunkDelayInMs: 50,
+    model: MockLanguageModel.from({
+      stream: {
+        chunks: [
+          ...StreamParts.text(`Hello, this is a streaming response from the LLM!`, {
+            separator: ` `,
+          }),
+          StreamParts.finish(),
+        ],
+        chunkDelayInMs: 50,
+      },
     }),
     prompt: `Say hello.`,
   });

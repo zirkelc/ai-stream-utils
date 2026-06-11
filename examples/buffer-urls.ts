@@ -12,8 +12,8 @@
  */
 
 import { streamText, type UIMessageChunk } from "ai";
+import { MockLanguageModel } from "ai-test-kit/language";
 import { pipe } from "../src/index.js";
-import { createMockModel } from "../src/test/mock-model.js";
 
 /**
  * Configuration for a buffering pattern.
@@ -186,8 +186,8 @@ const MARKDOWN_URL_PATTERN: BufferPattern = {
 
 const result = streamText({
   // model: openai(`gpt-4o`),
-  model: createMockModel({
-    chunks: [
+  model: MockLanguageModel.from({
+    stream: [
       {
         type: "text-start",
         id: "msg_01b7529850cea5b300695b92eee1f88195a721bbeb5fe56cbb",

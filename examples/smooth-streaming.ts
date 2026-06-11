@@ -8,15 +8,17 @@
  */
 
 import { streamText } from "ai";
+import { MockLanguageModel, StreamParts } from "ai-test-kit/language";
 import { pipe } from "../src/index.js";
-import { createMockModel, textToChunks } from "../src/test/mock-model.js";
 
 const result = streamText({
-  model: createMockModel({
-    chunks: textToChunks({
-      text: `Why don't scientists trust atoms? Because they make up everything.`,
-      seperator: ` `,
-    }),
+  model: MockLanguageModel.from({
+    stream: [
+      ...StreamParts.text(`Why don't scientists trust atoms? Because they make up everything.`, {
+        separator: ` `,
+      }),
+      StreamParts.finish(),
+    ],
   }),
   prompt: `Tell me a joke.`,
 });
