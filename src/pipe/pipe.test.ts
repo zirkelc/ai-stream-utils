@@ -1,3 +1,4 @@
+import { Iterable, Stream } from "ai-test-kit/language";
 import { describe, expect, it } from "vitest";
 import {
   DYNAMIC_TOOL_CHUNKS,
@@ -11,9 +12,6 @@ import {
   TEXT_CHUNKS,
   TOOL_WITH_DATA_CHUNKS,
 } from "../test/ui-message.js";
-import { convertArrayToAsyncIterable } from "../utils/convert-array-to-async-iterable.js";
-import { convertArrayToStream } from "../utils/convert-array-to-stream.js";
-import { convertAsyncIterableToArray } from "../utils/convert-async-iterable-to-array.js";
 import { createAsyncIterableStream } from "../utils/create-async-iterable-stream.js";
 import { pipe } from "./pipe.js";
 import {
@@ -33,10 +31,10 @@ describe(`pipe`, () => {
     describe(`includeChunks`, () => {
       it(`should filter by single chunk type`, async () => {
         // Arrange
-        const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+        const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
 
         // Act
-        const result = await convertAsyncIterableToArray(
+        const result = await Iterable.toArray(
           pipe<MyUIMessage>(stream).filter(includeChunks(`text-delta`)).toStream(),
         );
 
@@ -59,10 +57,10 @@ describe(`pipe`, () => {
 
       it(`should filter by multiple chunk types`, async () => {
         // Arrange
-        const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+        const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
 
         // Act
-        const result = await convertAsyncIterableToArray(
+        const result = await Iterable.toArray(
           pipe<MyUIMessage>(stream)
             .filter(includeChunks([`text-start`, `text-delta`]))
             .toStream(),
@@ -86,10 +84,10 @@ describe(`pipe`, () => {
 
       it(`should chain multiple filters`, async () => {
         // Arrange
-        const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+        const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
 
         // Act - first filter to text-start+text-delta, then narrow to just text-delta
-        const result = await convertAsyncIterableToArray(
+        const result = await Iterable.toArray(
           pipe<MyUIMessage>(stream)
             .filter(includeChunks([`text-start`, `text-delta`]))
             .filter(includeChunks(`text-delta`))
@@ -117,10 +115,10 @@ describe(`pipe`, () => {
     describe(`excludeChunks`, () => {
       it(`should filter by single chunk type`, async () => {
         // Arrange
-        const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+        const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
 
         // Act
-        const result = await convertAsyncIterableToArray(
+        const result = await Iterable.toArray(
           pipe<MyUIMessage>(stream).filter(excludeChunks(`text-delta`)).toStream(),
         );
 
@@ -141,10 +139,10 @@ describe(`pipe`, () => {
 
       it(`should filter by multiple chunk types`, async () => {
         // Arrange
-        const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+        const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
 
         // Act
-        const result = await convertAsyncIterableToArray(
+        const result = await Iterable.toArray(
           pipe<MyUIMessage>(stream)
             .filter(excludeChunks([`text-start`, `text-delta`]))
             .toStream(),
@@ -168,10 +166,10 @@ describe(`pipe`, () => {
 
       it(`should chain multiple filters`, async () => {
         // Arrange
-        const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+        const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
 
         // Act - exclude text-start, then exclude text-delta
-        const result = await convertAsyncIterableToArray(
+        const result = await Iterable.toArray(
           pipe<MyUIMessage>(stream)
             .filter(excludeChunks(`text-start`))
             .filter(excludeChunks(`text-delta`))
@@ -198,7 +196,7 @@ describe(`pipe`, () => {
     describe(`includeParts`, () => {
       it(`should filter by single part type (meta/step chunks always pass through)`, async () => {
         // Arrange
-        const stream = convertArrayToStream([
+        const stream = Stream.from([
           START_CHUNK,
           ...TEXT_CHUNKS,
           ...REASONING_CHUNKS,
@@ -206,7 +204,7 @@ describe(`pipe`, () => {
         ]);
 
         // Act
-        const result = await convertAsyncIterableToArray(
+        const result = await Iterable.toArray(
           pipe<MyUIMessage>(stream).filter(includeParts(`text`)).toStream(),
         );
 
@@ -226,7 +224,7 @@ describe(`pipe`, () => {
 
       it(`should filter by multiple part types`, async () => {
         // Arrange
-        const stream = convertArrayToStream([
+        const stream = Stream.from([
           START_CHUNK,
           ...TEXT_CHUNKS,
           ...REASONING_CHUNKS,
@@ -235,7 +233,7 @@ describe(`pipe`, () => {
         ]);
 
         // Act
-        const result = await convertAsyncIterableToArray(
+        const result = await Iterable.toArray(
           pipe<MyUIMessage>(stream)
             .filter(includeParts([`text`, `reasoning`]))
             .toStream(),
@@ -260,7 +258,7 @@ describe(`pipe`, () => {
 
       it(`should filter tool chunks correctly when data chunk is interleaved`, async () => {
         // Arrange
-        const stream = convertArrayToStream([
+        const stream = Stream.from([
           START_CHUNK,
           ...TEXT_CHUNKS,
           ...REASONING_CHUNKS,
@@ -269,7 +267,7 @@ describe(`pipe`, () => {
         ]);
 
         // Act - filter to only tool chunks
-        const result = await convertAsyncIterableToArray(
+        const result = await Iterable.toArray(
           pipe<MyUIMessage>(stream).filter(includeParts(`tool-weather`)).toStream(),
         );
 
@@ -295,7 +293,7 @@ describe(`pipe`, () => {
 
       it(`should filter data chunks correctly when interleaved with tool chunks`, async () => {
         // Arrange
-        const stream = convertArrayToStream([
+        const stream = Stream.from([
           START_CHUNK,
           ...TEXT_CHUNKS,
           ...REASONING_CHUNKS,
@@ -304,7 +302,7 @@ describe(`pipe`, () => {
         ]);
 
         // Act - filter to only data chunks
-        const result = await convertAsyncIterableToArray(
+        const result = await Iterable.toArray(
           pipe<MyUIMessage>(stream).filter(includeParts(`data-weather`)).toStream(),
         );
 
@@ -329,7 +327,7 @@ describe(`pipe`, () => {
 
       it(`should chain multiple filters`, async () => {
         // Arrange
-        const stream = convertArrayToStream([
+        const stream = Stream.from([
           START_CHUNK,
           ...TEXT_CHUNKS,
           ...REASONING_CHUNKS,
@@ -337,7 +335,7 @@ describe(`pipe`, () => {
         ]);
 
         // Act - first filter to text+reasoning, then narrow to just text
-        const result = await convertAsyncIterableToArray(
+        const result = await Iterable.toArray(
           pipe<MyUIMessage>(stream)
             .filter(includeParts([`text`, `reasoning`]))
             .filter(includeParts(`text`))
@@ -362,7 +360,7 @@ describe(`pipe`, () => {
     describe(`excludeParts`, () => {
       it(`should filter by single part type`, async () => {
         // Arrange
-        const stream = convertArrayToStream([
+        const stream = Stream.from([
           START_CHUNK,
           ...TEXT_CHUNKS,
           ...REASONING_CHUNKS,
@@ -370,7 +368,7 @@ describe(`pipe`, () => {
         ]);
 
         // Act
-        const result = await convertAsyncIterableToArray(
+        const result = await Iterable.toArray(
           pipe<MyUIMessage>(stream).filter(excludeParts(`reasoning`)).toStream(),
         );
 
@@ -390,7 +388,7 @@ describe(`pipe`, () => {
 
       it(`should filter by multiple part types`, async () => {
         // Arrange
-        const stream = convertArrayToStream([
+        const stream = Stream.from([
           START_CHUNK,
           ...TEXT_CHUNKS,
           ...REASONING_CHUNKS,
@@ -399,7 +397,7 @@ describe(`pipe`, () => {
         ]);
 
         // Act
-        const result = await convertAsyncIterableToArray(
+        const result = await Iterable.toArray(
           pipe<MyUIMessage>(stream)
             .filter(excludeParts([`text`, `reasoning`]))
             .toStream(),
@@ -420,7 +418,7 @@ describe(`pipe`, () => {
 
       it(`should filter tool chunks correctly`, async () => {
         // Arrange
-        const stream = convertArrayToStream([
+        const stream = Stream.from([
           START_CHUNK,
           ...TEXT_CHUNKS,
           ...REASONING_CHUNKS,
@@ -429,7 +427,7 @@ describe(`pipe`, () => {
         ]);
 
         // Act - exclude tool chunks
-        const result = await convertAsyncIterableToArray(
+        const result = await Iterable.toArray(
           pipe<MyUIMessage>(stream).filter(excludeParts(`tool-weather`)).toStream(),
         );
 
@@ -448,7 +446,7 @@ describe(`pipe`, () => {
 
       it(`should filter data chunks correctly`, async () => {
         // Arrange
-        const stream = convertArrayToStream([
+        const stream = Stream.from([
           START_CHUNK,
           ...TEXT_CHUNKS,
           ...REASONING_CHUNKS,
@@ -457,7 +455,7 @@ describe(`pipe`, () => {
         ]);
 
         // Act - exclude data chunks
-        const result = await convertAsyncIterableToArray(
+        const result = await Iterable.toArray(
           pipe<MyUIMessage>(stream).filter(excludeParts(`data-weather`)).toStream(),
         );
 
@@ -476,7 +474,7 @@ describe(`pipe`, () => {
 
       it(`should chain multiple filters`, async () => {
         // Arrange
-        const stream = convertArrayToStream([
+        const stream = Stream.from([
           START_CHUNK,
           ...TEXT_CHUNKS,
           ...REASONING_CHUNKS,
@@ -484,7 +482,7 @@ describe(`pipe`, () => {
         ]);
 
         // Act - exclude text, then exclude reasoning
-        const result = await convertAsyncIterableToArray(
+        const result = await Iterable.toArray(
           pipe<MyUIMessage>(stream)
             .filter(excludeParts(`text`))
             .filter(excludeParts(`reasoning`))
@@ -512,7 +510,7 @@ describe(`pipe`, () => {
     describe(`excludeTools`, () => {
       it(`should exclude all tools when called without arguments`, async () => {
         // Arrange
-        const stream = convertArrayToStream([
+        const stream = Stream.from([
           START_CHUNK,
           ...TEXT_CHUNKS,
           ...TOOL_WITH_DATA_CHUNKS,
@@ -521,7 +519,7 @@ describe(`pipe`, () => {
         ]);
 
         // Act
-        const result = await convertAsyncIterableToArray(
+        const result = await Iterable.toArray(
           pipe<MyUIMessage>(stream).filter(excludeTools()).toStream(),
         );
 
@@ -546,7 +544,7 @@ describe(`pipe`, () => {
 
       it(`should exclude specific tool when called with tool name`, async () => {
         // Arrange
-        const stream = convertArrayToStream([
+        const stream = Stream.from([
           START_CHUNK,
           ...TEXT_CHUNKS,
           ...TOOL_WITH_DATA_CHUNKS,
@@ -555,7 +553,7 @@ describe(`pipe`, () => {
         ]);
 
         // Act - exclude only weather tool
-        const result = await convertAsyncIterableToArray(
+        const result = await Iterable.toArray(
           pipe<MyUIMessage>(stream).filter(excludeTools(`weather`)).toStream(),
         );
 
@@ -578,7 +576,7 @@ describe(`pipe`, () => {
 
       it(`should exclude multiple tools when called with array`, async () => {
         // Arrange
-        const stream = convertArrayToStream([
+        const stream = Stream.from([
           START_CHUNK,
           ...TEXT_CHUNKS,
           ...TOOL_WITH_DATA_CHUNKS,
@@ -586,7 +584,7 @@ describe(`pipe`, () => {
         ]);
 
         // Act - exclude weather tool
-        const result = await convertAsyncIterableToArray(
+        const result = await Iterable.toArray(
           pipe<MyUIMessage>(stream)
             .filter(excludeTools([`weather`]))
             .toStream(),
@@ -609,10 +607,10 @@ describe(`pipe`, () => {
 
       it(`should let meta chunks pass through`, async () => {
         // Arrange
-        const stream = convertArrayToStream([START_CHUNK, ...TOOL_WITH_DATA_CHUNKS, FINISH_CHUNK]);
+        const stream = Stream.from([START_CHUNK, ...TOOL_WITH_DATA_CHUNKS, FINISH_CHUNK]);
 
         // Act
-        const result = await convertAsyncIterableToArray(
+        const result = await Iterable.toArray(
           pipe<MyUIMessage>(stream).filter(excludeTools()).toStream(),
         );
 
@@ -627,7 +625,7 @@ describe(`pipe`, () => {
     describe(`includeTools`, () => {
       it(`should be no-op when called without arguments`, async () => {
         // Arrange
-        const stream = convertArrayToStream([
+        const stream = Stream.from([
           START_CHUNK,
           ...TEXT_CHUNKS,
           ...TOOL_WITH_DATA_CHUNKS,
@@ -636,7 +634,7 @@ describe(`pipe`, () => {
         ]);
 
         // Act
-        const result = await convertAsyncIterableToArray(
+        const result = await Iterable.toArray(
           pipe<MyUIMessage>(stream).filter(includeTools()).toStream(),
         );
 
@@ -659,7 +657,7 @@ describe(`pipe`, () => {
 
       it(`should include specific tool when called with tool name`, async () => {
         // Arrange
-        const stream = convertArrayToStream([
+        const stream = Stream.from([
           START_CHUNK,
           ...TEXT_CHUNKS,
           ...TOOL_WITH_DATA_CHUNKS,
@@ -668,7 +666,7 @@ describe(`pipe`, () => {
         ]);
 
         // Act - include only weather tool
-        const result = await convertAsyncIterableToArray(
+        const result = await Iterable.toArray(
           pipe<MyUIMessage>(stream).filter(includeTools(`weather`)).toStream(),
         );
 
@@ -695,7 +693,7 @@ describe(`pipe`, () => {
 
       it(`should include multiple tools when called with array`, async () => {
         // Arrange
-        const stream = convertArrayToStream([
+        const stream = Stream.from([
           START_CHUNK,
           ...TEXT_CHUNKS,
           ...TOOL_WITH_DATA_CHUNKS,
@@ -703,7 +701,7 @@ describe(`pipe`, () => {
         ]);
 
         // Act - include weather tool
-        const result = await convertAsyncIterableToArray(
+        const result = await Iterable.toArray(
           pipe<MyUIMessage>(stream)
             .filter(includeTools([`weather`]))
             .toStream(),
@@ -730,10 +728,10 @@ describe(`pipe`, () => {
 
       it(`should let meta chunks pass through`, async () => {
         // Arrange
-        const stream = convertArrayToStream([START_CHUNK, ...TOOL_WITH_DATA_CHUNKS, FINISH_CHUNK]);
+        const stream = Stream.from([START_CHUNK, ...TOOL_WITH_DATA_CHUNKS, FINISH_CHUNK]);
 
         // Act
-        const result = await convertAsyncIterableToArray(
+        const result = await Iterable.toArray(
           pipe<MyUIMessage>(stream).filter(includeTools(`weather`)).toStream(),
         );
 
@@ -748,7 +746,7 @@ describe(`pipe`, () => {
     describe(`include then exclude`, () => {
       it(`should narrow with includeParts then excludeParts`, async () => {
         // Arrange
-        const stream = convertArrayToStream([
+        const stream = Stream.from([
           START_CHUNK,
           ...TEXT_CHUNKS,
           ...REASONING_CHUNKS,
@@ -756,7 +754,7 @@ describe(`pipe`, () => {
         ]);
 
         // Act - include text + reasoning, then exclude reasoning
-        const result = await convertAsyncIterableToArray(
+        const result = await Iterable.toArray(
           pipe<MyUIMessage>(stream)
             .filter(includeParts([`text`, `reasoning`]))
             .filter(excludeParts(`reasoning`))
@@ -779,10 +777,10 @@ describe(`pipe`, () => {
 
       it(`should narrow with includeChunks then excludeChunks`, async () => {
         // Arrange
-        const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+        const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
 
         // Act - include text-start + text-delta + text-end, then exclude text-end
-        const result = await convertAsyncIterableToArray(
+        const result = await Iterable.toArray(
           pipe<MyUIMessage>(stream)
             .filter(includeChunks([`text-start`, `text-delta`, `text-end`]))
             .filter(excludeChunks(`text-end`))
@@ -809,7 +807,7 @@ describe(`pipe`, () => {
     describe(`exclude then include`, () => {
       it(`should apply excludeParts then includeParts`, async () => {
         // Arrange
-        const stream = convertArrayToStream([
+        const stream = Stream.from([
           START_CHUNK,
           ...TEXT_CHUNKS,
           ...REASONING_CHUNKS,
@@ -817,7 +815,7 @@ describe(`pipe`, () => {
         ]);
 
         // Act - exclude reasoning, then include text
-        const result = await convertAsyncIterableToArray(
+        const result = await Iterable.toArray(
           pipe<MyUIMessage>(stream)
             .filter(excludeParts(`reasoning`))
             .filter(includeParts(`text`))
@@ -840,10 +838,10 @@ describe(`pipe`, () => {
 
       it(`should apply excludeChunks then includeChunks`, async () => {
         // Arrange
-        const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+        const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
 
         // Act - exclude text-end, then include text-delta
-        const result = await convertAsyncIterableToArray(
+        const result = await Iterable.toArray(
           pipe<MyUIMessage>(stream)
             .filter(excludeChunks(`text-end`))
             .filter(includeChunks(`text-delta`))
@@ -871,7 +869,7 @@ describe(`pipe`, () => {
     describe(`predicate`, () => {
       it(`should filter with plain predicate (meta/step chunks always pass through)`, async () => {
         // Arrange
-        const stream = convertArrayToStream([
+        const stream = Stream.from([
           START_CHUNK,
           ...TEXT_CHUNKS,
           ...REASONING_CHUNKS,
@@ -879,7 +877,7 @@ describe(`pipe`, () => {
         ]);
 
         // Act
-        const result = await convertAsyncIterableToArray(
+        const result = await Iterable.toArray(
           pipe<MyUIMessage>(stream)
             .filter(({ part }) => part.type !== `reasoning`)
             .toStream(),
@@ -901,7 +899,7 @@ describe(`pipe`, () => {
 
       it(`should chain multiple predicate filters`, async () => {
         // Arrange
-        const stream = convertArrayToStream([
+        const stream = Stream.from([
           START_CHUNK,
           ...TEXT_CHUNKS,
           ...REASONING_CHUNKS,
@@ -909,7 +907,7 @@ describe(`pipe`, () => {
         ]);
 
         // Act - first exclude reasoning, then exclude text-delta
-        const result = await convertAsyncIterableToArray(
+        const result = await Iterable.toArray(
           pipe<MyUIMessage>(stream)
             .filter(({ part }) => part.type !== `reasoning`)
             .filter(({ chunk }) => chunk.type !== `text-delta`)
@@ -937,7 +935,7 @@ describe(`pipe`, () => {
 
       it(`should chain with predicate filter`, async () => {
         // Arrange
-        const stream = convertArrayToStream([
+        const stream = Stream.from([
           START_CHUNK,
           ...TEXT_CHUNKS,
           ...REASONING_CHUNKS,
@@ -945,7 +943,7 @@ describe(`pipe`, () => {
         ]);
 
         // Act
-        const result = await convertAsyncIterableToArray(
+        const result = await Iterable.toArray(
           pipe<MyUIMessage>(stream)
             .filter(includeParts([`text`, `reasoning`]))
             .filter(({ part }) => part.type !== `reasoning`)
@@ -968,11 +966,11 @@ describe(`pipe`, () => {
     describe(`chunkType`, () => {
       it(`should call callback for matching chunks without filtering`, async () => {
         // Arrange
-        const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+        const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
         const observed: Array<MyUIMessageChunk> = [];
 
         // Act
-        const result = await convertAsyncIterableToArray(
+        const result = await Iterable.toArray(
           pipe<MyUIMessage>(stream)
             .on(chunkType(`text-delta`), ({ chunk }) => {
               observed.push(chunk);
@@ -998,11 +996,11 @@ describe(`pipe`, () => {
 
       it(`should support async callbacks`, async () => {
         // Arrange
-        const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+        const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
         const observed: Array<string> = [];
 
         // Act
-        await convertAsyncIterableToArray(
+        await Iterable.toArray(
           pipe<MyUIMessage>(stream)
             .on(chunkType(`text-delta`), async ({ chunk }) => {
               await new Promise((r) => setTimeout(r, 10));
@@ -1017,10 +1015,10 @@ describe(`pipe`, () => {
 
       it(`should propagate callback errors`, async () => {
         // Arrange
-        const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+        const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
 
         // Act
-        const result = convertAsyncIterableToArray(
+        const result = Iterable.toArray(
           pipe<MyUIMessage>(stream)
             .on(chunkType(`text-delta`), () => {
               throw new Error(`Observer error`);
@@ -1034,12 +1032,12 @@ describe(`pipe`, () => {
 
       it(`should chain multiple observers`, async () => {
         // Arrange
-        const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+        const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
         const log1: Array<string> = [];
         const log2: Array<string> = [];
 
         // Act
-        await convertAsyncIterableToArray(
+        await Iterable.toArray(
           pipe<MyUIMessage>(stream)
             .on(chunkType(`text-start`), () => {
               log1.push(`start`);
@@ -1057,11 +1055,11 @@ describe(`pipe`, () => {
 
       it(`should observe meta chunks`, async () => {
         // Arrange
-        const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+        const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
         const observed: Array<string> = [];
 
         // Act
-        await convertAsyncIterableToArray(
+        await Iterable.toArray(
           pipe<MyUIMessage>(stream)
             .on(chunkType(`start`), () => {
               observed.push(`start`);
@@ -1080,11 +1078,11 @@ describe(`pipe`, () => {
     describe(`predicate`, () => {
       it(`should work with generic predicate`, async () => {
         // Arrange
-        const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+        const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
         const observed: Array<MyUIMessageChunk> = [];
 
         // Act
-        await convertAsyncIterableToArray(
+        await Iterable.toArray(
           pipe<MyUIMessage>(stream)
             .on(
               ({ chunk }) => chunk.type.startsWith(`text-`),
@@ -1103,7 +1101,7 @@ describe(`pipe`, () => {
     describe(`partType`, () => {
       it(`should call callback for matching part types without filtering`, async () => {
         // Arrange
-        const stream = convertArrayToStream([
+        const stream = Stream.from([
           START_CHUNK,
           ...TEXT_CHUNKS,
           ...REASONING_CHUNKS,
@@ -1112,7 +1110,7 @@ describe(`pipe`, () => {
         const observed: Array<MyUIMessageChunk> = [];
 
         // Act
-        const result = await convertAsyncIterableToArray(
+        const result = await Iterable.toArray(
           pipe<MyUIMessage>(stream)
             .on(partType(`text`), ({ chunk }) => {
               observed.push(chunk);
@@ -1129,7 +1127,7 @@ describe(`pipe`, () => {
 
       it(`should call callback for multiple part types`, async () => {
         // Arrange
-        const stream = convertArrayToStream([
+        const stream = Stream.from([
           START_CHUNK,
           ...TEXT_CHUNKS,
           ...REASONING_CHUNKS,
@@ -1138,7 +1136,7 @@ describe(`pipe`, () => {
         const observed: Array<MyUIMessageChunk> = [];
 
         // Act
-        const result = await convertAsyncIterableToArray(
+        const result = await Iterable.toArray(
           pipe<MyUIMessage>(stream)
             .on(partType([`text`, `reasoning`]), ({ chunk }) => {
               observed.push(chunk);
@@ -1154,11 +1152,11 @@ describe(`pipe`, () => {
 
       it(`should support async callbacks`, async () => {
         // Arrange
-        const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+        const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
         const observed: Array<string> = [];
 
         // Act
-        await convertAsyncIterableToArray(
+        await Iterable.toArray(
           pipe<MyUIMessage>(stream)
             .on(partType(`text`), async ({ chunk }) => {
               await new Promise((r) => setTimeout(r, 10));
@@ -1173,11 +1171,11 @@ describe(`pipe`, () => {
 
       it(`should not observe meta chunks`, async () => {
         // Arrange
-        const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+        const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
         const observed: Array<string> = [];
 
         // Act
-        await convertAsyncIterableToArray(
+        await Iterable.toArray(
           pipe<MyUIMessage>(stream)
             .on(partType(`text`), ({ chunk }) => {
               observed.push(chunk.type);
@@ -1195,7 +1193,7 @@ describe(`pipe`, () => {
     describe(`toolCall`, () => {
       it(`should observe all tool state chunks when called without arguments`, async () => {
         // Arrange
-        const stream = convertArrayToStream([
+        const stream = Stream.from([
           START_CHUNK,
           ...TEXT_CHUNKS,
           ...TOOL_WITH_DATA_CHUNKS,
@@ -1204,7 +1202,7 @@ describe(`pipe`, () => {
         const observed: Array<{ chunkType: string; partType: string }> = [];
 
         // Act
-        const result = await convertAsyncIterableToArray(
+        const result = await Iterable.toArray(
           pipe<MyUIMessage>(stream)
             .on(toolCall(), ({ chunk, part }) => {
               observed.push({ chunkType: chunk.type, partType: part.type });
@@ -1234,7 +1232,7 @@ describe(`pipe`, () => {
 
       it(`should observe tool chunks filtered by tool name`, async () => {
         // Arrange
-        const stream = convertArrayToStream([
+        const stream = Stream.from([
           START_CHUNK,
           ...TOOL_WITH_DATA_CHUNKS,
           ...DYNAMIC_TOOL_CHUNKS,
@@ -1243,7 +1241,7 @@ describe(`pipe`, () => {
         const observed: Array<{ chunkType: string; partType: string }> = [];
 
         // Act
-        await convertAsyncIterableToArray(
+        await Iterable.toArray(
           pipe<MyUIMessage>(stream)
             .on(toolCall({ tool: `weather` }), ({ chunk, part }) => {
               observed.push({ chunkType: chunk.type, partType: part.type });
@@ -1258,11 +1256,11 @@ describe(`pipe`, () => {
 
       it(`should observe tool chunks filtered by state`, async () => {
         // Arrange
-        const stream = convertArrayToStream([START_CHUNK, ...TOOL_WITH_DATA_CHUNKS, FINISH_CHUNK]);
+        const stream = Stream.from([START_CHUNK, ...TOOL_WITH_DATA_CHUNKS, FINISH_CHUNK]);
         const observed: Array<{ chunkType: string; partType: string }> = [];
 
         // Act
-        await convertAsyncIterableToArray(
+        await Iterable.toArray(
           pipe<MyUIMessage>(stream)
             .on(toolCall({ state: `output-available` }), ({ chunk, part }) => {
               observed.push({ chunkType: chunk.type, partType: part.type });
@@ -1280,7 +1278,7 @@ describe(`pipe`, () => {
 
       it(`should observe tool chunks filtered by tool name AND state`, async () => {
         // Arrange
-        const stream = convertArrayToStream([
+        const stream = Stream.from([
           START_CHUNK,
           ...TOOL_WITH_DATA_CHUNKS,
           ...DYNAMIC_TOOL_CHUNKS,
@@ -1289,7 +1287,7 @@ describe(`pipe`, () => {
         const observed: Array<{ chunkType: string; partType: string }> = [];
 
         // Act
-        await convertAsyncIterableToArray(
+        await Iterable.toArray(
           pipe<MyUIMessage>(stream)
             .on(toolCall({ tool: `weather`, state: `output-available` }), ({ chunk, part }) => {
               observed.push({ chunkType: chunk.type, partType: part.type });
@@ -1307,11 +1305,11 @@ describe(`pipe`, () => {
 
       it(`should not observe streaming chunks (tool-input-start, tool-input-delta)`, async () => {
         // Arrange
-        const stream = convertArrayToStream([START_CHUNK, ...TOOL_WITH_DATA_CHUNKS, FINISH_CHUNK]);
+        const stream = Stream.from([START_CHUNK, ...TOOL_WITH_DATA_CHUNKS, FINISH_CHUNK]);
         const observed: Array<string> = [];
 
         // Act
-        await convertAsyncIterableToArray(
+        await Iterable.toArray(
           pipe<MyUIMessage>(stream)
             .on(toolCall(), ({ chunk }) => {
               observed.push(chunk.type);
@@ -1326,7 +1324,7 @@ describe(`pipe`, () => {
 
       it(`should not observe non-tool chunks`, async () => {
         // Arrange
-        const stream = convertArrayToStream([
+        const stream = Stream.from([
           START_CHUNK,
           ...TEXT_CHUNKS,
           ...TOOL_WITH_DATA_CHUNKS,
@@ -1335,7 +1333,7 @@ describe(`pipe`, () => {
         const observed: Array<string> = [];
 
         // Act
-        await convertAsyncIterableToArray(
+        await Iterable.toArray(
           pipe<MyUIMessage>(stream)
             .on(toolCall(), ({ chunk }) => {
               observed.push(chunk.type);
@@ -1354,11 +1352,11 @@ describe(`pipe`, () => {
 
       it(`should support async callbacks`, async () => {
         // Arrange
-        const stream = convertArrayToStream([START_CHUNK, ...TOOL_WITH_DATA_CHUNKS, FINISH_CHUNK]);
+        const stream = Stream.from([START_CHUNK, ...TOOL_WITH_DATA_CHUNKS, FINISH_CHUNK]);
         const observed: Array<string> = [];
 
         // Act
-        await convertAsyncIterableToArray(
+        await Iterable.toArray(
           pipe<MyUIMessage>(stream)
             .on(toolCall(), async ({ chunk }) => {
               await new Promise((r) => setTimeout(r, 10));
@@ -1373,7 +1371,7 @@ describe(`pipe`, () => {
 
       it(`should chain with other observers`, async () => {
         // Arrange
-        const stream = convertArrayToStream([
+        const stream = Stream.from([
           START_CHUNK,
           ...TEXT_CHUNKS,
           ...TOOL_WITH_DATA_CHUNKS,
@@ -1383,7 +1381,7 @@ describe(`pipe`, () => {
         const textObserved: Array<string> = [];
 
         // Act
-        await convertAsyncIterableToArray(
+        await Iterable.toArray(
           pipe<MyUIMessage>(stream)
             .on(toolCall(), ({ chunk }) => {
               toolObserved.push(chunk.type);
@@ -1404,10 +1402,10 @@ describe(`pipe`, () => {
   describe(`map`, () => {
     it(`should apply single map operation`, async () => {
       // Arrange
-      const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+      const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
 
       // Act
-      const result = await convertAsyncIterableToArray(
+      const result = await Iterable.toArray(
         pipe<MyUIMessage>(stream)
           .map(({ chunk }) => {
             if (chunk.type === `text-delta`) {
@@ -1430,15 +1428,10 @@ describe(`pipe`, () => {
   describe(`chained`, () => {
     it(`should apply multiple filter operations`, async () => {
       // Arrange
-      const stream = convertArrayToStream([
-        START_CHUNK,
-        ...TEXT_CHUNKS,
-        ...REASONING_CHUNKS,
-        FINISH_CHUNK,
-      ]);
+      const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, ...REASONING_CHUNKS, FINISH_CHUNK]);
 
       // Act
-      const result = await convertAsyncIterableToArray(
+      const result = await Iterable.toArray(
         pipe<MyUIMessage>(stream)
           .filter(includeParts([`text`, `reasoning`]))
           .filter(({ part }) => part.type !== `reasoning`)
@@ -1460,15 +1453,10 @@ describe(`pipe`, () => {
 
     it(`should apply filter then map`, async () => {
       // Arrange
-      const stream = convertArrayToStream([
-        START_CHUNK,
-        ...TEXT_CHUNKS,
-        ...REASONING_CHUNKS,
-        FINISH_CHUNK,
-      ]);
+      const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, ...REASONING_CHUNKS, FINISH_CHUNK]);
 
       // Act
-      const result = await convertAsyncIterableToArray(
+      const result = await Iterable.toArray(
         pipe<MyUIMessage>(stream)
           .filter(includeParts(`text`))
           .map(({ chunk }) => {
@@ -1492,15 +1480,10 @@ describe(`pipe`, () => {
 
     it(`should apply map then filter`, async () => {
       // Arrange
-      const stream = convertArrayToStream([
-        START_CHUNK,
-        ...TEXT_CHUNKS,
-        ...REASONING_CHUNKS,
-        FINISH_CHUNK,
-      ]);
+      const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, ...REASONING_CHUNKS, FINISH_CHUNK]);
 
       // Act
-      const result = await convertAsyncIterableToArray(
+      const result = await Iterable.toArray(
         pipe<MyUIMessage>(stream)
           .map(({ chunk }) => {
             if (chunk.type === `text-delta`) {
@@ -1526,12 +1509,12 @@ describe(`pipe`, () => {
   describe(`interleaved`, () => {
     it(`should correctly associate chunks when data chunk interleaves tool chunks`, async () => {
       // Arrange - TOOL_WITH_DATA_CHUNKS has data chunk between tool-input-delta and tool-input-available
-      const stream = convertArrayToStream([START_CHUNK, ...TOOL_WITH_DATA_CHUNKS, FINISH_CHUNK]);
+      const stream = Stream.from([START_CHUNK, ...TOOL_WITH_DATA_CHUNKS, FINISH_CHUNK]);
 
       const partTypesEncountered: Array<string> = [];
 
       // Act
-      const result = await convertAsyncIterableToArray(
+      const result = await Iterable.toArray(
         pipe<MyUIMessage>(stream)
           .map(({ chunk, part }) => {
             partTypesEncountered.push(`${chunk.type}:${part.type}`);
@@ -1565,7 +1548,7 @@ describe(`pipe`, () => {
   describe(`consumed`, () => {
     it(`should throw error when toStream is called twice`, async () => {
       // Arrange
-      const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+      const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
       const pipeline = pipe<MyUIMessage>(stream).filter(includeParts(`text`));
 
       // Act
@@ -1578,12 +1561,12 @@ describe(`pipe`, () => {
 
     it(`should throw error when iterating twice`, async () => {
       // Arrange
-      const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+      const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
       const pipeline = pipe<MyUIMessage>(stream).filter(includeParts(`text`));
 
       // Act
-      await convertAsyncIterableToArray(pipeline);
-      const result = convertAsyncIterableToArray(pipeline);
+      await Iterable.toArray(pipeline);
+      const result = Iterable.toArray(pipeline);
 
       // Assert
       await expect(result).rejects.toThrow();
@@ -1591,11 +1574,11 @@ describe(`pipe`, () => {
 
     it(`should throw error when toStream called after iteration`, async () => {
       // Arrange
-      const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+      const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
       const pipeline = pipe<MyUIMessage>(stream).filter(includeParts(`text`));
 
       // Act
-      await convertAsyncIterableToArray(pipeline);
+      await Iterable.toArray(pipeline);
       const result = () => pipeline.toStream();
 
       // Assert
@@ -1606,10 +1589,10 @@ describe(`pipe`, () => {
   describe(`input types`, () => {
     it(`should work with ReadableStream input`, async () => {
       // Arrange
-      const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+      const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
 
       // Act
-      const result = await convertAsyncIterableToArray(
+      const result = await Iterable.toArray(
         pipe<MyUIMessage>(stream).filter(includeParts(`text`)).toStream(),
       );
 
@@ -1619,14 +1602,10 @@ describe(`pipe`, () => {
 
     it(`should work with AsyncIterable input (plain async generator)`, async () => {
       // Arrange
-      const asyncIterable = convertArrayToAsyncIterable([
-        START_CHUNK,
-        ...TEXT_CHUNKS,
-        FINISH_CHUNK,
-      ]);
+      const asyncIterable = Iterable.from([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
 
       // Act
-      const result = await convertAsyncIterableToArray(
+      const result = await Iterable.toArray(
         pipe<MyUIMessage>(asyncIterable).filter(includeParts(`text`)).toStream(),
       );
 
@@ -1637,11 +1616,11 @@ describe(`pipe`, () => {
     it(`should work with AsyncIterableStream input (AI SDK type)`, async () => {
       // Arrange - AsyncIterableStream is both ReadableStream and AsyncIterable
       const asyncIterableStream = createAsyncIterableStream(
-        convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]),
+        Stream.from([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]),
       );
 
       // Act
-      const result = await convertAsyncIterableToArray(
+      const result = await Iterable.toArray(
         pipe<MyUIMessage>(asyncIterableStream).filter(includeParts(`text`)).toStream(),
       );
 
@@ -1651,15 +1630,11 @@ describe(`pipe`, () => {
 
     it(`should correctly associate part types with AsyncIterable input`, async () => {
       // Arrange - use interleaved chunks to verify part type tracking works
-      const asyncIterable = convertArrayToAsyncIterable([
-        START_CHUNK,
-        ...TOOL_WITH_DATA_CHUNKS,
-        FINISH_CHUNK,
-      ]);
+      const asyncIterable = Iterable.from([START_CHUNK, ...TOOL_WITH_DATA_CHUNKS, FINISH_CHUNK]);
       const partTypesEncountered: Array<string> = [];
 
       // Act
-      await convertAsyncIterableToArray(
+      await Iterable.toArray(
         pipe<MyUIMessage>(asyncIterable)
           .map(({ chunk, part }) => {
             partTypesEncountered.push(`${chunk.type}:${part.type}`);

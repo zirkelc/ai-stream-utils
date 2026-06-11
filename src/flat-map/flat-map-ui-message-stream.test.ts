@@ -1,3 +1,5 @@
+import { Iterable, Stream } from "ai-test-kit/language";
+import { UIChunks, UIParts } from "ai-test-kit/ui";
 import type { UIMessageChunk } from "ai";
 import { describe, expect, it } from "vitest";
 import {
@@ -15,18 +17,16 @@ import {
   TOOL_SERVER_CHUNKS,
   TOOL_WITH_DATA_CHUNKS,
 } from "../test/ui-message.js";
-import { convertArrayToStream } from "../utils/convert-array-to-stream.js";
-import { convertAsyncIterableToArray } from "../utils/convert-async-iterable-to-array.js";
 import { flatMapUIMessageStream, partTypeIs } from "./flat-map-ui-message-stream.js";
 
 describe("flatMapUIMessageStream", () => {
   it("should pass through all parts with identity flatMap", async () => {
     // Arrange
-    const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+    const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
 
     // Act
     const mappedStream = flatMapUIMessageStream(stream, ({ part }) => part);
-    const result = await convertAsyncIterableToArray(mappedStream);
+    const result = await Iterable.toArray(mappedStream);
 
     // Assert - Parts are re-serialized with generated IDs
     expect(result.length).toBe(7);
@@ -55,18 +55,13 @@ describe("flatMapUIMessageStream", () => {
 
   it("should filter out parts by returning null", async () => {
     // Arrange
-    const stream = convertArrayToStream([
-      START_CHUNK,
-      ...TEXT_CHUNKS,
-      ...REASONING_CHUNKS,
-      FINISH_CHUNK,
-    ]);
+    const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, ...REASONING_CHUNKS, FINISH_CHUNK]);
 
     // Act
     const mappedStream = flatMapUIMessageStream(stream, ({ part }) => {
       return part.type === "reasoning" ? null : part;
     });
-    const result = await convertAsyncIterableToArray(mappedStream);
+    const result = await Iterable.toArray(mappedStream);
 
     // Assert - Should not include reasoning chunks, text is re-serialized with generated ID
     expect(result.length).toBe(7);
@@ -94,7 +89,7 @@ describe("flatMapUIMessageStream", () => {
   });
 
   it("should transform parts", async () => {
-    const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+    const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
 
     const mappedStream = flatMapUIMessageStream(stream, ({ part }) => {
       if (part.type === "text") {
@@ -104,7 +99,7 @@ describe("flatMapUIMessageStream", () => {
       return part;
     });
 
-    const result = await convertAsyncIterableToArray(mappedStream);
+    const result = await Iterable.toArray(mappedStream);
 
     // Find the text delta - it should be uppercase
     const textDeltas = result.filter((c) => c.type === "text-delta");
@@ -113,21 +108,21 @@ describe("flatMapUIMessageStream", () => {
   });
 
   it("should handle single-chunk parts (file)", async () => {
-    const stream = convertArrayToStream([START_CHUNK, ...FILE_CHUNKS, FINISH_CHUNK]);
+    const stream = Stream.from([START_CHUNK, ...FILE_CHUNKS, FINISH_CHUNK]);
 
     const mappedStream = flatMapUIMessageStream(stream, ({ part }) => {
       expect(part.type).toBe("file");
       return part;
     });
 
-    const result = await convertAsyncIterableToArray(mappedStream);
+    const result = await Iterable.toArray(mappedStream);
 
     const fileChunks = result.filter((c) => c.type === "file");
     expect(fileChunks.length).toBe(1);
   });
 
   it("should handle server-side tool (with execute function)", async () => {
-    const stream = convertArrayToStream([START_CHUNK, ...TOOL_SERVER_CHUNKS, FINISH_CHUNK]);
+    const stream = Stream.from([START_CHUNK, ...TOOL_SERVER_CHUNKS, FINISH_CHUNK]);
 
     let capturedPart: unknown;
     const mappedStream = flatMapUIMessageStream(stream, ({ part }) => {
@@ -137,7 +132,7 @@ describe("flatMapUIMessageStream", () => {
       return part;
     });
 
-    const result = await convertAsyncIterableToArray(mappedStream);
+    const result = await Iterable.toArray(mappedStream);
 
     // Part should have all tool properties populated
     expect(capturedPart).toMatchObject({
@@ -154,7 +149,7 @@ describe("flatMapUIMessageStream", () => {
   });
 
   it("should handle client-side tool (without execute function)", async () => {
-    const stream = convertArrayToStream([START_CHUNK, ...TOOL_CLIENT_CHUNKS, FINISH_CHUNK]);
+    const stream = Stream.from([START_CHUNK, ...TOOL_CLIENT_CHUNKS, FINISH_CHUNK]);
 
     let capturedPart: unknown;
     const mappedStream = flatMapUIMessageStream(stream, ({ part }) => {
@@ -164,7 +159,7 @@ describe("flatMapUIMessageStream", () => {
       return part;
     });
 
-    const result = await convertAsyncIterableToArray(mappedStream);
+    const result = await Iterable.toArray(mappedStream);
 
     // Part should be captured with input-available state
     expect(capturedPart).toMatchObject({
@@ -180,7 +175,7 @@ describe("flatMapUIMessageStream", () => {
   });
 
   it("should handle data-* chunks interleaved with tool chunks", async () => {
-    const stream = convertArrayToStream([START_CHUNK, ...TOOL_WITH_DATA_CHUNKS, FINISH_CHUNK]);
+    const stream = Stream.from([START_CHUNK, ...TOOL_WITH_DATA_CHUNKS, FINISH_CHUNK]);
 
     let capturedToolPart: unknown;
     let capturedDataPart: unknown;
@@ -194,7 +189,7 @@ describe("flatMapUIMessageStream", () => {
       return part;
     });
 
-    const result = await convertAsyncIterableToArray(mappedStream);
+    const result = await Iterable.toArray(mappedStream);
 
     // Tool part should have complete info
     expect(capturedToolPart).toMatchObject({
@@ -220,7 +215,7 @@ describe("flatMapUIMessageStream", () => {
   });
 
   it("should provide complete text part", async () => {
-    const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+    const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
 
     let capturedPart: unknown;
     const mappedStream = flatMapUIMessageStream(stream, ({ part }) => {
@@ -230,7 +225,7 @@ describe("flatMapUIMessageStream", () => {
       return part;
     });
 
-    await convertAsyncIterableToArray(mappedStream);
+    await Iterable.toArray(mappedStream);
 
     // Part should have accumulated text
     expect(capturedPart).toMatchObject({
@@ -240,7 +235,7 @@ describe("flatMapUIMessageStream", () => {
   });
 
   it("should always pass through meta chunks", async () => {
-    const stream = convertArrayToStream([
+    const stream = Stream.from([
       START_CHUNK,
       MESSAGE_METADATA_CHUNK,
       ERROR_CHUNK,
@@ -251,7 +246,7 @@ describe("flatMapUIMessageStream", () => {
     // Even when returning null for everything, meta chunks pass through
     const mappedStream = flatMapUIMessageStream(stream, () => null);
 
-    const result = await convertAsyncIterableToArray(mappedStream);
+    const result = await Iterable.toArray(mappedStream);
 
     expect(result).toEqual([
       START_CHUNK,
@@ -263,23 +258,18 @@ describe("flatMapUIMessageStream", () => {
   });
 
   it("should not emit start-step if all content is filtered out", async () => {
-    const stream = convertArrayToStream([START_CHUNK, ...REASONING_CHUNKS, FINISH_CHUNK]);
+    const stream = Stream.from([START_CHUNK, ...REASONING_CHUNKS, FINISH_CHUNK]);
 
     const mappedStream = flatMapUIMessageStream(stream, () => null);
 
-    const result = await convertAsyncIterableToArray(mappedStream);
+    const result = await Iterable.toArray(mappedStream);
 
     // Should not include start-step or finish-step
     expect(result).toEqual([START_CHUNK, FINISH_CHUNK]);
   });
 
   it("should provide index and parts array in context", async () => {
-    const stream = convertArrayToStream([
-      START_CHUNK,
-      ...TEXT_CHUNKS,
-      ...REASONING_CHUNKS,
-      FINISH_CHUNK,
-    ]);
+    const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, ...REASONING_CHUNKS, FINISH_CHUNK]);
 
     const indices: number[] = [];
     const partCounts: number[] = [];
@@ -289,7 +279,7 @@ describe("flatMapUIMessageStream", () => {
       return part;
     });
 
-    await convertAsyncIterableToArray(mappedStream);
+    await Iterable.toArray(mappedStream);
 
     // Index should increment for each part
     expect(indices).toEqual([0, 1]);
@@ -298,12 +288,7 @@ describe("flatMapUIMessageStream", () => {
   });
 
   it("should allow accessing previous parts", async () => {
-    const stream = convertArrayToStream([
-      START_CHUNK,
-      ...TEXT_CHUNKS,
-      ...REASONING_CHUNKS,
-      FINISH_CHUNK,
-    ]);
+    const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, ...REASONING_CHUNKS, FINISH_CHUNK]);
 
     let lastPartsSnapshot: MyUIMessage["parts"] = [];
     const mappedStream = flatMapUIMessageStream<MyUIMessage>(stream, ({ part }, { parts }) => {
@@ -311,7 +296,7 @@ describe("flatMapUIMessageStream", () => {
       return part;
     });
 
-    await convertAsyncIterableToArray(mappedStream);
+    await Iterable.toArray(mappedStream);
 
     // Should have all parts at the end
     expect(lastPartsSnapshot.length).toBe(2);
@@ -321,12 +306,7 @@ describe("flatMapUIMessageStream", () => {
 
   describe("predicate", () => {
     it("should buffer only matching parts and pass through others", async () => {
-      const stream = convertArrayToStream([
-        START_CHUNK,
-        ...TEXT_CHUNKS,
-        ...REASONING_CHUNKS,
-        FINISH_CHUNK,
-      ]);
+      const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, ...REASONING_CHUNKS, FINISH_CHUNK]);
 
       const processedTypes: string[] = [];
       const mappedStream = flatMapUIMessageStream(stream, partTypeIs("text"), ({ part }) => {
@@ -334,7 +314,7 @@ describe("flatMapUIMessageStream", () => {
         return { ...part, text: part.text.toUpperCase() };
       });
 
-      const result = await convertAsyncIterableToArray(mappedStream);
+      const result = await Iterable.toArray(mappedStream);
 
       // Only text should have been processed by flatMap
       expect(processedTypes).toEqual(["text"]);
@@ -352,7 +332,7 @@ describe("flatMapUIMessageStream", () => {
     });
 
     it("should support array of types", async () => {
-      const stream = convertArrayToStream([
+      const stream = Stream.from([
         START_CHUNK,
         ...TEXT_CHUNKS,
         ...REASONING_CHUNKS,
@@ -370,7 +350,7 @@ describe("flatMapUIMessageStream", () => {
         },
       );
 
-      const result = await convertAsyncIterableToArray(mappedStream);
+      const result = await Iterable.toArray(mappedStream);
 
       // Both text and reasoning should be processed
       expect(processedTypes).toEqual(["text", "reasoning"]);
@@ -381,12 +361,7 @@ describe("flatMapUIMessageStream", () => {
     });
 
     it("should filter matching parts when returning null", async () => {
-      const stream = convertArrayToStream([
-        START_CHUNK,
-        ...TEXT_CHUNKS,
-        ...REASONING_CHUNKS,
-        FINISH_CHUNK,
-      ]);
+      const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, ...REASONING_CHUNKS, FINISH_CHUNK]);
 
       const mappedStream = flatMapUIMessageStream(
         stream,
@@ -394,7 +369,7 @@ describe("flatMapUIMessageStream", () => {
         ({ part }) => null, // Filter out text parts
       );
 
-      const result = await convertAsyncIterableToArray(mappedStream);
+      const result = await Iterable.toArray(mappedStream);
 
       // Text should be filtered out
       const textChunks = result.filter((c) => c.type.startsWith("text"));
@@ -406,7 +381,7 @@ describe("flatMapUIMessageStream", () => {
     });
 
     it("should pass through tool parts when predicate only matches text", async () => {
-      const stream = convertArrayToStream([
+      const stream = Stream.from([
         START_CHUNK,
         ...TOOL_SERVER_CHUNKS,
         ...TEXT_CHUNKS,
@@ -419,7 +394,7 @@ describe("flatMapUIMessageStream", () => {
         return part;
       });
 
-      const result = await convertAsyncIterableToArray(mappedStream);
+      const result = await Iterable.toArray(mappedStream);
 
       // Only text should be processed
       expect(processedTypes).toEqual(["text"]);
@@ -430,7 +405,7 @@ describe("flatMapUIMessageStream", () => {
     });
 
     it("should maintain step boundaries for passed-through parts", async () => {
-      const stream = convertArrayToStream([START_CHUNK, ...REASONING_CHUNKS, FINISH_CHUNK]);
+      const stream = Stream.from([START_CHUNK, ...REASONING_CHUNKS, FINISH_CHUNK]);
 
       const mappedStream = flatMapUIMessageStream(
         stream,
@@ -438,7 +413,7 @@ describe("flatMapUIMessageStream", () => {
         ({ part }) => part,
       );
 
-      const result = await convertAsyncIterableToArray(mappedStream);
+      const result = await Iterable.toArray(mappedStream);
 
       // Step boundaries should be present for reasoning
       expect(result).toContainEqual({ type: "start-step" });
@@ -450,7 +425,7 @@ describe("flatMapUIMessageStream", () => {
       // as they arrive, not buffered until the part is complete
       const chunks: MyUIMessageChunk[] = [START_CHUNK, ...REASONING_CHUNKS, FINISH_CHUNK];
 
-      const stream = convertArrayToStream(chunks);
+      const stream = Stream.from(chunks);
       const emittedChunks: UIMessageChunk[] = [];
 
       const mappedStream = flatMapUIMessageStream(
@@ -482,31 +457,31 @@ describe("flatMapUIMessageStream", () => {
       // Interleaved stream: reasoning (stream) -> text (buffer) -> reasoning (stream)
       const chunks: MyUIMessageChunk[] = [
         START_CHUNK,
-        { type: "start-step" },
+        UIChunks.startStep(),
         // First reasoning part (should stream immediately)
-        { type: "reasoning-start", id: "1" },
-        { type: "reasoning-delta", id: "1", delta: "First thought" },
-        { type: "reasoning-end", id: "1" },
+        UIChunks.reasoningStart({ id: "1" }),
+        UIChunks.reasoningDelta({ id: "1", delta: "First thought" }),
+        UIChunks.reasoningEnd({ id: "1" }),
         // Text part (should be buffered and transformed)
-        { type: "text-start", id: "2" },
-        { type: "text-delta", id: "2", delta: "hello" },
-        { type: "text-end", id: "2" },
+        UIChunks.textStart({ id: "2" }),
+        UIChunks.textDelta({ id: "2", delta: "hello" }),
+        UIChunks.textEnd({ id: "2" }),
         // Second reasoning part (should stream immediately)
-        { type: "reasoning-start", id: "3" },
-        { type: "reasoning-delta", id: "3", delta: "Second thought" },
-        { type: "reasoning-end", id: "3" },
-        { type: "finish-step" },
+        UIChunks.reasoningStart({ id: "3" }),
+        UIChunks.reasoningDelta({ id: "3", delta: "Second thought" }),
+        UIChunks.reasoningEnd({ id: "3" }),
+        UIChunks.finishStep(),
         FINISH_CHUNK,
       ];
 
-      const stream = convertArrayToStream(chunks);
+      const stream = Stream.from(chunks);
 
       const mappedStream = flatMapUIMessageStream(stream, partTypeIs("text"), ({ part }) => ({
         ...part,
         text: part.text.toUpperCase(),
       }));
 
-      const result = await convertAsyncIterableToArray(mappedStream);
+      const result = await Iterable.toArray(mappedStream);
 
       // Reasoning should be unchanged (streamed through)
       const reasoningDeltas = result.filter((c) => c.type === "reasoning-delta");
@@ -529,21 +504,17 @@ describe("flatMapUIMessageStream", () => {
 
   describe("array", () => {
     it("should emit multiple parts when returning an array", async () => {
-      const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+      const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
 
       const mappedStream = flatMapUIMessageStream(stream, ({ part }) => {
         if (part.type === "text") {
           // Return multiple text parts
-          return [
-            { type: "text" as const, text: "[PREFIX] " },
-            part,
-            { type: "text" as const, text: " [SUFFIX]" },
-          ];
+          return [UIParts.text("[PREFIX] "), part, UIParts.text(" [SUFFIX]")];
         }
         return part;
       });
 
-      const result = await convertAsyncIterableToArray(mappedStream);
+      const result = await Iterable.toArray(mappedStream);
 
       // Should have 3 text-delta chunks (one for each part)
       const textDeltas = result.filter((c) => c.type === "text-delta");
@@ -554,19 +525,14 @@ describe("flatMapUIMessageStream", () => {
     });
 
     it("should filter out part when returning empty array", async () => {
-      const stream = convertArrayToStream([
-        START_CHUNK,
-        ...TEXT_CHUNKS,
-        ...REASONING_CHUNKS,
-        FINISH_CHUNK,
-      ]);
+      const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, ...REASONING_CHUNKS, FINISH_CHUNK]);
 
       const mappedStream = flatMapUIMessageStream(stream, ({ part }) => {
         // Return empty array for reasoning (same as returning null)
         return part.type === "reasoning" ? [] : part;
       });
 
-      const result = await convertAsyncIterableToArray(mappedStream);
+      const result = await Iterable.toArray(mappedStream);
 
       // Should not include reasoning chunks
       const reasoningChunks = result.filter((c) => c.type.startsWith("reasoning"));
@@ -578,14 +544,14 @@ describe("flatMapUIMessageStream", () => {
     });
 
     it("should handle single part in array same as returning part directly", async () => {
-      const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+      const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
 
       const mappedStream = flatMapUIMessageStream(stream, ({ part }) => {
         // Return part in array - should work same as returning part directly
         return [part];
       });
 
-      const result = await convertAsyncIterableToArray(mappedStream);
+      const result = await Iterable.toArray(mappedStream);
 
       // Should produce same output as identity flatMap
       const textDeltas = result.filter((c) => c.type === "text-delta");
@@ -594,37 +560,31 @@ describe("flatMapUIMessageStream", () => {
     });
 
     it("should not emit step boundary when returning empty array for all content", async () => {
-      const stream = convertArrayToStream([START_CHUNK, ...REASONING_CHUNKS, FINISH_CHUNK]);
+      const stream = Stream.from([START_CHUNK, ...REASONING_CHUNKS, FINISH_CHUNK]);
 
       const mappedStream = flatMapUIMessageStream(stream, () => {
         // Filter all parts by returning empty array
         return [];
       });
 
-      const result = await convertAsyncIterableToArray(mappedStream);
+      const result = await Iterable.toArray(mappedStream);
 
       // Should not include step boundaries since all content was filtered
       expect(result).toEqual([START_CHUNK, FINISH_CHUNK]);
     });
 
     it("should allow returning different part types", async () => {
-      const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+      const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
 
       const mappedStream = flatMapUIMessageStream(stream, ({ part }) => {
         if (part.type === "text") {
           // Transform text into reasoning + text
-          return [
-            {
-              type: "reasoning" as const,
-              text: "Thinking about: " + part.text,
-            },
-            part,
-          ];
+          return [UIParts.reasoning("Thinking about: " + part.text), part];
         }
         return part;
       });
 
-      const result = await convertAsyncIterableToArray(mappedStream);
+      const result = await Iterable.toArray(mappedStream);
 
       // Should have both reasoning and text chunks
       const reasoningDeltas = result.filter((c) => c.type === "reasoning-delta");
@@ -637,22 +597,14 @@ describe("flatMapUIMessageStream", () => {
     });
 
     it("should handle array return with predicate", async () => {
-      const stream = convertArrayToStream([
-        START_CHUNK,
-        ...TEXT_CHUNKS,
-        ...REASONING_CHUNKS,
-        FINISH_CHUNK,
-      ]);
+      const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, ...REASONING_CHUNKS, FINISH_CHUNK]);
 
       const mappedStream = flatMapUIMessageStream(stream, partTypeIs("text"), ({ part }) => {
         // Return multiple parts for text
-        return [
-          { type: "text" as const, text: ">> " },
-          { ...part, text: part.text.toUpperCase() },
-        ];
+        return [UIParts.text(">> "), { ...part, text: part.text.toUpperCase() }];
       });
 
-      const result = await convertAsyncIterableToArray(mappedStream);
+      const result = await Iterable.toArray(mappedStream);
 
       // Text should be transformed into multiple parts
       const textDeltas = result.filter((c) => c.type === "text-delta");

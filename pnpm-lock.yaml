@@ -36,6 +36,9 @@ importers:
       ai:
         specifier: ^6.0.86
         version: 6.0.86(zod@4.3.6)
+      ai-test-kit:
+        specifier: ^1.1.0
+        version: 1.1.0(@ai-sdk/provider-utils@4.0.15(zod@4.3.6))(@ai-sdk/provider@3.0.8)(ai@6.0.86(zod@4.3.6))(vitest@4.0.18(@opentelemetry/api@1.9.0)(@types/node@25.2.3)(msw@2.12.10(@types/node@25.2.3)(typescript@5.9.3))(tsx@4.21.0)(yaml@2.8.2))
       dotenv:
         specifier: ^17.4.2
         version: 17.4.2
@@ -977,6 +980,14 @@ packages:
     resolution: {integrity: sha512-NZyJarBfL7nWwIq+FDL6Zp/yHEhePMNnnJ0y3qfieCrmNvYct8uvtiV41UvlSe6apAfk0fY1FbWx+NwfmpvtTg==}
     engines: {node: '>=0.4.0'}
     hasBin: true
+
+  ai-test-kit@1.1.0:
+    resolution: {integrity: sha512-msNmw8Ko93FQ4T5Xx44XYg6zBUkL4bJUdkdJh4YSgpYRsXYY/A+QiQEq5QI8GJBGbsHMkQGzJfjrq6ZOnYpuuA==}
+    peerDependencies:
+      '@ai-sdk/provider': ^3.0.0
+      '@ai-sdk/provider-utils': ^4.0.0
+      ai: 5.x || 6.x
+      vitest: '>=3'
 
   ai@6.0.108:
     resolution: {integrity: sha512-h2xwwU9lE+tdLyII/uFcjcrw+7ciWj2S68GrwQsebjHPSfnvxwrn+sjIl+tBt419yA9rYznWXtQvHJxM1wEAAQ==}
@@ -2566,6 +2577,13 @@ snapshots:
       tinyrainbow: 3.0.3
 
   acorn@8.15.0: {}
+
+  ai-test-kit@1.1.0(@ai-sdk/provider-utils@4.0.15(zod@4.3.6))(@ai-sdk/provider@3.0.8)(ai@6.0.86(zod@4.3.6))(vitest@4.0.18(@opentelemetry/api@1.9.0)(@types/node@25.2.3)(msw@2.12.10(@types/node@25.2.3)(typescript@5.9.3))(tsx@4.21.0)(yaml@2.8.2)):
+    dependencies:
+      '@ai-sdk/provider': 3.0.8
+      '@ai-sdk/provider-utils': 4.0.15(zod@4.3.6)
+      ai: 6.0.86(zod@4.3.6)
+      vitest: 4.0.18(@opentelemetry/api@1.9.0)(@types/node@25.2.3)(msw@2.12.10(@types/node@25.2.3)(typescript@5.9.3))(tsx@4.21.0)(yaml@2.8.2)
 
   ai@6.0.108(zod@4.3.6):
     dependencies:

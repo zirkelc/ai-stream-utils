@@ -1,3 +1,5 @@
+import { Iterable, Stream } from "ai-test-kit/language";
+import { UIChunks } from "ai-test-kit/ui";
 import { describe, expect, it } from "vitest";
 import {
   FINISH_CHUNK,
@@ -9,8 +11,6 @@ import {
   TEXT_CHUNKS,
   TOOL_SERVER_CHUNKS,
 } from "../test/ui-message.js";
-import { convertArrayToStream } from "../utils/convert-array-to-stream.js";
-import { convertAsyncIterableToArray } from "../utils/convert-async-iterable-to-array.js";
 import { transformProviderMetadata } from "./transform-provider-metadata.js";
 import { pipe } from "./pipe.js";
 
@@ -19,10 +19,10 @@ const META = { app: { traceId: `t1` } };
 describe(`transformProviderMetadata`, () => {
   it(`should add provider metadata to chunks that support it`, async () => {
     // Arrange
-    const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+    const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
 
     // Act
-    const result = await convertAsyncIterableToArray(
+    const result = await Iterable.toArray(
       pipe<MyUIMessage>(stream)
         .map(transformProviderMetadata(({ metadata }) => ({ ...metadata, ...META })))
         .toStream(),
@@ -45,20 +45,19 @@ describe(`transformProviderMetadata`, () => {
     // Arrange - tool-input-available already carries provider metadata
     const input: Array<MyUIMessageChunk> = [
       START_CHUNK,
-      { type: `tool-input-start`, toolCallId: `1`, toolName: `weather` },
-      {
-        type: `tool-input-available`,
+      UIChunks.toolInputStart({ toolCallId: `1`, toolName: `weather` }),
+      UIChunks.toolInputAvailable({
         toolCallId: `1`,
         toolName: `weather`,
         input: { location: `Tokyo` },
         providerMetadata: { openai: { itemId: `fc_1` } },
-      },
+      }),
       FINISH_CHUNK,
     ];
-    const stream = convertArrayToStream(input);
+    const stream = Stream.from(input);
 
     // Act
-    const result = await convertAsyncIterableToArray(
+    const result = await Iterable.toArray(
       pipe<MyUIMessage>(stream)
         .map(transformProviderMetadata(({ metadata }) => ({ ...metadata, ...META })))
         .toStream(),
@@ -81,10 +80,10 @@ describe(`transformProviderMetadata`, () => {
 
   it(`should not modify chunks that do not support provider metadata`, async () => {
     // Arrange - TOOL_SERVER_CHUNKS includes tool-input-delta and tool-output-available
-    const stream = convertArrayToStream([START_CHUNK, ...TOOL_SERVER_CHUNKS, FINISH_CHUNK]);
+    const stream = Stream.from([START_CHUNK, ...TOOL_SERVER_CHUNKS, FINISH_CHUNK]);
 
     // Act
-    const result = await convertAsyncIterableToArray(
+    const result = await Iterable.toArray(
       pipe<MyUIMessage>(stream)
         .map(transformProviderMetadata(({ metadata }) => ({ ...metadata, ...META })))
         .toStream(),
@@ -112,10 +111,10 @@ describe(`transformProviderMetadata`, () => {
   it(`should leave chunks unchanged when the callback returns undefined`, async () => {
     // Arrange
     const input = [START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK];
-    const stream = convertArrayToStream(input);
+    const stream = Stream.from(input);
 
     // Act
-    const result = await convertAsyncIterableToArray(
+    const result = await Iterable.toArray(
       pipe<MyUIMessage>(stream)
         .map(transformProviderMetadata(() => undefined))
         .toStream(),
@@ -129,20 +128,19 @@ describe(`transformProviderMetadata`, () => {
     // Arrange - tool-input-available carries provider metadata
     const input: Array<MyUIMessageChunk> = [
       START_CHUNK,
-      { type: `tool-input-start`, toolCallId: `1`, toolName: `weather` },
-      {
-        type: `tool-input-available`,
+      UIChunks.toolInputStart({ toolCallId: `1`, toolName: `weather` }),
+      UIChunks.toolInputAvailable({
         toolCallId: `1`,
         toolName: `weather`,
         input: { location: `Tokyo` },
         providerMetadata: { openai: { itemId: `fc_1` } },
-      },
+      }),
       FINISH_CHUNK,
     ];
-    const stream = convertArrayToStream(input);
+    const stream = Stream.from(input);
 
     // Act
-    const result = await convertAsyncIterableToArray(
+    const result = await Iterable.toArray(
       pipe<MyUIMessage>(stream)
         .map(transformProviderMetadata(() => null))
         .toStream(),

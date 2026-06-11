@@ -1,3 +1,9 @@
+import {
+  fromUIMessage,
+  type UIMessageChunkOf,
+  type UIMessageChunks,
+  type UIMessageParts,
+} from "ai-test-kit/ui";
 import { type InferUIMessageChunk, type InferUITools, tool, type UIMessage } from "ai";
 import { z } from "zod";
 import type { InferUIMessagePart } from "../types.js";
@@ -14,37 +20,36 @@ export type MyUIMessageChunk = InferUIMessageChunk<MyUIMessage>;
 
 export type MyUIMessagePart = InferUIMessagePart<MyUIMessage>;
 
+/* Part and chunk types keyed by `type`, so a single variant is one indexed access */
+type Parts = UIMessageParts<MyUIMessage>;
+type Chunks = UIMessageChunks<MyUIMessage>;
+
 /* Part type aliases */
-export type TextPart = Extract<MyUIMessagePart, { type: "text" }>;
-export type ReasoningPart = Extract<MyUIMessagePart, { type: "reasoning" }>;
-export type ToolWeatherPart = Extract<MyUIMessagePart, { type: "tool-weather" }>;
-export type DynamicToolPart = Extract<MyUIMessagePart, { type: "dynamic-tool" }>;
-export type SourceUrlPart = Extract<MyUIMessagePart, { type: "source-url" }>;
-export type SourceDocumentPart = Extract<MyUIMessagePart, { type: "source-document" }>;
-export type DataWeatherPart = Extract<MyUIMessagePart, { type: "data-weather" }>;
-export type FilePart = Extract<MyUIMessagePart, { type: "file" }>;
-export type StepStartPart = Extract<MyUIMessagePart, { type: "step-start" }>;
+export type TextPart = Parts["text"];
+export type ReasoningPart = Parts["reasoning"];
+export type ToolWeatherPart = Parts["tool-weather"];
+export type DynamicToolPart = Parts["dynamic-tool"];
+export type SourceUrlPart = Parts["source-url"];
+export type SourceDocumentPart = Parts["source-document"];
+export type DataWeatherPart = Parts["data-weather"];
+export type FilePart = Parts["file"];
+export type StepStartPart = Parts["step-start"];
 
 /* Chunk type aliases */
-export type TextChunk = Extract<
-  MyUIMessageChunk,
-  { type: "text-start" | "text-delta" | "text-end" }
->;
-export type TextStartChunk = Extract<MyUIMessageChunk, { type: "text-start" }>;
-export type TextDeltaChunk = Extract<MyUIMessageChunk, { type: "text-delta" }>;
-export type TextEndChunk = Extract<MyUIMessageChunk, { type: "text-end" }>;
-export type ReasoningChunk = Extract<
-  MyUIMessageChunk,
-  { type: "reasoning-start" | "reasoning-delta" | "reasoning-end" }
->;
-export type ToolChunk = Extract<MyUIMessageChunk, { type: `tool-${string}` }>;
-export type SourceUrlChunk = Extract<MyUIMessageChunk, { type: "source-url" }>;
-export type SourceDocumentChunk = Extract<MyUIMessageChunk, { type: "source-document" }>;
-export type DataWeatherChunk = Extract<MyUIMessageChunk, { type: "data-weather" }>;
-export type FileChunk = Extract<MyUIMessageChunk, { type: "file" }>;
-export type StartStepChunk = Extract<MyUIMessageChunk, { type: "start-step" }>;
-export type StartChunk = Extract<MyUIMessageChunk, { type: `start` }>;
-export type FinishChunk = Extract<MyUIMessageChunk, { type: `finish` }>;
+export type TextChunk = Chunks["text-start" | "text-delta" | "text-end"];
+export type TextStartChunk = Chunks["text-start"];
+export type TextDeltaChunk = Chunks["text-delta"];
+export type TextEndChunk = Chunks["text-end"];
+export type ReasoningChunk = Chunks["reasoning-start" | "reasoning-delta" | "reasoning-end"];
+/* Template key can't be an indexed access (wider than keyof), so use the extractor helper */
+export type ToolChunk = UIMessageChunkOf<MyUIMessage, `tool-${string}`>;
+export type SourceUrlChunk = Chunks["source-url"];
+export type SourceDocumentChunk = Chunks["source-document"];
+export type DataWeatherChunk = Chunks["data-weather"];
+export type FileChunk = Chunks["file"];
+export type StartStepChunk = Chunks["start-step"];
+export type StartChunk = Chunks["start"];
+export type FinishChunk = Chunks["finish"];
 
 const weatherTool = tool({
   description: "Get the weather in a location",
@@ -73,80 +78,53 @@ export const tools = {
   // calculator: calculatorTool,
 };
 
-export const START_CHUNK: MyUIMessageChunk = { type: "start" };
-export const FINISH_CHUNK: MyUIMessageChunk = { type: "finish" };
-export const START_STEP_CHUNK: MyUIMessageChunk = { type: "start-step" };
-export const FINISH_STEP_CHUNK: MyUIMessageChunk = { type: "finish-step" };
-export const ABORT_CHUNK: MyUIMessageChunk = { type: "abort" };
-export const MESSAGE_METADATA_CHUNK: MyUIMessageChunk = {
-  type: "message-metadata",
-  messageMetadata: { id: "1" },
-};
-export const ERROR_CHUNK: MyUIMessageChunk = {
-  type: "error",
-  errorText: "Test error",
-};
+/* Builders bound to MyUIMessage so data/tool names and metadata are type-checked */
+const { UIParts, UIChunks } = fromUIMessage<MyUIMessage>();
+
+export const START_CHUNK: MyUIMessageChunk = UIChunks.start();
+export const FINISH_CHUNK: MyUIMessageChunk = UIChunks.finish();
+export const START_STEP_CHUNK: MyUIMessageChunk = UIChunks.startStep();
+export const FINISH_STEP_CHUNK: MyUIMessageChunk = UIChunks.finishStep();
+export const ABORT_CHUNK: MyUIMessageChunk = UIChunks.abort();
+export const MESSAGE_METADATA_CHUNK: MyUIMessageChunk = UIChunks.messageMetadata({ id: "1" });
+export const ERROR_CHUNK: MyUIMessageChunk = UIChunks.error("Test error");
 
 export const TEXT_CHUNKS: MyUIMessageChunk[] = [
-  { type: "start-step" },
-  { type: "text-start", id: "1" },
-  { type: "text-delta", id: "1", delta: "Hello" },
-  { type: "text-delta", id: "1", delta: " World" },
-  { type: "text-end", id: "1" },
-  { type: "finish-step" },
+  UIChunks.startStep(),
+  UIChunks.textStart({ id: "1" }),
+  UIChunks.textDelta({ id: "1", delta: "Hello" }),
+  UIChunks.textDelta({ id: "1", delta: " World" }),
+  UIChunks.textEnd({ id: "1" }),
+  UIChunks.finishStep(),
 ];
 
 export const REASONING_CHUNKS: MyUIMessageChunk[] = [
-  { type: "start-step" },
-  { type: "reasoning-start", id: "2" },
-  { type: "reasoning-delta", id: "2", delta: "Think" },
-  { type: "reasoning-delta", id: "2", delta: "ing..." },
-  { type: "reasoning-end", id: "2" },
-  { type: "finish-step" },
+  UIChunks.startStep(),
+  UIChunks.reasoningStart({ id: "2" }),
+  UIChunks.reasoningDelta({ id: "2", delta: "Think" }),
+  UIChunks.reasoningDelta({ id: "2", delta: "ing..." }),
+  UIChunks.reasoningEnd({ id: "2" }),
+  UIChunks.finishStep(),
 ];
 
 // Tool chunks with output (server-side tool with execute function)
 export const TOOL_SERVER_CHUNKS: MyUIMessageChunk[] = [
-  { type: "start-step" },
-  {
-    type: "tool-input-start",
-    toolCallId: "3",
-    toolName: "weather",
-  },
-  {
-    type: "tool-input-delta",
-    toolCallId: "3",
-    inputTextDelta: '{"location":"Tokyo"}',
-  },
-  {
-    type: "tool-input-available",
-    toolCallId: "3",
-    toolName: "weather",
-    input: { location: "Tokyo" },
-  },
-  {
-    type: "tool-output-available",
-    toolCallId: "3",
-    output: { temperature: 72 },
-  },
-  { type: "finish-step" },
+  UIChunks.startStep(),
+  ...UIChunks.toolInput({ toolCallId: "3", toolName: "weather", input: { location: "Tokyo" } }),
+  UIChunks.toolOutputAvailable({ toolCallId: "3", output: { temperature: 72 } }),
+  UIChunks.finishStep(),
 ];
 
 // Tool chunks without output (client-side tool without execute function)
 export const TOOL_CLIENT_CHUNKS: MyUIMessageChunk[] = [
-  { type: "start-step" },
-  {
-    type: "tool-input-start",
-    toolCallId: "6",
-    toolName: "weather",
-  },
-  {
-    type: "tool-input-available",
+  UIChunks.startStep(),
+  UIChunks.toolInputStart({ toolCallId: "6", toolName: "weather" }),
+  UIChunks.toolInputAvailable({
     toolCallId: "6",
     toolName: "weather",
     input: { location: "Tokyo" },
-  },
-  { type: "finish-step" },
+  }),
+  UIChunks.finishStep(),
 ];
 
 /**
@@ -155,164 +133,115 @@ export const TOOL_CLIENT_CHUNKS: MyUIMessageChunk[] = [
  * writes a data chunk via writer.write() mid-execution.
  */
 export const TOOL_WITH_DATA_CHUNKS: MyUIMessageChunk[] = [
-  { type: "start-step" },
-  { type: "tool-input-start", toolCallId: "10", toolName: "weather" },
-  {
-    type: "tool-input-delta",
-    toolCallId: "10",
-    inputTextDelta: '{"location":"Tokyo"}',
-  },
-  { type: "data-weather", data: { location: "Tokyo", temperature: 72 } },
-  {
-    type: "tool-input-available",
+  UIChunks.startStep(),
+  UIChunks.toolInputStart({ toolCallId: "10", toolName: "weather" }),
+  UIChunks.toolInputDelta({ toolCallId: "10", inputTextDelta: '{"location":"Tokyo"}' }),
+  UIChunks.data("weather", { location: "Tokyo", temperature: 72 }),
+  UIChunks.toolInputAvailable({
     toolCallId: "10",
     toolName: "weather",
     input: { location: "Tokyo" },
-  },
-  {
-    type: "tool-output-available",
+  }),
+  UIChunks.toolOutputAvailable({
     toolCallId: "10",
     output: { location: "Tokyo", temperature: 72 },
-  },
-  { type: "finish-step" },
+  }),
+  UIChunks.finishStep(),
 ];
 
 export const DYNAMIC_TOOL_CHUNKS: MyUIMessageChunk[] = [
-  { type: "start-step" },
-  {
-    type: "tool-input-start",
-    toolCallId: "4",
-    toolName: "calculator",
-    dynamic: true,
-  },
-  {
-    type: "tool-input-available",
+  UIChunks.startStep(),
+  UIChunks.toolInputStart({ toolCallId: "4", toolName: "calculator", dynamic: true }),
+  UIChunks.toolInputAvailable({
     toolCallId: "4",
     toolName: "calculator",
     input: { expression: "2+2" },
     dynamic: true,
-  },
-  {
-    type: "tool-output-available",
-    toolCallId: "4",
-    output: { result: 4 },
-    dynamic: true,
-  },
-  { type: "finish-step" },
+  }),
+  UIChunks.toolOutputAvailable({ toolCallId: "4", output: { result: 4 }, dynamic: true }),
+  UIChunks.finishStep(),
 ];
 
 export const TOOL_ERROR_CHUNKS: MyUIMessageChunk[] = [
-  { type: "start-step" },
-  {
-    type: "tool-input-error",
+  UIChunks.startStep(),
+  UIChunks.toolInputError({
     toolCallId: "5",
     toolName: "failed",
     input: {},
     errorText: "Invalid input",
-  },
-  {
-    type: "tool-output-error",
-    toolCallId: "5",
-    errorText: "Execution failed",
-  },
-  { type: "finish-step" },
+  }),
+  UIChunks.toolOutputError({ toolCallId: "5", errorText: "Execution failed" }),
+  UIChunks.finishStep(),
 ];
 
 export const SOURCE_CHUNKS: MyUIMessageChunk[] = [
-  { type: "start-step" },
-  {
-    type: "source-url",
-    sourceId: "source-1",
-    url: "https://example.com",
-    title: "Example Source",
-  },
-  {
-    type: "source-document",
+  UIChunks.startStep(),
+  UIChunks.sourceUrl({ sourceId: "source-1", url: "https://example.com", title: "Example Source" }),
+  UIChunks.sourceDocument({
     sourceId: "source-2",
     mediaType: "application/pdf",
     title: "Document Title",
-  },
-  { type: "finish-step" },
+  }),
+  UIChunks.finishStep(),
 ];
 
 export const DATA_CHUNKS: MyUIMessageChunk[] = [
-  { type: "start-step" },
-  {
-    type: "data-weather",
-    data: { location: "Tokyo", temperature: 72 },
-  },
-  { type: "finish-step" },
+  UIChunks.startStep(),
+  UIChunks.data("weather", { location: "Tokyo", temperature: 72 }),
+  UIChunks.finishStep(),
 ];
 
 export const FILE_CHUNKS: MyUIMessageChunk[] = [
-  { type: "start-step" },
-  {
-    type: "file",
-    url: "https://example.com/file.pdf",
-    mediaType: "application/pdf",
-  },
-  { type: "finish-step" },
+  UIChunks.startStep(),
+  UIChunks.file({ url: "https://example.com/file.pdf", mediaType: "application/pdf" }),
+  UIChunks.finishStep(),
 ];
 
-export const TEXT_PART: MyUIMessagePart = {
-  type: "text",
-  text: "Hello World",
-  state: "done",
-};
+export const TEXT_PART: MyUIMessagePart = UIParts.text("Hello World", { state: "done" });
 
-export const REASONING_PART: MyUIMessagePart = {
-  type: "reasoning",
-  text: "Thinking...",
-  state: "done",
-};
+export const REASONING_PART: MyUIMessagePart = UIParts.reasoning("Thinking...", { state: "done" });
 
-export const TOOL_PART: MyUIMessagePart = {
-  type: "tool-weather",
+export const TOOL_PART: MyUIMessagePart = UIParts.tool("weather", {
   toolCallId: "3",
   state: "output-available",
   input: { location: "Tokyo" },
   output: { location: "Tokyo", temperature: 72 },
-};
+});
 
-export const DYNAMIC_TOOL_PART: MyUIMessagePart = {
-  type: "dynamic-tool",
+export const DYNAMIC_TOOL_PART: MyUIMessagePart = UIParts.dynamicTool({
   toolCallId: "4",
   toolName: "calculator",
   state: "output-available",
   input: { expression: "2+2" },
   output: { result: 4 },
-};
+});
 
-export const TOOL_ERROR_PART: MyUIMessagePart = {
-  type: "dynamic-tool",
+export const TOOL_ERROR_PART: MyUIMessagePart = UIParts.dynamicTool({
   toolCallId: "5",
   toolName: "failed",
   state: "output-error",
   input: {},
   errorText: "Execution failed",
-};
+});
 
-export const SOURCE_URL_PART: MyUIMessagePart = {
-  type: "source-url",
+export const SOURCE_URL_PART: MyUIMessagePart = UIParts.sourceUrl({
   sourceId: "source-1",
   url: "https://example.com",
   title: "Example Source",
-};
+});
 
-export const SOURCE_DOCUMENT_PART: MyUIMessagePart = {
-  type: "source-document",
+export const SOURCE_DOCUMENT_PART: MyUIMessagePart = UIParts.sourceDocument({
   sourceId: "source-2",
   mediaType: "application/pdf",
   title: "Document Title",
-};
+});
 
-export const DATA_PART: MyUIMessagePart = {
-  type: "data-weather",
-  data: { location: "Tokyo", temperature: 72 },
-};
+export const DATA_PART: MyUIMessagePart = UIParts.data("weather", {
+  location: "Tokyo",
+  temperature: 72,
+});
 
-export const FILE_PART: MyUIMessagePart = {
-  type: "file",
+export const FILE_PART: MyUIMessagePart = UIParts.file({
   url: "https://example.com/file.pdf",
   mediaType: "application/pdf",
-};
+});

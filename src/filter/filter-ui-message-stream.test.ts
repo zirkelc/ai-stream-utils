@@ -1,3 +1,4 @@
+import { Iterable, Stream } from "ai-test-kit/language";
 import { readUIMessageStream } from "ai";
 import { describe, expect, it } from "vitest";
 import { excludeParts, includeParts } from "../pipe/type-guards.js";
@@ -18,22 +19,15 @@ import {
   TOOL_SERVER_CHUNKS,
   TOOL_WITH_DATA_CHUNKS,
 } from "../test/ui-message.js";
-import { convertArrayToStream } from "../utils/convert-array-to-stream.js";
-import { convertAsyncIterableToArray } from "../utils/convert-async-iterable-to-array.js";
 import { filterUIMessageStream } from "./filter-ui-message-stream.js";
 
 describe("filterUIMessageStream", () => {
   it("should filter chunks using include", async () => {
-    const stream = convertArrayToStream([
-      START_CHUNK,
-      ...REASONING_CHUNKS,
-      ...TEXT_CHUNKS,
-      FINISH_CHUNK,
-    ]);
+    const stream = Stream.from([START_CHUNK, ...REASONING_CHUNKS, ...TEXT_CHUNKS, FINISH_CHUNK]);
 
     const filteredStream = filterUIMessageStream<MyUIMessage>(stream, includeParts(["text"]));
 
-    const result = await convertAsyncIterableToArray(filteredStream);
+    const result = await Iterable.toArray(filteredStream);
 
     expect(result).toMatchInlineSnapshot(`
       [
@@ -72,16 +66,11 @@ describe("filterUIMessageStream", () => {
   });
 
   it("should filter chunks using exclude", async () => {
-    const stream = convertArrayToStream([
-      START_CHUNK,
-      ...REASONING_CHUNKS,
-      ...TEXT_CHUNKS,
-      FINISH_CHUNK,
-    ]);
+    const stream = Stream.from([START_CHUNK, ...REASONING_CHUNKS, ...TEXT_CHUNKS, FINISH_CHUNK]);
 
     const filteredStream = filterUIMessageStream(stream, excludeParts(["reasoning"]));
 
-    const result = await convertAsyncIterableToArray(filteredStream);
+    const result = await Iterable.toArray(filteredStream);
 
     expect(result).toMatchInlineSnapshot(`
       [
@@ -120,19 +109,14 @@ describe("filterUIMessageStream", () => {
   });
 
   it("should filter chunks using filter function", async () => {
-    const stream = convertArrayToStream([
-      START_CHUNK,
-      ...TOOL_SERVER_CHUNKS,
-      ...TEXT_CHUNKS,
-      FINISH_CHUNK,
-    ]);
+    const stream = Stream.from([START_CHUNK, ...TOOL_SERVER_CHUNKS, ...TEXT_CHUNKS, FINISH_CHUNK]);
 
     const filteredStream = filterUIMessageStream(stream, ({ part }: { part: { type: string } }) => {
       // Include any tool that starts with 'tool-weather'
       return part.type.startsWith(`tool-weather`);
     });
 
-    const result = await convertAsyncIterableToArray(filteredStream);
+    const result = await Iterable.toArray(filteredStream);
 
     expect(result).toMatchInlineSnapshot(`
       [
@@ -178,17 +162,17 @@ describe("filterUIMessageStream", () => {
   });
 
   it("should not include start-step if subsequent content is filtered out", async () => {
-    const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+    const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
 
     const filteredStream = filterUIMessageStream(stream, includeParts(["reasoning"]));
 
-    const result = await convertAsyncIterableToArray(filteredStream);
+    const result = await Iterable.toArray(filteredStream);
 
     expect(result).toEqual([{ type: "start" }, { type: "finish" }]);
   });
 
   it("should always pass through controls chunks", async () => {
-    const stream = convertArrayToStream([
+    const stream = Stream.from([
       START_CHUNK,
       ABORT_CHUNK,
       MESSAGE_METADATA_CHUNK,
@@ -198,7 +182,7 @@ describe("filterUIMessageStream", () => {
 
     const filteredStream = filterUIMessageStream(stream, includeParts([]));
 
-    const result = await convertAsyncIterableToArray(filteredStream);
+    const result = await Iterable.toArray(filteredStream);
 
     expect(result).toEqual([
       { type: "start" },
@@ -210,7 +194,7 @@ describe("filterUIMessageStream", () => {
   });
 
   it("should handle data-* chunks interleaved with tool chunks", async () => {
-    const stream = convertArrayToStream([START_CHUNK, ...TOOL_WITH_DATA_CHUNKS, FINISH_CHUNK]);
+    const stream = Stream.from([START_CHUNK, ...TOOL_WITH_DATA_CHUNKS, FINISH_CHUNK]);
 
     // Filter to include only data-weather (not tool-weather)
     const filteredStream = filterUIMessageStream<MyUIMessage>(
@@ -218,7 +202,7 @@ describe("filterUIMessageStream", () => {
       includeParts(["data-weather"]),
     );
 
-    const result = await convertAsyncIterableToArray(filteredStream);
+    const result = await Iterable.toArray(filteredStream);
 
     // Should include data-weather but not tool-weather chunks
     const dataChunks = result.filter((c) => c.type === "data-weather");
@@ -229,7 +213,7 @@ describe("filterUIMessageStream", () => {
   });
 
   it("should filter tool-weather without affecting data-weather", async () => {
-    const stream = convertArrayToStream([START_CHUNK, ...TOOL_WITH_DATA_CHUNKS, FINISH_CHUNK]);
+    const stream = Stream.from([START_CHUNK, ...TOOL_WITH_DATA_CHUNKS, FINISH_CHUNK]);
 
     // Exclude tool-weather, data-weather should still pass through
     const filteredStream = filterUIMessageStream<MyUIMessage>(
@@ -237,7 +221,7 @@ describe("filterUIMessageStream", () => {
       excludeParts(["tool-weather"]),
     );
 
-    const result = await convertAsyncIterableToArray(filteredStream);
+    const result = await Iterable.toArray(filteredStream);
 
     // data-weather should be present
     const dataChunks = result.filter((c) => c.type === "data-weather");
@@ -260,7 +244,7 @@ describe("filterUIMessageStream", () => {
       "file",
     ])(" %s", async (partType) => {
       it("includeParts", async () => {
-        const stream = convertArrayToStream([
+        const stream = Stream.from([
           START_CHUNK,
           ...TEXT_CHUNKS,
           ...REASONING_CHUNKS,
@@ -274,9 +258,7 @@ describe("filterUIMessageStream", () => {
 
         const filteredStream = filterUIMessageStream(stream, includeParts([partType]));
 
-        const result = await convertAsyncIterableToArray(
-          readUIMessageStream({ stream: filteredStream }),
-        );
+        const result = await Iterable.toArray(readUIMessageStream({ stream: filteredStream }));
 
         const parts = result.flatMap((message) => message.parts);
         const partsByType = parts.filter((part) => part.type === partType);
@@ -284,7 +266,7 @@ describe("filterUIMessageStream", () => {
       });
 
       it("excludeParts", async () => {
-        const stream = convertArrayToStream([
+        const stream = Stream.from([
           START_CHUNK,
           ...TEXT_CHUNKS,
           ...REASONING_CHUNKS,
@@ -298,9 +280,7 @@ describe("filterUIMessageStream", () => {
 
         const filteredStream = filterUIMessageStream(stream, excludeParts([partType]));
 
-        const result = await convertAsyncIterableToArray(
-          readUIMessageStream({ stream: filteredStream }),
-        );
+        const result = await Iterable.toArray(readUIMessageStream({ stream: filteredStream }));
 
         const parts = result.flatMap((message) => message.parts);
         const partsByType = parts.filter((part) => part.type === partType);
@@ -308,7 +288,7 @@ describe("filterUIMessageStream", () => {
       });
 
       it("filter function", async () => {
-        const stream = convertArrayToStream([
+        const stream = Stream.from([
           START_CHUNK,
           ...TEXT_CHUNKS,
           ...REASONING_CHUNKS,
@@ -325,9 +305,7 @@ describe("filterUIMessageStream", () => {
           ({ part }: { part: { type: string } }) => part.type === partType,
         );
 
-        const result = await convertAsyncIterableToArray(
-          readUIMessageStream({ stream: filteredStream }),
-        );
+        const result = await Iterable.toArray(readUIMessageStream({ stream: filteredStream }));
 
         const parts = result.flatMap((message) => message.parts);
         const partsByType = parts.filter((part) => part.type === partType);

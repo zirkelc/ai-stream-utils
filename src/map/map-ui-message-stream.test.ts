@@ -1,3 +1,4 @@
+import { Iterable, Stream } from "ai-test-kit/language";
 import type { UIMessageChunk } from "ai";
 import { describe, expect, it } from "vitest";
 import {
@@ -13,41 +14,34 @@ import {
   TOOL_SERVER_CHUNKS,
   TOOL_WITH_DATA_CHUNKS,
 } from "../test/ui-message.js";
-import { convertArrayToStream } from "../utils/convert-array-to-stream.js";
-import { convertAsyncIterableToArray } from "../utils/convert-async-iterable-to-array.js";
 import { mapUIMessageStream } from "./map-ui-message-stream.js";
 
 describe("mapUIMessageStream", () => {
   it("should pass through all chunks with identity map", async () => {
-    const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+    const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
 
     const mappedStream = mapUIMessageStream(stream, ({ chunk }) => chunk);
 
-    const result = await convertAsyncIterableToArray(mappedStream);
+    const result = await Iterable.toArray(mappedStream);
 
     expect(result).toEqual([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
   });
 
   it("should filter out chunks by returning null", async () => {
-    const stream = convertArrayToStream([
-      START_CHUNK,
-      ...TEXT_CHUNKS,
-      ...REASONING_CHUNKS,
-      FINISH_CHUNK,
-    ]);
+    const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, ...REASONING_CHUNKS, FINISH_CHUNK]);
 
     const mappedStream = mapUIMessageStream(stream, ({ chunk, part }) => {
       return part.type === "reasoning" ? null : chunk;
     });
 
-    const result = await convertAsyncIterableToArray(mappedStream);
+    const result = await Iterable.toArray(mappedStream);
 
     // Should not include reasoning chunks or the step that only contained reasoning
     expect(result).toEqual([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
   });
 
   it("should transform chunks", async () => {
-    const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+    const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
 
     const mappedStream = mapUIMessageStream(stream, ({ chunk }) => {
       if (chunk.type === "text-delta") {
@@ -56,7 +50,7 @@ describe("mapUIMessageStream", () => {
       return chunk;
     });
 
-    const result = await convertAsyncIterableToArray(mappedStream);
+    const result = await Iterable.toArray(mappedStream);
 
     const textDeltas = result.filter((c) => c.type === "text-delta");
     expect(textDeltas).toEqual([
@@ -66,7 +60,7 @@ describe("mapUIMessageStream", () => {
   });
 
   it("should handle single-chunk parts (file)", async () => {
-    const stream = convertArrayToStream([START_CHUNK, ...FILE_CHUNKS, FINISH_CHUNK]);
+    const stream = Stream.from([START_CHUNK, ...FILE_CHUNKS, FINISH_CHUNK]);
 
     const mappedStream = mapUIMessageStream(stream, ({ chunk, part }) => {
       if (part.type === "file") {
@@ -75,14 +69,14 @@ describe("mapUIMessageStream", () => {
       return chunk;
     });
 
-    const result = await convertAsyncIterableToArray(mappedStream);
+    const result = await Iterable.toArray(mappedStream);
 
     const fileChunks = result.filter((c) => c.type === "file");
     expect(fileChunks.length).toBe(1);
   });
 
   it("should always pass through meta chunks", async () => {
-    const stream = convertArrayToStream([
+    const stream = Stream.from([
       START_CHUNK,
       MESSAGE_METADATA_CHUNK,
       ERROR_CHUNK,
@@ -93,7 +87,7 @@ describe("mapUIMessageStream", () => {
     // Even when returning null for everything, meta chunks pass through
     const mappedStream = mapUIMessageStream(stream, () => null);
 
-    const result = await convertAsyncIterableToArray(mappedStream);
+    const result = await Iterable.toArray(mappedStream);
 
     expect(result).toEqual([
       START_CHUNK,
@@ -105,7 +99,7 @@ describe("mapUIMessageStream", () => {
   });
 
   it("should not emit start-step if all content is filtered out", async () => {
-    const stream = convertArrayToStream([
+    const stream = Stream.from([
       START_CHUNK,
       ...REASONING_CHUNKS, // Will be filtered
       FINISH_CHUNK,
@@ -115,14 +109,14 @@ describe("mapUIMessageStream", () => {
       return part.type === "reasoning" ? null : chunk;
     });
 
-    const result = await convertAsyncIterableToArray(mappedStream);
+    const result = await Iterable.toArray(mappedStream);
 
     // Should not include start-step or finish-step since all content was filtered
     expect(result).toEqual([START_CHUNK, FINISH_CHUNK]);
   });
 
   it("should provide complete tool part", async () => {
-    const stream = convertArrayToStream([START_CHUNK, ...TOOL_SERVER_CHUNKS, FINISH_CHUNK]);
+    const stream = Stream.from([START_CHUNK, ...TOOL_SERVER_CHUNKS, FINISH_CHUNK]);
 
     let capturedPart: unknown;
     const mappedStream = mapUIMessageStream(stream, ({ chunk, part }) => {
@@ -132,7 +126,7 @@ describe("mapUIMessageStream", () => {
       return chunk;
     });
 
-    await convertAsyncIterableToArray(mappedStream);
+    await Iterable.toArray(mappedStream);
 
     // Part should have all tool properties populated
     expect(capturedPart).toMatchObject({
@@ -145,7 +139,7 @@ describe("mapUIMessageStream", () => {
   });
 
   it("should handle data-* chunks interleaved with tool chunks", async () => {
-    const stream = convertArrayToStream([START_CHUNK, ...TOOL_WITH_DATA_CHUNKS, FINISH_CHUNK]);
+    const stream = Stream.from([START_CHUNK, ...TOOL_WITH_DATA_CHUNKS, FINISH_CHUNK]);
 
     const partTypes: string[] = [];
     const mappedStream = mapUIMessageStream<MyUIMessage>(stream, ({ chunk, part }) => {
@@ -153,7 +147,7 @@ describe("mapUIMessageStream", () => {
       return chunk;
     });
 
-    const result = await convertAsyncIterableToArray(mappedStream);
+    const result = await Iterable.toArray(mappedStream);
 
     // All chunks should pass through
     expect(result).toEqual([START_CHUNK, ...TOOL_WITH_DATA_CHUNKS, FINISH_CHUNK]);
@@ -164,7 +158,7 @@ describe("mapUIMessageStream", () => {
   });
 
   it("should provide partial part with accumulated text", async () => {
-    const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+    const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
 
     const textContents: (string | undefined)[] = [];
     const mappedStream = mapUIMessageStream(stream, ({ chunk, part }) => {
@@ -175,7 +169,7 @@ describe("mapUIMessageStream", () => {
       return chunk;
     });
 
-    await convertAsyncIterableToArray(mappedStream);
+    await Iterable.toArray(mappedStream);
 
     // AI SDK behavior: text is accumulated, not delta-based
     // text-start: '' (empty), text-delta: 'Hello', text-delta: 'Hello World', text-end: 'Hello World'
@@ -184,7 +178,7 @@ describe("mapUIMessageStream", () => {
 
   describe("array", () => {
     it("should emit multiple chunks when returning an array", async () => {
-      const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+      const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
 
       const mappedStream = mapUIMessageStream(stream, ({ chunk }) => {
         // For text-delta chunks, split and emit multiple chunks
@@ -194,7 +188,7 @@ describe("mapUIMessageStream", () => {
         return chunk;
       });
 
-      const result = await convertAsyncIterableToArray(mappedStream);
+      const result = await Iterable.toArray(mappedStream);
 
       const textDeltas = result.filter((c) => c.type === "text-delta");
       expect(textDeltas).toEqual([
@@ -208,53 +202,48 @@ describe("mapUIMessageStream", () => {
     });
 
     it("should filter out chunk when returning empty array", async () => {
-      const stream = convertArrayToStream([
-        START_CHUNK,
-        ...TEXT_CHUNKS,
-        ...REASONING_CHUNKS,
-        FINISH_CHUNK,
-      ]);
+      const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, ...REASONING_CHUNKS, FINISH_CHUNK]);
 
       const mappedStream = mapUIMessageStream(stream, ({ chunk, part }) => {
         // Return empty array for reasoning (same as returning null)
         return part.type === "reasoning" ? [] : chunk;
       });
 
-      const result = await convertAsyncIterableToArray(mappedStream);
+      const result = await Iterable.toArray(mappedStream);
 
       // Should not include reasoning chunks
       expect(result).toEqual([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
     });
 
     it("should handle single chunk in array same as returning chunk directly", async () => {
-      const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+      const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
 
       const mappedStream = mapUIMessageStream(stream, ({ chunk }) => {
         // Return chunk in array - should work same as returning chunk directly
         return [chunk];
       });
 
-      const result = await convertAsyncIterableToArray(mappedStream);
+      const result = await Iterable.toArray(mappedStream);
 
       expect(result).toEqual([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
     });
 
     it("should not emit step boundary when all content returns empty array", async () => {
-      const stream = convertArrayToStream([START_CHUNK, ...REASONING_CHUNKS, FINISH_CHUNK]);
+      const stream = Stream.from([START_CHUNK, ...REASONING_CHUNKS, FINISH_CHUNK]);
 
       const mappedStream = mapUIMessageStream(stream, ({ part }) => {
         // Filter all reasoning by returning empty array
         return part.type === "reasoning" ? [] : [];
       });
 
-      const result = await convertAsyncIterableToArray(mappedStream);
+      const result = await Iterable.toArray(mappedStream);
 
       // Should not include step boundaries since all content was filtered
       expect(result).toEqual([START_CHUNK, FINISH_CHUNK]);
     });
 
     it("should support buffering and re-emitting chunks (smooth streaming use case)", async () => {
-      const stream = convertArrayToStream([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+      const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
 
       // Buffer to accumulate text and split by words on text-end
       let buffer = "";
@@ -295,7 +284,7 @@ describe("mapUIMessageStream", () => {
         return chunk;
       });
 
-      const result = await convertAsyncIterableToArray(mappedStream);
+      const result = await Iterable.toArray(mappedStream);
 
       // text-start should be present
       expect(result.filter((c) => c.type === "text-start")).toHaveLength(1);
