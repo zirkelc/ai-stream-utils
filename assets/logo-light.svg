@@ -1,4 +1,4 @@
-<svg width="780" height="286" viewBox="0 0 780 286" xmlns="http://www.w3.org/2000/svg">
+<svg width="780" height="304" viewBox="0 0 780 304" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="accA" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#22d3ee"/>
@@ -26,7 +26,7 @@
   <polygon points="720,52 750,82 720,112 690,82" fill="url(#accA)"/>
 
   <!-- ===== WORDMARK ===== -->
-  <text x="390" y="252" text-anchor="middle"
+  <text x="390" y="270" text-anchor="middle"
         font-family="'JetBrains Mono', monospace" font-weight="700" font-size="72"
         letter-spacing="-2" fill="#1f2937">ai-<tspan fill="url(#accText)">stream</tspan>-utils</text>
 </svg>
