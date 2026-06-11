@@ -1,7 +1,7 @@
 <div align='center'>
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/logo.png" />
+  <source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.png" />
   <img src="assets/logo-light.png" alt="ai-stream-utils logo" width="440" />
 </picture>
 
