@@ -1,4 +1,4 @@
-import { Iterable, Stream } from "ai-test-kit/language";
+import { Iterables, Streams } from "ai-test-kit";
 import { UIChunks } from "ai-test-kit/ui";
 import { describe, expect, it } from "vitest";
 import {
@@ -19,10 +19,10 @@ const META = { app: { traceId: `t1` } };
 describe(`transformProviderMetadata`, () => {
   it(`should add provider metadata to chunks that support it`, async () => {
     // Arrange
-    const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+    const stream = Streams.from([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
 
     // Act
-    const result = await Iterable.toArray(
+    const result = await Iterables.toArray(
       pipe<MyUIMessage>(stream)
         .map(transformProviderMetadata(({ metadata }) => ({ ...metadata, ...META })))
         .toStream(),
@@ -54,10 +54,10 @@ describe(`transformProviderMetadata`, () => {
       }),
       FINISH_CHUNK,
     ];
-    const stream = Stream.from(input);
+    const stream = Streams.from(input);
 
     // Act
-    const result = await Iterable.toArray(
+    const result = await Iterables.toArray(
       pipe<MyUIMessage>(stream)
         .map(transformProviderMetadata(({ metadata }) => ({ ...metadata, ...META })))
         .toStream(),
@@ -80,10 +80,10 @@ describe(`transformProviderMetadata`, () => {
 
   it(`should not modify chunks that do not support provider metadata`, async () => {
     // Arrange - TOOL_SERVER_CHUNKS includes tool-input-delta and tool-output-available
-    const stream = Stream.from([START_CHUNK, ...TOOL_SERVER_CHUNKS, FINISH_CHUNK]);
+    const stream = Streams.from([START_CHUNK, ...TOOL_SERVER_CHUNKS, FINISH_CHUNK]);
 
     // Act
-    const result = await Iterable.toArray(
+    const result = await Iterables.toArray(
       pipe<MyUIMessage>(stream)
         .map(transformProviderMetadata(({ metadata }) => ({ ...metadata, ...META })))
         .toStream(),
@@ -111,10 +111,10 @@ describe(`transformProviderMetadata`, () => {
   it(`should leave chunks unchanged when the callback returns undefined`, async () => {
     // Arrange
     const input = [START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK];
-    const stream = Stream.from(input);
+    const stream = Streams.from(input);
 
     // Act
-    const result = await Iterable.toArray(
+    const result = await Iterables.toArray(
       pipe<MyUIMessage>(stream)
         .map(transformProviderMetadata(() => undefined))
         .toStream(),
@@ -137,10 +137,10 @@ describe(`transformProviderMetadata`, () => {
       }),
       FINISH_CHUNK,
     ];
-    const stream = Stream.from(input);
+    const stream = Streams.from(input);
 
     // Act
-    const result = await Iterable.toArray(
+    const result = await Iterables.toArray(
       pipe<MyUIMessage>(stream)
         .map(transformProviderMetadata(() => null))
         .toStream(),

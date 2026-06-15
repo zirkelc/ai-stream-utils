@@ -1,4 +1,4 @@
-import { Stream } from "ai-test-kit/language";
+import { Streams } from "ai-test-kit";
 import { UIChunks } from "ai-test-kit/ui";
 import { describe, expect, it } from "vitest";
 import {
@@ -16,7 +16,7 @@ import { createUIMessageStreamReader } from "./create-ui-message-stream-reader.j
 
 describe("createUIMessageStreamReader", () => {
   it("should yield all chunks from the input stream", async () => {
-    const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+    const stream = Streams.from([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
 
     const chunks: MyUIMessageChunk[] = [];
     for await (const { chunk } of createUIMessageStreamReader<MyUIMessage>(stream)) {
@@ -27,7 +27,7 @@ describe("createUIMessageStreamReader", () => {
   });
 
   it("should yield assembled message for content chunks", async () => {
-    const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+    const stream = Streams.from([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
 
     const messages: MyUIMessage[] = [];
     for await (const { message } of createUIMessageStreamReader<MyUIMessage>(stream)) {
@@ -53,7 +53,7 @@ describe("createUIMessageStreamReader", () => {
   });
 
   it("should yield undefined message for meta chunks without content (start without id, finish without metadata, error, abort)", async () => {
-    const stream = Stream.from([
+    const stream = Streams.from([
       START_CHUNK /* no messageId */,
       UIChunks.error("test"),
       ABORT_CHUNK,
@@ -73,7 +73,7 @@ describe("createUIMessageStreamReader", () => {
   });
 
   it("should yield undefined message for meta chunks (start, message-metadata, finish) since they are skipped", async () => {
-    const stream = Stream.from([START_CHUNK, MESSAGE_METADATA_CHUNK, FINISH_CHUNK]);
+    const stream = Streams.from([START_CHUNK, MESSAGE_METADATA_CHUNK, FINISH_CHUNK]);
 
     const results: Array<{
       chunk: MyUIMessageChunk;
@@ -89,7 +89,7 @@ describe("createUIMessageStreamReader", () => {
   });
 
   it("should yield undefined message for step-start chunks", async () => {
-    const stream = Stream.from([
+    const stream = Streams.from([
       START_CHUNK,
       UIChunks.startStep(),
       UIChunks.textStart({ id: "1" }),
@@ -111,7 +111,7 @@ describe("createUIMessageStreamReader", () => {
   });
 
   it("should yield undefined message for finish-step chunks", async () => {
-    const stream = Stream.from([
+    const stream = Streams.from([
       START_CHUNK,
       UIChunks.startStep(),
       UIChunks.textStart({ id: "1" }),
@@ -133,7 +133,7 @@ describe("createUIMessageStreamReader", () => {
   });
 
   it("should accumulate text in parts across text-delta chunks", async () => {
-    const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+    const stream = Streams.from([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
 
     const textContents: string[] = [];
     for await (const { message } of createUIMessageStreamReader<MyUIMessage>(stream)) {
@@ -150,7 +150,7 @@ describe("createUIMessageStreamReader", () => {
   });
 
   it("should provide correct part type for tool chunks", async () => {
-    const stream = Stream.from([START_CHUNK, ...TOOL_SERVER_CHUNKS, FINISH_CHUNK]);
+    const stream = Streams.from([START_CHUNK, ...TOOL_SERVER_CHUNKS, FINISH_CHUNK]);
 
     const partTypes: string[] = [];
     for await (const { message } of createUIMessageStreamReader<MyUIMessage>(stream)) {
@@ -167,7 +167,7 @@ describe("createUIMessageStreamReader", () => {
   });
 
   it("should handle reasoning chunks", async () => {
-    const stream = Stream.from([START_CHUNK, ...REASONING_CHUNKS, FINISH_CHUNK]);
+    const stream = Streams.from([START_CHUNK, ...REASONING_CHUNKS, FINISH_CHUNK]);
 
     const reasoningTexts: string[] = [];
     for await (const { message } of createUIMessageStreamReader<MyUIMessage>(stream)) {
@@ -184,7 +184,7 @@ describe("createUIMessageStreamReader", () => {
   });
 
   it("should release reader lock after iteration completes", async () => {
-    const stream = Stream.from([START_CHUNK, FINISH_CHUNK]);
+    const stream = Streams.from([START_CHUNK, FINISH_CHUNK]);
 
     // Consume all chunks
     for await (const _ of createUIMessageStreamReader<MyUIMessage>(stream)) {
@@ -200,7 +200,7 @@ describe("createUIMessageStreamReader", () => {
   });
 
   it("should handle a complete stream lifecycle", async () => {
-    const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, ...REASONING_CHUNKS, FINISH_CHUNK]);
+    const stream = Streams.from([START_CHUNK, ...TEXT_CHUNKS, ...REASONING_CHUNKS, FINISH_CHUNK]);
 
     const allChunks: MyUIMessageChunk[] = [];
     const allMessages: MyUIMessage[] = [];
@@ -227,7 +227,7 @@ describe("createUIMessageStreamReader", () => {
   });
 
   it("should yield chunk and message together", async () => {
-    const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+    const stream = Streams.from([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
 
     const results: Array<{ chunkType: string; hasMessage: boolean }> = [];
     for await (const { chunk, message } of createUIMessageStreamReader<MyUIMessage>(stream)) {

@@ -1,4 +1,4 @@
-import { Stream } from "ai-test-kit/language";
+import { Streams } from "ai-test-kit";
 import { describe, expect, it } from "vitest";
 import {
   DATA_CHUNKS,
@@ -16,7 +16,7 @@ import { consumeUIMessageStream } from "./consume-ui-message-stream.js";
 
 describe("consumeUIMessageStream", () => {
   it("should consume a stream with text chunks and return the final message", async () => {
-    const stream = Stream.from([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+    const stream = Streams.from([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
 
     const message = await consumeUIMessageStream<MyUIMessage>(stream);
 
@@ -41,7 +41,7 @@ describe("consumeUIMessageStream", () => {
   });
 
   it("should consume a stream with all part types", async () => {
-    const stream = Stream.from([
+    const stream = Streams.from([
       START_CHUNK,
       ...TEXT_CHUNKS,
       ...REASONING_CHUNKS,
@@ -78,7 +78,7 @@ describe("consumeUIMessageStream", () => {
   });
 
   it("should throw when stream produces no messages", async () => {
-    const stream = Stream.from([START_CHUNK, FINISH_CHUNK]);
+    const stream = Streams.from([START_CHUNK, FINISH_CHUNK]);
 
     await expect(consumeUIMessageStream<MyUIMessage>(stream)).rejects.toThrow(
       "Unexpected: stream ended without producing any messages",
