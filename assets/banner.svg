@@ -8,14 +8,22 @@
       <stop offset="0" stop-color="#22d3ee"/>
       <stop offset="1" stop-color="#818cf8"/>
     </linearGradient>
-    <radialGradient id="glow" cx="0.5" cy="0.36" r="0.6">
+    <radialGradient id="glow" cx="0.5" cy="0.34" r="0.62">
       <stop offset="0" stop-color="#1b2435"/>
-      <stop offset="1" stop-color="#0d1117"/>
+      <stop offset="1" stop-color="#0b0e14"/>
     </radialGradient>
+    <radialGradient id="halo" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#22d3ee" stop-opacity="0.34"/>
+      <stop offset="1" stop-color="#22d3ee" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="rule" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#818cf8" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#22d3ee" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#818cf8" stop-opacity="0"/>
+    </linearGradient>
   </defs>
 
-  <!-- background -->
-  <rect width="1280" height="640" fill="#0d1117"/>
+  <rect width="1280" height="640" fill="#0b0e14"/>
   <rect width="1280" height="640" fill="url(#glow)"/>
 
   <!-- ===== STREAM MOTIF (scaled logo) ===== -->
@@ -25,7 +33,8 @@
     <polygon points="160,52 190,112 130,112" fill="#8e97a4"/>
     <polygon points="260,52 290,82 260,112 230,82" fill="#e6eaf0"/>
 
-    <!-- pipe operator with circle inside -->
+    <!-- pipe operator (transform core, spotlit) -->
+    <circle cx="385" cy="82" r="70" fill="url(#halo)"/>
     <path d="M315 30 L395 30 L455 82 L395 134 L315 134 Z"
           fill="none" stroke="url(#acc)" stroke-width="18" stroke-linejoin="round"/>
     <circle cx="362" cy="82" r="30" fill="url(#acc)"/>
@@ -37,12 +46,15 @@
   </g>
 
   <!-- ===== WORDMARK ===== -->
-  <text x="640" y="427" text-anchor="middle"
+  <text x="640" y="430" text-anchor="middle"
         font-family="'JetBrains Mono', monospace" font-weight="700" font-size="74"
-        letter-spacing="-2" fill="#e6eaf0">ai-<tspan fill="url(#accText)">stream</tspan>-utils</text>
+        letter-spacing="-2" fill="#e9edf3">ai-<tspan fill="url(#accText)">stream</tspan>-utils</text>
+
+  <!-- accent rule -->
+  <rect x="500" y="460" width="280" height="3" rx="1.5" fill="url(#rule)"/>
 
   <!-- ===== TAGLINE ===== -->
-  <text x="640" y="488" text-anchor="middle"
+  <text x="640" y="508" text-anchor="middle"
         font-family="'JetBrains Mono', monospace" font-weight="400" font-size="24"
-        letter-spacing="0" fill="#9aa4b2">Filter and transform UI messages while streaming to the client</text>
+        letter-spacing="0.5" fill="#9aa4b2">Filter and transform UI messages while streaming to the client</text>
 </svg>

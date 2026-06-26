@@ -8,6 +8,10 @@
       <stop offset="0" stop-color="#22d3ee"/>
       <stop offset="1" stop-color="#818cf8"/>
     </linearGradient>
+    <radialGradient id="halo" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#22d3ee" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#22d3ee" stop-opacity="0"/>
+    </radialGradient>
   </defs>
 
   <!-- ===== INPUT: 3 chunks, light grey -> dark left to right ===== -->
@@ -15,7 +19,8 @@
   <polygon points="160,52 190,112 130,112" fill="#6b7482"/>
   <polygon points="260,52 290,82 260,112 230,82" fill="#1f2937"/>
 
-  <!-- ===== PIPE OPERATOR with a chunk inside it (being transformed) ===== -->
+  <!-- ===== PIPE OPERATOR with a chunk inside it (transform core, spotlit) ===== -->
+  <circle cx="385" cy="82" r="68" fill="url(#halo)"/>
   <path d="M315 30 L395 30 L455 82 L395 134 L315 134 Z"
         fill="none" stroke="url(#accA)" stroke-width="18" stroke-linejoin="round"/>
   <circle cx="362" cy="82" r="30" fill="url(#accA)"/>
