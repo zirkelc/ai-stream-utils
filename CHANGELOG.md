@@ -1,5 +1,23 @@
 # Changelog
 
+## [3.0.0](https://github.com/zirkelc/ai-stream-utils/compare/v2.3.0...v3.0.0) (2026-07-09)
+
+
+### ⚠ BREAKING CHANGES
+
+* `filterUIMessageStream`, `mapUIMessageStream`, `flatMapUIMessageStream` and `partTypeIs` are removed, along with the `MapInput`, `MapUIMessageStreamFn`, `FlatMapInput`, `FlatMapContext`, `FlatMapUIMessageStreamFn` and `FlatMapUIMessageStreamPredicate` types. Use `pipe(stream).filter(...)` / `.map(...)` instead.
+* requires AI SDK v7. The peer range drops `5.x || 6.x`. Streams containing `custom`, `reasoning-file` or `tool-approval-response` chunks previously threw; a `reasoning` part filter no longer matches `reasoning-file` chunks, and `transformProviderMetadata` now rewrites metadata on tool output chunks it previously skipped.
+
+### Features
+
+* remove the deprecated standalone stream functions ([1030b24](https://github.com/zirkelc/ai-stream-utils/commit/1030b24c01a377be653b8410200e45d8cf5322d1))
+* support AI SDK v7 ([c2be7c1](https://github.com/zirkelc/ai-stream-utils/commit/c2be7c1c2dc4f381fc07a373273929a0cfb1a193))
+
+
+### Code Refactoring
+
+* **examples:** drop mock-model helpers for ai-test-kit directly ([979b362](https://github.com/zirkelc/ai-stream-utils/commit/979b362a0dcf48b68e22c3e18fe6347464388bf4))
+
 ## [2.3.0](https://github.com/zirkelc/ai-stream-utils/compare/v2.2.0...v2.3.0) (2026-06-09)
 
 
