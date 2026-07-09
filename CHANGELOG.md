@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.3.1](https://github.com/zirkelc/ai-stream-utils/compare/v2.3.0...v2.3.1) (2026-07-09)
+
+
+### Continuous Integration
+
+* manage the 2.x maintenance line with release-please ([0345d9e](https://github.com/zirkelc/ai-stream-utils/commit/0345d9e71b4242e332be6154cf4e5e261064072a))
+
 ## [2.3.0](https://github.com/zirkelc/ai-stream-utils/compare/v2.2.0...v2.3.0) (2026-06-09)
 
 
