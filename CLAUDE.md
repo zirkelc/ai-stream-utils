@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-`ai-stream-utils` is a TypeScript library that provides composable filter and transformation utilities for UI message streams created by `streamText()` in the AI SDK (v5/v6). The main export is the `pipe()` function that creates a fluent pipeline API.
+`ai-stream-utils` is a TypeScript library that provides composable filter and transformation utilities for UI message streams created by `streamText()` in the AI SDK (v7). The main export is the `pipe()` function that creates a fluent pipeline API.
 
 ## Commands
 

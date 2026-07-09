@@ -26,11 +26,18 @@ This library provides type-safe, composable utilities for all these use cases.
 
 ### Installation
 
-This library supports AI SDK v5 and v6.
+This library supports AI SDK v7.
 
 ```bash
 npm install ai-stream-utils
 ```
+
+Older AI SDK versions are supported by earlier releases:
+
+| AI SDK    | `ai-stream-utils` |
+| --------- | ----------------- |
+| v7        | 3.x               |
+| v5 and v6 | 2.x               |
 
 ## Usage
 

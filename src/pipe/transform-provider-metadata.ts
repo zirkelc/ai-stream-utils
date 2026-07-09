@@ -45,12 +45,17 @@ const PROVIDER_METADATA_CHUNK_TYPES: Record<ProviderMetadataChunkType, true> = {
   "reasoning-start": true,
   "reasoning-delta": true,
   "reasoning-end": true,
+  "reasoning-file": true,
   "tool-input-start": true,
   "tool-input-available": true,
   "tool-input-error": true,
+  "tool-approval-response": true,
+  "tool-output-available": true,
+  "tool-output-error": true,
   "source-url": true,
   "source-document": true,
   file: true,
+  custom: true,
 };
 
 /** Narrows any chunk to the metadata-bearing union via the pinned allow-list. */

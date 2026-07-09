@@ -23,7 +23,7 @@ describe(`transformProviderMetadata types`, () => {
   describe(`ProviderMetadataChunk`, () => {
     it(`should select only chunks that carry providerMetadata`, () => {
       type ToolWithMeta = Extract<ToolChunk, { type: `tool-input-available` }>;
-      type ToolWithoutMeta = Extract<ToolChunk, { type: `tool-output-available` }>;
+      type ToolWithoutMeta = Extract<ToolChunk, { type: `tool-output-denied` }>;
 
       expectTypeOf<TextStartChunk>().toExtend<ProviderMetadataChunk<MyUIMessage>>();
       expectTypeOf<TextDeltaChunk>().toExtend<ProviderMetadataChunk<MyUIMessage>>();
@@ -43,12 +43,17 @@ describe(`transformProviderMetadata types`, () => {
         | `reasoning-start`
         | `reasoning-delta`
         | `reasoning-end`
+        | `reasoning-file`
         | `tool-input-start`
         | `tool-input-available`
         | `tool-input-error`
+        | `tool-approval-response`
+        | `tool-output-available`
+        | `tool-output-error`
         | `source-url`
         | `source-document`
         | `file`
+        | `custom`
       >();
     });
   });

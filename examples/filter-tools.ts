@@ -1,5 +1,5 @@
 import { openai } from "@ai-sdk/openai";
-import { type InferUITools, stepCountIs, streamText, tool, type UIMessage } from "ai";
+import { type InferUITools, isStepCount, streamText, tool, type UIMessage } from "ai";
 import { z } from "zod";
 import { excludeTools, includeTools, pipe } from "../src/pipe";
 
@@ -38,7 +38,7 @@ const result = streamText({
   model: openai(`gpt-5`),
   prompt: `Search for information about TypeScript generics`,
   tools,
-  stopWhen: stepCountIs(5),
+  stopWhen: isStepCount(5),
 });
 
 /**

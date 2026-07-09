@@ -2,7 +2,6 @@ import {
   type DataUIPart,
   type DynamicToolUIPart,
   type InferUIMessageChunk,
-  isToolOrDynamicToolUIPart,
   isToolUIPart,
   type ReasoningUIPart,
   type TextUIPart,
@@ -259,7 +258,7 @@ export function processChunkFast<UI_MESSAGE extends UIMessage>(
     case `tool-input-available`: {
       const toolPart = parts.find(
         (p): p is ToolUIPart | DynamicToolUIPart =>
-          isToolOrDynamicToolUIPart(p) && p.toolCallId === chunk.toolCallId,
+          isToolUIPart(p) && p.toolCallId === chunk.toolCallId,
       );
 
       if (toolPart) {
@@ -344,7 +343,7 @@ export function processChunkFast<UI_MESSAGE extends UIMessage>(
     case `tool-approval-request`: {
       const toolPart = parts.find(
         (p): p is ToolUIPart | DynamicToolUIPart =>
-          isToolOrDynamicToolUIPart(p) && p.toolCallId === chunk.toolCallId,
+          isToolUIPart(p) && p.toolCallId === chunk.toolCallId,
       );
 
       if (toolPart) {
@@ -357,7 +356,7 @@ export function processChunkFast<UI_MESSAGE extends UIMessage>(
     case `tool-output-denied`: {
       const toolPart = parts.find(
         (p): p is ToolUIPart | DynamicToolUIPart =>
-          isToolOrDynamicToolUIPart(p) && p.toolCallId === chunk.toolCallId,
+          isToolUIPart(p) && p.toolCallId === chunk.toolCallId,
       );
 
       if (toolPart) {
@@ -369,7 +368,7 @@ export function processChunkFast<UI_MESSAGE extends UIMessage>(
     case `tool-output-available`: {
       const toolPart = parts.find(
         (p): p is ToolUIPart | DynamicToolUIPart =>
-          isToolOrDynamicToolUIPart(p) && p.toolCallId === chunk.toolCallId,
+          isToolUIPart(p) && p.toolCallId === chunk.toolCallId,
       );
 
       if (toolPart) {
@@ -389,7 +388,7 @@ export function processChunkFast<UI_MESSAGE extends UIMessage>(
     case `tool-output-error`: {
       const toolPart = parts.find(
         (p): p is ToolUIPart | DynamicToolUIPart =>
-          isToolOrDynamicToolUIPart(p) && p.toolCallId === chunk.toolCallId,
+          isToolUIPart(p) && p.toolCallId === chunk.toolCallId,
       );
 
       if (toolPart) {

@@ -4,6 +4,13 @@ import {
   type UIMessageChunks,
   type UIMessageParts,
 } from "ai-test-kit/ui";
+/**
+ * The inferred type of `tools` reaches into the provider packages. Referencing
+ * them here keeps that type nameable under pnpm's symlinked layout, which
+ * declaration emit otherwise reports as non-portable (TS2742).
+ */
+import type {} from "@ai-sdk/provider";
+import type {} from "@ai-sdk/provider-utils";
 import { type InferUIMessageChunk, type InferUITools, tool, type UIMessage } from "ai";
 import { z } from "zod";
 import type { InferUIMessagePart } from "../types.js";
@@ -194,6 +201,30 @@ export const DATA_CHUNKS: MyUIMessageChunk[] = [
 export const FILE_CHUNKS: MyUIMessageChunk[] = [
   UIChunks.startStep(),
   UIChunks.file({ url: "https://example.com/file.pdf", mediaType: "application/pdf" }),
+  UIChunks.finishStep(),
+];
+
+/* A file emitted inside a reasoning trace. Its own part type, despite the `reasoning-` prefix. */
+export const REASONING_FILE_CHUNK: MyUIMessageChunk = UIChunks.reasoningFile({
+  url: "https://example.com/trace.png",
+  mediaType: "image/png",
+});
+
+/* Provider-specific content, keyed by `{provider}.{type}` */
+export const CUSTOM_CHUNK: MyUIMessageChunk = UIChunks.custom({ kind: "openai.annotation" });
+
+/* A tool call that is held for approval and then approved */
+export const TOOL_APPROVAL_CHUNKS: MyUIMessageChunk[] = [
+  UIChunks.startStep(),
+  UIChunks.toolInputStart({ toolCallId: "7", toolName: "weather" }),
+  UIChunks.toolInputAvailable({
+    toolCallId: "7",
+    toolName: "weather",
+    input: { location: "Tokyo" },
+  }),
+  UIChunks.toolApprovalRequest({ toolCallId: "7", approvalId: "approval-7" }),
+  UIChunks.toolApprovalResponse({ approvalId: "approval-7", approved: true }),
+  UIChunks.toolOutputAvailable({ toolCallId: "7", output: { temperature: 72 } }),
   UIChunks.finishStep(),
 ];
 

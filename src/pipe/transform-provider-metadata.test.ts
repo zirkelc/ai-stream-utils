@@ -79,7 +79,7 @@ describe(`transformProviderMetadata`, () => {
   });
 
   it(`should not modify chunks that do not support provider metadata`, async () => {
-    // Arrange - TOOL_SERVER_CHUNKS includes tool-input-delta and tool-output-available
+    // Arrange - TOOL_SERVER_CHUNKS includes tool-input-delta, which carries no metadata
     const stream = Streams.from([START_CHUNK, ...TOOL_SERVER_CHUNKS, FINISH_CHUNK]);
 
     // Act
@@ -89,7 +89,7 @@ describe(`transformProviderMetadata`, () => {
         .toStream(),
     );
 
-    // Assert - only tool-input-start and tool-input-available gain metadata
+    // Assert - tool-input-delta is passed through, every metadata-bearing chunk is updated
     expect(result).toEqual([
       START_CHUNK,
       START_STEP_CHUNK,
@@ -102,7 +102,12 @@ describe(`transformProviderMetadata`, () => {
         input: { location: `Tokyo` },
         providerMetadata: META,
       },
-      { type: `tool-output-available`, toolCallId: `3`, output: { temperature: 72 } },
+      {
+        type: `tool-output-available`,
+        toolCallId: `3`,
+        output: { temperature: 72 },
+        providerMetadata: META,
+      },
       FINISH_STEP_CHUNK,
       FINISH_CHUNK,
     ]);

@@ -41,6 +41,8 @@ type ExtractChunkTypesByPrefix<UI_MESSAGE extends UIMessage, PREFIX extends stri
  * - `tool-{NAME}` parts map to all `tool-*` chunk types (tool-input-start, tool-output-available, etc.)
  * - `dynamic-tool` parts also map to all `tool-*` chunk types
  * - `step-start` part maps to `start-step` chunk (naming inconsistency in AI SDK)
+ * - `reasoning` parts exclude the `reasoning-file` chunk, which is its own part type
+ *   even though it shares the `reasoning-` prefix
  *
  * @example
  * ```typescript
@@ -58,7 +60,9 @@ export type PartTypeToChunkTypes<
   ? ExtractChunkTypesByPrefix<UI_MESSAGE, "tool">
   : PART_TYPE extends "step-start"
     ? "start-step"
-    : ExtractChunkTypesByPrefix<UI_MESSAGE, PART_TYPE>;
+    : PART_TYPE extends "reasoning"
+      ? Exclude<ExtractChunkTypesByPrefix<UI_MESSAGE, "reasoning">, "reasoning-file">
+      : ExtractChunkTypesByPrefix<UI_MESSAGE, PART_TYPE>;
 
 /**
  * Extracts the chunk type(s) for a given part or part union.

@@ -1,7 +1,7 @@
 import type { InferUIMessageChunk, UIMessage } from "ai";
 import { readUIMessageStream } from "ai";
 import type { InferUIMessagePart } from "../types.js";
-import { getPartTypeFromChunk, type ToolCallIdMap } from "./get-part-type-from-chunk.js";
+import { createToolPartTypeMap, getPartTypeFromChunk } from "./get-part-type-from-chunk.js";
 import { isMessageDataChunk, isMetaChunk, isStepEndChunk, isStepStartChunk } from "./utils.js";
 
 /**
@@ -67,7 +67,7 @@ export async function* createUIMessageStreamReader<UI_MESSAGE extends UIMessage>
   const iterator = uiMessages[Symbol.asyncIterator]();
 
   // Track tool call state for resolving part types when message is undefined
-  const toolCallIdMap: ToolCallIdMap = new Map();
+  const toolPartTypes = createToolPartTypeMap();
 
   try {
     while (true) {
@@ -103,7 +103,7 @@ export async function* createUIMessageStreamReader<UI_MESSAGE extends UIMessage>
       // Get the part from the message, or build a partial part from the chunk
       const messagePart = message?.parts[message.parts.length - 1];
       // Note: expectedPartType is never undefined here because meta/step chunks are filtered above
-      const expectedPartType = getPartTypeFromChunk<UI_MESSAGE>(chunk, toolCallIdMap)!;
+      const expectedPartType = getPartTypeFromChunk<UI_MESSAGE>(chunk, toolPartTypes)!;
 
       // Use message part if it matches the expected type, otherwise use fallback.
       // This handles timing issues where readUIMessageStream may yield the message

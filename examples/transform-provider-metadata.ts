@@ -1,5 +1,5 @@
 import { openai } from "@ai-sdk/openai";
-import { type InferUITools, stepCountIs, streamText, tool, type UIMessage } from "ai";
+import { type InferUITools, isStepCount, streamText, tool, type UIMessage } from "ai";
 import { z } from "zod";
 import { pipe, transformProviderMetadata } from "../src/pipe";
 
@@ -38,7 +38,7 @@ const result = streamText({
   model: openai(`gpt-5`),
   prompt: `What's the weather in Tokyo?`,
   tools,
-  stopWhen: stepCountIs(5),
+  stopWhen: isStepCount(5),
 });
 
 // Original metadata as sent by OpenAI (metadata-bearing chunks):

@@ -1,15 +1,18 @@
 import { Iterables, Streams } from "ai-test-kit";
 import { describe, expect, it } from "vitest";
 import {
+  CUSTOM_CHUNK,
   DYNAMIC_TOOL_CHUNKS,
   FINISH_CHUNK,
   FINISH_STEP_CHUNK,
   type MyUIMessage,
   type MyUIMessageChunk,
   REASONING_CHUNKS,
+  REASONING_FILE_CHUNK,
   START_CHUNK,
   START_STEP_CHUNK,
   TEXT_CHUNKS,
+  TOOL_APPROVAL_CHUNKS,
   TOOL_WITH_DATA_CHUNKS,
 } from "../test/ui-message.js";
 import { createAsyncIterableStream } from "../utils/create-async-iterable-stream.js";
@@ -1649,6 +1652,103 @@ describe(`pipe`, () => {
       expect(partTypesEncountered).toContain(`data-weather:data-weather`);
       expect(partTypesEncountered).toContain(`tool-input-available:tool-weather`);
       expect(partTypesEncountered).toContain(`tool-output-available:tool-weather`);
+    });
+  });
+
+  describe(`reasoning-file, custom and approval chunks`, () => {
+    it(`should not treat reasoning-file as part of the reasoning part`, async () => {
+      // Arrange
+      const stream = Streams.from([
+        START_CHUNK,
+        ...REASONING_CHUNKS,
+        REASONING_FILE_CHUNK,
+        FINISH_CHUNK,
+      ]);
+
+      // Act
+      const result = await Iterables.toArray(
+        pipe<MyUIMessage>(stream).filter(includeParts(`reasoning`)).toStream(),
+      );
+
+      // Assert - the reasoning-file chunk is filtered out with the rest of the non-reasoning parts
+      expect(result).toEqual([START_CHUNK, ...REASONING_CHUNKS, FINISH_CHUNK]);
+    });
+
+    it(`should keep reasoning-file when it is the selected part`, async () => {
+      // Arrange
+      const stream = Streams.from([
+        START_CHUNK,
+        ...REASONING_CHUNKS,
+        REASONING_FILE_CHUNK,
+        FINISH_CHUNK,
+      ]);
+
+      // Act
+      const result = await Iterables.toArray(
+        pipe<MyUIMessage>(stream).filter(includeParts(`reasoning-file`)).toStream(),
+      );
+
+      // Assert - only the reasoning-file chunk survives alongside meta/step chunks
+      expect(result).toEqual([
+        START_CHUNK,
+        START_STEP_CHUNK,
+        FINISH_STEP_CHUNK,
+        REASONING_FILE_CHUNK,
+        FINISH_CHUNK,
+      ]);
+    });
+
+    it(`should map custom chunks to the custom part`, async () => {
+      // Arrange
+      const stream = Streams.from([START_CHUNK, CUSTOM_CHUNK, FINISH_CHUNK]);
+      const partTypesEncountered: Array<string> = [];
+
+      // Act
+      await Iterables.toArray(
+        pipe<MyUIMessage>(stream)
+          .map(({ chunk, part }) => {
+            partTypesEncountered.push(`${chunk.type}:${part.type}`);
+            return chunk;
+          })
+          .toStream(),
+      );
+
+      // Assert
+      expect(partTypesEncountered).toContain(`custom:custom`);
+    });
+
+    it(`should associate an approval response with the tool part via its approvalId`, async () => {
+      // Arrange - the response chunk carries no toolCallId
+      const stream = Streams.from([START_CHUNK, ...TOOL_APPROVAL_CHUNKS, FINISH_CHUNK]);
+      const partTypesEncountered: Array<string> = [];
+
+      // Act
+      await Iterables.toArray(
+        pipe<MyUIMessage>(stream)
+          .map(({ chunk, part }) => {
+            partTypesEncountered.push(`${chunk.type}:${part.type}`);
+            return chunk;
+          })
+          .toStream(),
+      );
+
+      // Assert
+      expect(partTypesEncountered).toContain(`tool-approval-request:tool-weather`);
+      expect(partTypesEncountered).toContain(`tool-approval-response:tool-weather`);
+    });
+
+    it(`should exclude approval chunks along with the rest of the tool part`, async () => {
+      // Arrange
+      const stream = Streams.from([START_CHUNK, ...TOOL_APPROVAL_CHUNKS, FINISH_CHUNK]);
+
+      // Act
+      const result = await Iterables.toArray(
+        pipe<MyUIMessage>(stream).filter(excludeTools(`weather`)).toStream(),
+      );
+
+      // Assert - no tool chunk survives, including the approval request/response pair
+      const toolChunks = result.filter((c) => c.type.startsWith(`tool-`));
+      expect(toolChunks.length).toBe(0);
     });
   });
 });

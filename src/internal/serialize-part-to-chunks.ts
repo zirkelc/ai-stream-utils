@@ -1,5 +1,7 @@
 import type {
+  CustomContentUIPart,
   InferUIMessageChunk,
+  ReasoningFileUIPart,
   SourceDocumentUIPart,
   SourceUrlUIPart,
   StepStartUIPart,
@@ -10,12 +12,12 @@ import type {
 } from "ai";
 import {
   createIdGenerator,
-  getToolOrDynamicToolName,
+  getToolName,
   isDataUIPart,
   isFileUIPart,
   isReasoningUIPart,
   isTextUIPart,
-  isToolOrDynamicToolUIPart,
+  isToolUIPart,
 } from "ai";
 import type { InferUIMessagePart } from "../types.js";
 
@@ -45,6 +47,24 @@ function isStepStartUIPart(part: UIMessagePart<UIDataTypes, UITools>): part is S
 }
 
 /**
+ * Type guard to check if a message part is a reasoning-file part.
+ */
+function isReasoningFileUIPart(
+  part: UIMessagePart<UIDataTypes, UITools>,
+): part is ReasoningFileUIPart {
+  return part.type === "reasoning-file";
+}
+
+/**
+ * Type guard to check if a message part is a custom (provider-specific) part.
+ */
+function isCustomContentUIPart(
+  part: UIMessagePart<UIDataTypes, UITools>,
+): part is CustomContentUIPart {
+  return part.type === "custom";
+}
+
+/**
  * Serializes a UIMessagePart back to chunks (without step boundaries).
  *
  * This function converts a complete part (e.g., TextUIPart, ToolUIPart)
@@ -71,6 +91,27 @@ export function serializePartToChunks<UI_MESSAGE extends UIMessage>(
         type: "file",
         mediaType: part.mediaType,
         url: part.url,
+        providerMetadata: part.providerMetadata,
+      } as InferUIMessageChunk<UI_MESSAGE>,
+    ];
+  }
+
+  if (isReasoningFileUIPart(part)) {
+    return [
+      {
+        type: "reasoning-file",
+        mediaType: part.mediaType,
+        url: part.url,
+        providerMetadata: part.providerMetadata,
+      } as InferUIMessageChunk<UI_MESSAGE>,
+    ];
+  }
+
+  if (isCustomContentUIPart(part)) {
+    return [
+      {
+        type: "custom",
+        kind: part.kind,
         providerMetadata: part.providerMetadata,
       } as InferUIMessageChunk<UI_MESSAGE>,
     ];
@@ -123,14 +164,14 @@ export function serializePartToChunks<UI_MESSAGE extends UIMessage>(
     ] as InferUIMessageChunk<UI_MESSAGE>[];
   }
 
-  if (isToolOrDynamicToolUIPart(part)) {
+  if (isToolUIPart(part)) {
     const dynamic = (part.type as string) === "dynamic-tool";
 
     const chunks: InferUIMessageChunk<UI_MESSAGE>[] = [
       {
         type: "tool-input-start",
         toolCallId: part.toolCallId,
-        toolName: getToolOrDynamicToolName(part),
+        toolName: getToolName(part),
         dynamic,
         providerExecuted: part.providerExecuted,
       } as InferUIMessageChunk<UI_MESSAGE>,
@@ -140,7 +181,7 @@ export function serializePartToChunks<UI_MESSAGE extends UIMessage>(
       chunks.push({
         type: "tool-input-available",
         toolCallId: part.toolCallId,
-        toolName: getToolOrDynamicToolName(part),
+        toolName: getToolName(part),
         input: part.input,
         dynamic,
         providerExecuted: part.providerExecuted,

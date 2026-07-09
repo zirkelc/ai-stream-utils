@@ -13,17 +13,17 @@ importers:
         version: 6.1.4
     devDependencies:
       '@ai-sdk/openai':
-        specifier: ^3.0.29
-        version: 3.0.29(zod@4.3.6)
+        specifier: ^4.0.9
+        version: 4.0.9(zod@4.3.6)
       '@ai-sdk/provider':
-        specifier: ^3.0.8
-        version: 3.0.8
+        specifier: ^4.0.2
+        version: 4.0.2
       '@ai-sdk/provider-utils':
-        specifier: ^4.0.15
-        version: 4.0.15(zod@4.3.6)
+        specifier: ^5.0.6
+        version: 5.0.6(zod@4.3.6)
       '@ai-sdk/react':
-        specifier: ^3.0.110
-        version: 3.0.110(react@19.2.4)(zod@4.3.6)
+        specifier: ^4.0.19
+        version: 4.0.19(react@19.2.4)(zod@4.3.6)
       '@arethetypeswrong/cli':
         specifier: ^0.18.2
         version: 0.18.2
@@ -34,11 +34,11 @@ importers:
         specifier: ^25.2.3
         version: 25.2.3
       ai:
-        specifier: ^6.0.86
-        version: 6.0.86(zod@4.3.6)
+        specifier: ^7.0.18
+        version: 7.0.18(zod@4.3.6)
       ai-test-kit:
-        specifier: ^1.2.0
-        version: 1.2.0(@ai-sdk/provider-utils@4.0.15(zod@4.3.6))(@ai-sdk/provider@3.0.8)(ai@6.0.86(zod@4.3.6))(vitest@4.0.18(@opentelemetry/api@1.9.0)(@types/node@25.2.3)(msw@2.12.10(@types/node@25.2.3)(typescript@5.9.3))(tsx@4.21.0)(yaml@2.8.2))
+        specifier: ^3.0.1
+        version: 3.0.1(@ai-sdk/provider-utils@5.0.6(zod@4.3.6))(@ai-sdk/provider@4.0.2)(ai@7.0.18(zod@4.3.6))
       dotenv:
         specifier: ^17.4.2
         version: 17.4.2
@@ -93,43 +93,37 @@ packages:
   '@actions/io@3.0.2':
     resolution: {integrity: sha512-nRBchcMM+QK1pdjO7/idu86rbJI5YHUKCvKs0KxnSYbVe3F51UfGxuZX4Qy/fWlp6l7gWFwIkrOzN+oUK03kfw==}
 
-  '@ai-sdk/gateway@3.0.46':
-    resolution: {integrity: sha512-zH1UbNRjG5woOXXFOrVCZraqZuFTtmPvLardMGcgLkzpxKV0U3tAGoyWKSZ862H+eBJfI/Hf2yj/zzGJcCkycg==}
-    engines: {node: '>=18'}
+  '@ai-sdk/gateway@4.0.14':
+    resolution: {integrity: sha512-wbYqQKpASsuK7bdoa1fp+QA6oy3ddqqBOukN3IkyaR8PAp0pWoc66ch2td+ixeknoCcO4F6VTkSFKVC6MP3bTQ==}
+    engines: {node: '>=22'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
-  '@ai-sdk/gateway@3.0.61':
-    resolution: {integrity: sha512-OT6SeORuOoqfABhntMJHmInblxE2DbBYvRTynVOGl6dCDDh0cNU1lJgknyDV698eQmfb6Um/94/rImgt0ZPjDA==}
-    engines: {node: '>=18'}
+  '@ai-sdk/mcp@2.0.9':
+    resolution: {integrity: sha512-Mokfd6Ff5QjpdftICnQ9jC9opJcUqfPE31oG9sTYiXEykj5InIt0FA+9acLtCrnM/hx3Tz2BgkNQCXibjSDhpA==}
+    engines: {node: '>=22'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
-  '@ai-sdk/openai@3.0.29':
-    resolution: {integrity: sha512-ugVTIVpuSLKTjzSPe1F1DWiblJT/lwrrHx0OZEKjpMk/EYP6j6VD/F7SJqM1dsqOJryeBCJWFbUzLNqc99PrMA==}
-    engines: {node: '>=18'}
+  '@ai-sdk/openai@4.0.9':
+    resolution: {integrity: sha512-j7x7FC6KQJMQaJoi6hFLzbB2aXMnR+IA8h0BQH8YCbQESppbM7SzmZ4VAPpobIvx0rqiVNJ1JjraElOLuA31Ag==}
+    engines: {node: '>=22'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
-  '@ai-sdk/provider-utils@4.0.15':
-    resolution: {integrity: sha512-8XiKWbemmCbvNN0CLR9u3PQiet4gtEVIrX4zzLxnCj06AwsEDJwJVBbKrEI4t6qE8XRSIvU2irka0dcpziKW6w==}
-    engines: {node: '>=18'}
+  '@ai-sdk/provider-utils@5.0.6':
+    resolution: {integrity: sha512-i4mVayGtC+HrRmtfPFOxvKKQgFU+1dwTTsh4MY0jY1MaGuppOwDFrNYrJ3dDXWMkO3o6FDVAKY8ZDsy7hLsO9Q==}
+    engines: {node: '>=22'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
-  '@ai-sdk/provider-utils@4.0.17':
-    resolution: {integrity: sha512-oyCeFINTYK0B8ZGUBiQc05G5vytPlKSmTTtm19xfJuUgoi8zkvvRcoPQci4mSnyfpPn2XSFFDfsALG8uGcapfg==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      zod: ^3.25.76 || ^4.1.8
+  '@ai-sdk/provider@4.0.2':
+    resolution: {integrity: sha512-pfPoy9J1B1xV7cqJ8MYHOsDYrMv5tR3+EMNfI249OhkD2uRakvav3Fo7XpD2luuN/YNCBY7KfEQc7vEV7KEtyw==}
+    engines: {node: '>=22'}
 
-  '@ai-sdk/provider@3.0.8':
-    resolution: {integrity: sha512-oGMAgGoQdBXbZqNG0Ze56CHjDZ1IDYOwGYxYjO5KLSlz5HiNQ9udIXsPZ61VWaHGZ5XW/jyjmr6t2xz2jGVwbQ==}
-    engines: {node: '>=18'}
-
-  '@ai-sdk/react@3.0.110':
-    resolution: {integrity: sha512-kMjMg9BSSksVgiSVwJmyWN49EbxAv9YZ0SlabHqjAFP9T2DkzBj2WUkZWnr14Da0DYpFMgsT9wXBmRGagKlHxA==}
-    engines: {node: '>=18'}
+  '@ai-sdk/react@4.0.19':
+    resolution: {integrity: sha512-3n/UxiZZh727ROIjQMEyphyzsz3N8bKyBIcfFHicLq7fJjuydQ8owcGRmLXoU5jrhGBRTf4O1QhwmgYNU+vkJA==}
+    engines: {node: '>=22'}
     peerDependencies:
       react: ^18 || ~19.0.1 || ~19.1.2 || ^19.2.1
 
@@ -943,8 +937,8 @@ packages:
   '@types/statuses@2.0.6':
     resolution: {integrity: sha512-xMAgYwceFhRA2zY+XbEA7mxYbA093wdiW8Vu6gZPGWy9cmOyU9XesH1tNcEWsKFd5Vzrqx5T3D38PWx1FIIXkA==}
 
-  '@vercel/oidc@3.1.0':
-    resolution: {integrity: sha512-Fw28YZpRnA3cAHHDlkt7xQHiJ0fcL+NRcIqsocZQUSmbzeIKRpwttJjik5ZGanXP+vlA4SbTg+AbA3bP363l+w==}
+  '@vercel/oidc@3.2.0':
+    resolution: {integrity: sha512-UycprH3T6n3jH0k44NHMa7pnFHGu/N05MjojYr+Mc6I7obkoLIJujSWwin1pCvdy/eOxrI/l3uDLQsmcrOb4ug==}
     engines: {node: '>= 20'}
 
   '@vitest/expect@4.0.18':
@@ -976,28 +970,25 @@ packages:
   '@vitest/utils@4.0.18':
     resolution: {integrity: sha512-msMRKLMVLWygpK3u2Hybgi4MNjcYJvwTb0Ru09+fOyCXIgT5raYP041DRRdiJiI3k/2U6SEbAETB3YtBrUkCFA==}
 
+  '@workflow/serde@4.1.0':
+    resolution: {integrity: sha512-pav4F2BoirECWR7Nf1TKt+2eETcBj7jj4cBefQ8VXQCA6NPkaKeLfj/zMgi+3zYV5ZIBT4GuUiphsj0/b9hPQQ==}
+
   acorn@8.15.0:
     resolution: {integrity: sha512-NZyJarBfL7nWwIq+FDL6Zp/yHEhePMNnnJ0y3qfieCrmNvYct8uvtiV41UvlSe6apAfk0fY1FbWx+NwfmpvtTg==}
     engines: {node: '>=0.4.0'}
     hasBin: true
 
-  ai-test-kit@1.2.0:
-    resolution: {integrity: sha512-wGcE2d/cI0TwIW5/moJ0ai6Hokvb4Pd7l1FHeZMV/7Z47AhsKCUIFCj94BWNkFFtaSRzcmAqTouJDIW+aYSngQ==}
+  ai-test-kit@3.0.1:
+    resolution: {integrity: sha512-S134cseyn1axVwnPNHXG/rpbTgm7IfGJqUODA5ZMrUQtU5GAZatvVwwcnf2EDcCihGIUUcNDaHyA2DodhTM0qA==}
+    engines: {node: '>=22'}
     peerDependencies:
-      '@ai-sdk/provider': ^3.0.0
-      '@ai-sdk/provider-utils': ^4.0.0
-      ai: 5.x || 6.x
-      vitest: '>=3'
+      '@ai-sdk/provider': ^4.0.0
+      '@ai-sdk/provider-utils': ^5.0.0
+      ai: ^7.0.0
 
-  ai@6.0.108:
-    resolution: {integrity: sha512-h2xwwU9lE+tdLyII/uFcjcrw+7ciWj2S68GrwQsebjHPSfnvxwrn+sjIl+tBt419yA9rYznWXtQvHJxM1wEAAQ==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      zod: ^3.25.76 || ^4.1.8
-
-  ai@6.0.86:
-    resolution: {integrity: sha512-U2W2LBCHA/pr0Ui7vmmsjBiLEzBbZF3yVHNy7Rbzn7IX+SvoQPFM5rN74hhfVzZoE8zBuGD4nLLk+j0elGacvQ==}
-    engines: {node: '>=18'}
+  ai@7.0.18:
+    resolution: {integrity: sha512-/DsiRfbLPtoHf9C47Hy+LK+HkjNowX1DQo3id4zWegfU6z1WjVDRAHYJAiX7SXhGp0mWX4tcenUhfIFessDWnw==}
+    engines: {node: '>=22'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
@@ -1191,8 +1182,8 @@ packages:
   eventemitter3@5.0.4:
     resolution: {integrity: sha512-mlsTRyGaPBjPedk6Bvw+aqbsXDtoAyAzm5MO7JgU+yVRyMQ5O8bD4Kcci7BS85f93veegeCPkL8R4GLClnjLFw==}
 
-  eventsource-parser@3.0.6:
-    resolution: {integrity: sha512-Vo1ab+QXPzZ4tCa8SwIHJFaSzy4R6SHf7BY79rFBDf0idraZWAkYrDjDj8uWaSm3S2TK+hJ7/t1CEmZ7jXw+pg==}
+  eventsource-parser@3.1.0:
+    resolution: {integrity: sha512-kJezFj9YFAMLeORyi7aCLxLbD5/qWMQnoMVlVPyHIll7lgRJCc3JVln9Vgl9nwQi0YkMnhdGTMNn7CkRRAptMg==}
     engines: {node: '>=18.0.0'}
 
   expect-type@1.3.0:
@@ -1440,6 +1431,10 @@ packages:
     resolution: {integrity: sha512-eG2dWTVw5bzqGRztnHExczNxt5VGsE6OwTeCG3fdUf9KBsZzO3R5OIIIzWR+iZA0NtZ+RDVdaoE2dK1cn6jH4g==}
     engines: {node: '>=0.10'}
     hasBin: true
+
+  pkce-challenge@5.0.1:
+    resolution: {integrity: sha512-wQ0b/W4Fr01qtpHlqSqspcj3EhBvimsdh0KlHhH8HRZnMsEa0ea2fTULOXOS9ccQr3om+GcGRk4e+isrZWV8qQ==}
+    engines: {node: '>=16.20.0'}
 
   pkg-pr-new@0.0.63:
     resolution: {integrity: sha512-N4qfhiahmWVmUTKo//Bvb1FAKV7DwFcOjh8GT/aTh0YFSWRZwZp02afpNSohSs1z1jj0YOjU6Ff62iJ0AuHCfg==}
@@ -1922,48 +1917,44 @@ snapshots:
 
   '@actions/io@3.0.2': {}
 
-  '@ai-sdk/gateway@3.0.46(zod@4.3.6)':
+  '@ai-sdk/gateway@4.0.14(zod@4.3.6)':
     dependencies:
-      '@ai-sdk/provider': 3.0.8
-      '@ai-sdk/provider-utils': 4.0.15(zod@4.3.6)
-      '@vercel/oidc': 3.1.0
+      '@ai-sdk/provider': 4.0.2
+      '@ai-sdk/provider-utils': 5.0.6(zod@4.3.6)
+      '@vercel/oidc': 3.2.0
       zod: 4.3.6
 
-  '@ai-sdk/gateway@3.0.61(zod@4.3.6)':
+  '@ai-sdk/mcp@2.0.9(zod@4.3.6)':
     dependencies:
-      '@ai-sdk/provider': 3.0.8
-      '@ai-sdk/provider-utils': 4.0.17(zod@4.3.6)
-      '@vercel/oidc': 3.1.0
+      '@ai-sdk/provider': 4.0.2
+      '@ai-sdk/provider-utils': 5.0.6(zod@4.3.6)
+      pkce-challenge: 5.0.1
       zod: 4.3.6
 
-  '@ai-sdk/openai@3.0.29(zod@4.3.6)':
+  '@ai-sdk/openai@4.0.9(zod@4.3.6)':
     dependencies:
-      '@ai-sdk/provider': 3.0.8
-      '@ai-sdk/provider-utils': 4.0.15(zod@4.3.6)
+      '@ai-sdk/provider': 4.0.2
+      '@ai-sdk/provider-utils': 5.0.6(zod@4.3.6)
       zod: 4.3.6
 
-  '@ai-sdk/provider-utils@4.0.15(zod@4.3.6)':
+  '@ai-sdk/provider-utils@5.0.6(zod@4.3.6)':
     dependencies:
-      '@ai-sdk/provider': 3.0.8
+      '@ai-sdk/provider': 4.0.2
       '@standard-schema/spec': 1.1.0
-      eventsource-parser: 3.0.6
+      '@workflow/serde': 4.1.0
+      eventsource-parser: 3.1.0
       zod: 4.3.6
 
-  '@ai-sdk/provider-utils@4.0.17(zod@4.3.6)':
-    dependencies:
-      '@ai-sdk/provider': 3.0.8
-      '@standard-schema/spec': 1.1.0
-      eventsource-parser: 3.0.6
-      zod: 4.3.6
-
-  '@ai-sdk/provider@3.0.8':
+  '@ai-sdk/provider@4.0.2':
     dependencies:
       json-schema: 0.4.0
 
-  '@ai-sdk/react@3.0.110(react@19.2.4)(zod@4.3.6)':
+  '@ai-sdk/react@4.0.19(react@19.2.4)(zod@4.3.6)':
     dependencies:
-      '@ai-sdk/provider-utils': 4.0.17(zod@4.3.6)
-      ai: 6.0.108(zod@4.3.6)
+      '@ai-sdk/mcp': 2.0.9(zod@4.3.6)
+      '@ai-sdk/provider': 4.0.2
+      '@ai-sdk/provider-utils': 5.0.6(zod@4.3.6)
+      ai: 7.0.18(zod@4.3.6)
       react: 19.2.4
       swr: 2.4.1(react@19.2.4)
       throttleit: 2.1.0
@@ -2264,7 +2255,8 @@ snapshots:
 
   '@open-draft/until@2.1.0': {}
 
-  '@opentelemetry/api@1.9.0': {}
+  '@opentelemetry/api@1.9.0':
+    optional: true
 
   '@oxc-project/types@0.112.0': {}
 
@@ -2534,7 +2526,7 @@ snapshots:
 
   '@types/statuses@2.0.6': {}
 
-  '@vercel/oidc@3.1.0': {}
+  '@vercel/oidc@3.2.0': {}
 
   '@vitest/expect@4.0.18':
     dependencies:
@@ -2576,29 +2568,22 @@ snapshots:
       '@vitest/pretty-format': 4.0.18
       tinyrainbow: 3.0.3
 
+  '@workflow/serde@4.1.0': {}
+
   acorn@8.15.0: {}
 
-  ai-test-kit@1.2.0(@ai-sdk/provider-utils@4.0.15(zod@4.3.6))(@ai-sdk/provider@3.0.8)(ai@6.0.86(zod@4.3.6))(vitest@4.0.18(@opentelemetry/api@1.9.0)(@types/node@25.2.3)(msw@2.12.10(@types/node@25.2.3)(typescript@5.9.3))(tsx@4.21.0)(yaml@2.8.2)):
+  ai-test-kit@3.0.1(@ai-sdk/provider-utils@5.0.6(zod@4.3.6))(@ai-sdk/provider@4.0.2)(ai@7.0.18(zod@4.3.6)):
     dependencies:
-      '@ai-sdk/provider': 3.0.8
-      '@ai-sdk/provider-utils': 4.0.15(zod@4.3.6)
-      ai: 6.0.86(zod@4.3.6)
-      vitest: 4.0.18(@opentelemetry/api@1.9.0)(@types/node@25.2.3)(msw@2.12.10(@types/node@25.2.3)(typescript@5.9.3))(tsx@4.21.0)(yaml@2.8.2)
+      '@ai-sdk/provider': 4.0.2
+      '@ai-sdk/provider-utils': 5.0.6(zod@4.3.6)
+      '@vitest/spy': 4.0.18
+      ai: 7.0.18(zod@4.3.6)
 
-  ai@6.0.108(zod@4.3.6):
+  ai@7.0.18(zod@4.3.6):
     dependencies:
-      '@ai-sdk/gateway': 3.0.61(zod@4.3.6)
-      '@ai-sdk/provider': 3.0.8
-      '@ai-sdk/provider-utils': 4.0.17(zod@4.3.6)
-      '@opentelemetry/api': 1.9.0
-      zod: 4.3.6
-
-  ai@6.0.86(zod@4.3.6):
-    dependencies:
-      '@ai-sdk/gateway': 3.0.46(zod@4.3.6)
-      '@ai-sdk/provider': 3.0.8
-      '@ai-sdk/provider-utils': 4.0.15(zod@4.3.6)
-      '@opentelemetry/api': 1.9.0
+      '@ai-sdk/gateway': 4.0.14(zod@4.3.6)
+      '@ai-sdk/provider': 4.0.2
+      '@ai-sdk/provider-utils': 5.0.6(zod@4.3.6)
       zod: 4.3.6
 
   ansi-escapes@7.3.0:
@@ -2773,7 +2758,7 @@ snapshots:
 
   eventemitter3@5.0.4: {}
 
-  eventsource-parser@3.0.6: {}
+  eventsource-parser@3.1.0: {}
 
   expect-type@1.3.0: {}
 
@@ -3023,6 +3008,8 @@ snapshots:
   picomatch@4.0.3: {}
 
   pidtree@0.6.0: {}
+
+  pkce-challenge@5.0.1: {}
 
   pkg-pr-new@0.0.63:
     dependencies:

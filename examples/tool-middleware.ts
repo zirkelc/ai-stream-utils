@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { openai } from "@ai-sdk/openai";
-import { type InferUITools, stepCountIs, streamText, tool, type UIMessage } from "ai";
+import { type InferUITools, isStepCount, streamText, tool, type UIMessage } from "ai";
 import { z } from "zod";
 import { pipe, toolCall } from "../src/pipe";
 
@@ -35,7 +35,7 @@ const result = streamText({
   model: openai(`gpt-5`),
   prompt: `What's the weather in Tokyo? Also search the web for "ai sdk v6 release notes".`,
   tools,
-  stopWhen: stepCountIs(5),
+  stopWhen: isStepCount(5),
 });
 
 const errors: Array<{ tool: string; toolCallId: string; error: string }> = [];

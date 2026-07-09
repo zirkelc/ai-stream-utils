@@ -1,5 +1,8 @@
 import type { InferUIMessageChunk, UIMessage } from "ai";
-import { getPartTypeFromChunk, type ToolCallIdMap } from "../internal/get-part-type-from-chunk.js";
+import {
+  createToolPartTypeMap,
+  getPartTypeFromChunk,
+} from "../internal/get-part-type-from-chunk.js";
 import type { InferUIMessagePart } from "../types.js";
 import { createAsyncIterableStream } from "../utils/create-async-iterable-stream.js";
 import type { InternalChunk } from "./base-pipeline.js";
@@ -25,9 +28,9 @@ async function* createIterable<UI_MESSAGE extends UIMessage>(
   input: PipeInput<UI_MESSAGE>,
 ): AsyncIterable<InternalChunk<UI_MESSAGE>> {
   /**
-   * Tracks toolCallId → partType mapping for tool chunks
+   * Tracks tool call/approval ids → partType mapping for tool chunks
    */
-  const toolCallIdMap: ToolCallIdMap = new Map();
+  const toolPartTypes = createToolPartTypeMap();
 
   /**
    * Use Symbol.asyncIterator if available (AsyncIterable), otherwise convert ReadableStream
@@ -36,7 +39,7 @@ async function* createIterable<UI_MESSAGE extends UIMessage>(
     Symbol.asyncIterator in input ? input : createAsyncIterableStream(input);
 
   for await (const chunk of iterable) {
-    const partType = getPartTypeFromChunk<UI_MESSAGE>(chunk, toolCallIdMap);
+    const partType = getPartTypeFromChunk<UI_MESSAGE>(chunk, toolPartTypes);
     yield { chunk, partType };
   }
 }

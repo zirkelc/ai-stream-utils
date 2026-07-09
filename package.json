@@ -49,15 +49,15 @@
     "defu": "^6.1.4"
   },
   "devDependencies": {
-    "@ai-sdk/openai": "^3.0.29",
-    "@ai-sdk/provider": "^3.0.8",
-    "@ai-sdk/provider-utils": "^4.0.15",
-    "@ai-sdk/react": "^3.0.110",
+    "@ai-sdk/openai": "^4.0.9",
+    "@ai-sdk/provider": "^4.0.2",
+    "@ai-sdk/provider-utils": "^5.0.6",
+    "@ai-sdk/react": "^4.0.19",
     "@arethetypeswrong/cli": "^0.18.2",
     "@total-typescript/tsconfig": "^1.0.4",
     "@types/node": "^25.2.3",
-    "ai": "^6.0.86",
-    "ai-test-kit": "^1.2.0",
+    "ai": "^7.0.18",
+    "ai-test-kit": "^3.0.1",
     "dotenv": "^17.4.2",
     "husky": "^9.1.7",
     "lint-staged": "^16.2.7",
@@ -73,7 +73,7 @@
     "zod": "^4.3.6"
   },
   "peerDependencies": {
-    "ai": "5.x || 6.x"
+    "ai": "7.x"
   },
   "lint-staged": {
     "*": "oxfmt --no-error-on-unmatched-pattern",

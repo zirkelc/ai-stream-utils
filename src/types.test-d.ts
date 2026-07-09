@@ -60,6 +60,7 @@ describe(`types`, () => {
         | "tool-output-error"
         | "tool-output-denied"
         | "tool-approval-request"
+        | "tool-approval-response"
       >();
     });
 
@@ -73,6 +74,7 @@ describe(`types`, () => {
         | "tool-output-error"
         | "tool-output-denied"
         | "tool-approval-request"
+        | "tool-approval-response"
       >();
     });
 
@@ -229,6 +231,7 @@ describe(`types`, () => {
         | "reasoning-start"
         | "reasoning-delta"
         | "reasoning-end"
+        | "reasoning-file"
         | "tool-input-start"
         | "tool-input-delta"
         | "tool-input-available"
@@ -237,10 +240,12 @@ describe(`types`, () => {
         | "tool-output-error"
         | "tool-output-denied"
         | "tool-approval-request"
+        | "tool-approval-response"
         | "source-url"
         | "source-document"
         | "data-weather"
         | "file"
+        | "custom"
       >();
     });
   });
@@ -274,6 +279,7 @@ describe(`types`, () => {
           | "tool-output-error"
           | "tool-output-denied"
           | "tool-approval-request"
+          | "tool-approval-response"
         >
       >().toEqualTypeOf<ToolChunk>();
     });
@@ -483,6 +489,7 @@ describe(`types`, () => {
         | "reasoning-start"
         | "reasoning-delta"
         | "reasoning-end"
+        | "reasoning-file"
         | "tool-input-start"
         | "tool-input-delta"
         | "tool-input-available"
@@ -491,10 +498,12 @@ describe(`types`, () => {
         | "tool-output-error"
         | "tool-output-denied"
         | "tool-approval-request"
+        | "tool-approval-response"
         | "source-url"
         | "source-document"
         | "data-weather"
         | "file"
+        | "custom"
       >();
     });
 
