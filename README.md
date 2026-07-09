@@ -461,3 +461,136 @@ The transformed stream has the same type as the original UI message stream. You 
 Since message parts may be different on the client vs. the server, you may need to reconcile message parts when the client sends messages back to the server.
 
 If you save messages to a database and configure `useChat()` to [only send the last message](https://ai-sdk.dev/docs/ai-sdk-ui/chatbot-message-persistence#sending-only-the-last-message), you can read existing messages from the database. This means the model will have access to all message parts, including filtered parts not available on the client.
+
+## API
+
+## `pipe(input)`
+
+- `input`, a `ReadableStream<UIMessageChunk>` or an `AsyncIterable<UIMessageChunk>`
+
+Returns a `ChunkPipeline` with chainable operators. Pass your `UIMessage` type as `pipe<MyUIMessage>(input)` to type the chunk and part unions. The pipeline is itself an `AsyncIterable`, and it can only be consumed once.
+
+```ts
+const stream = pipe<MyUIMessage>(result.toUIMessageStream<MyUIMessage>())
+  .filter(excludeTools())
+  .toStream();
+```
+
+#### `.filter(guard)` / `.filter(predicate)`
+
+Drop chunks from the stream. Pass a type guard to narrow the chunk and part types for every later operator, or a plain predicate receiving `{ chunk, part }` and returning `true` to keep. Meta chunks always pass through, so the callback only sees content chunks.
+
+```ts
+pipe<MyUIMessage>(stream).filter(includeParts(["text"]));
+
+pipe<MyUIMessage>(stream).filter(({ chunk, part }) => part.type !== "reasoning");
+```
+
+#### `.map(fn)`
+
+Transform chunks. The callback receives `{ chunk, part }` and returns a chunk, an array of chunks, or `null` to drop it.
+
+```ts
+pipe<MyUIMessage>(stream).map(({ chunk }) => {
+  if (chunk.type === "text-delta") return { ...chunk, delta: chunk.delta.toUpperCase() };
+  return chunk;
+});
+```
+
+#### `.on(guard, callback)` / `.on(predicate, callback)`
+
+Observe chunks without changing the stream. Every chunk passes through regardless of whether the callback runs. The callback may be async and is awaited; a throw propagates and fails the stream. For meta chunks `part` is `undefined`.
+
+```ts
+pipe<MyUIMessage>(stream).on(toolCall({ state: "output-available" }), async ({ chunk, part }) => {
+  await log(part.type, chunk.output);
+});
+```
+
+#### `.toStream()`
+
+Execute the pipeline and return an `AsyncIterableStream<UIMessageChunk>`. Throws if the pipeline was already consumed.
+
+```ts
+const stream = pipe<MyUIMessage>(input).filter(excludeTools()).toStream();
+```
+
+## `includeChunks(types)` / `excludeChunks(types)`
+
+Filter guards matching chunks by chunk type. Accept a single type or an array. Meta chunks pass through either way.
+
+```ts
+pipe<MyUIMessage>(stream).filter(includeChunks("text-delta"));
+pipe<MyUIMessage>(stream).filter(excludeChunks(["text-start", "text-end"]));
+```
+
+## `includeParts(types)` / `excludeParts(types)`
+
+Filter guards matching chunks by the part they belong to. Accept a single type or an array. A part type covers every chunk that builds it, so `includeParts('text')` keeps `text-start`, `text-delta` and `text-end`.
+
+```ts
+pipe<MyUIMessage>(stream).filter(includeParts(["text", "reasoning"]));
+pipe<MyUIMessage>(stream).filter(excludeParts("tool-weather"));
+```
+
+## `includeTools(names?)` / `excludeTools(names?)`
+
+Filter guards matching tool chunks by tool name, without the `tool-` prefix. Called with no argument they match every tool, including dynamic ones. Non-tool chunks always pass through.
+
+```ts
+pipe<MyUIMessage>(stream).filter(excludeTools());
+pipe<MyUIMessage>(stream).filter(excludeTools(["weather", "database"]));
+pipe<MyUIMessage>(stream).filter(includeTools("weather"));
+```
+
+## `chunkType(types)` / `partType(types)`
+
+Observe guards for `.on()`, matching by chunk type or by part type. Accept a single type or an array. `chunkType` matches meta chunks, `partType` does not.
+
+```ts
+pipe<MyUIMessage>(stream).on(chunkType(["start", "finish"]), ({ chunk }) => track(chunk.type));
+pipe<MyUIMessage>(stream).on(partType("text"), ({ chunk }) => buffer(chunk));
+```
+
+## `toolCall(options?)`
+
+Observe guard for `.on()` matching tool state transitions. Streaming chunks such as `tool-input-start` and `tool-input-delta` are never matched.
+
+- `options.tool` (optional), a tool name without the `tool-` prefix (default: every tool)
+- `options.state` (optional), one of `'input-available'`, `'approval-requested'`, `'output-available'`, `'output-error'`, `'output-denied'` (default: every state)
+
+```ts
+pipe<MyUIMessage>(stream).on(toolCall(), ({ chunk, part }) => log(part.type, chunk.type));
+pipe<MyUIMessage>(stream).on(toolCall({ tool: "weather" }), ({ part }) => log(part.type));
+pipe<MyUIMessage>(stream).on(
+  toolCall({ tool: "weather", state: "output-available" }),
+  ({ chunk }) => log(chunk.output),
+);
+```
+
+## `transformProviderMetadata(fn)`
+
+A `.map()` callback that rewrites `providerMetadata` on the chunks that carry it and passes every other chunk through untouched. The callback receives `{ chunk, part, metadata }`, where `metadata` may be `undefined`, and returns an object to set it, `undefined` to leave the chunk alone, or `null` to remove the field. `null` removes the field, not the chunk.
+
+```ts
+pipe<MyUIMessage>(stream).map(
+  transformProviderMetadata(({ chunk, part, metadata }) => {
+    if (part.type === "text") return null;
+    return { ...metadata, app: { traceId } };
+  }),
+);
+```
+
+## `consumeUIMessageStream(stream)`
+
+- `stream`, a `ReadableStream<UIMessageChunk>`
+
+Reads the stream to completion and resolves with the final assembled `UIMessage`. Throws if the stream ends without producing a message.
+
+```ts
+const message = await consumeUIMessageStream<MyUIMessage>(
+  pipe<MyUIMessage>(stream)
+    .filter(includeParts(["text"]))
+    .toStream(),
+);
+```
