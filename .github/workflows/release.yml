@@ -11,6 +11,7 @@ on:
 
 permissions:
   id-token: write # needed for npm publish with provenance
+  contents: write # needed to force-push the floating major version tag
 
 jobs:
   release:
@@ -30,4 +31,20 @@ jobs:
       - run: pnpm install
       - run: pnpm build
       - run: pnpm test
-      - run: pnpm publish --provenance --no-git-checks
+      # This is the 2.x maintenance line (AI SDK v5/v6). It always publishes
+      # under the `ai-v6` dist-tag so it never moves `latest` off the current
+      # major. (npm rejects `v2` as a dist-tag since it parses as a SemVer range.)
+      - name: Publish to npm (ai-v6)
+        run: pnpm publish --provenance --no-git-checks --tag ai-v6
+      # Move the floating v2.x tag onto this release commit so version-pinned
+      # links like /tree/v2.x always resolve to the newest 2.x release. Pushed
+      # with the default GITHUB_TOKEN, whose pushes do not re-trigger workflows.
+      # Gated to `release` since workflow_dispatch has no tag payload.
+      - name: Update major version tag
+        if: ${{ github.event_name == 'release' }}
+        env:
+          TAG: ${{ github.event.release.tag_name }} # e.g. v2.3.1
+        run: |
+          major="${TAG%%.*}"               # v2.3.1 -> v2
+          git tag -f "${major}.x"          # tag the checked-out release commit -> v2.x
+          git push -f origin "${major}.x"
