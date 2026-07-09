@@ -26,18 +26,16 @@ This library provides type-safe, composable utilities for all these use cases.
 
 ### Installation
 
-This library supports AI SDK v7.
+> [!NOTE]
+> Version compatibility:
+>
+> - Use [`ai-stream-utils@2.x`](https://github.com/zirkelc/ai-stream-utils/tree/v2.x) for AI SDK v6
+> - Use [`ai-stream-utils@3.x`](https://github.com/zirkelc/ai-stream-utils/tree/v3.x) for AI SDK v7
 
 ```bash
-npm install ai-stream-utils
+npm install ai-stream-utils@2 # AI SDK v6
+npm install ai-stream-utils@3 # AI SDK v7
 ```
-
-Older AI SDK versions are supported by earlier releases:
-
-| AI SDK    | `ai-stream-utils` |
-| --------- | ----------------- |
-| v7        | 3.x               |
-| v5 and v6 | 2.x               |
 
 ## Usage
 
