@@ -17,7 +17,7 @@ import { readUIMessageStream } from "ai";
  * @example
  * ```typescript
  * const stream = result.toUIMessageStream();
- * const filteredStream = filterUIMessageStream(stream, includeParts(['text']));
+ * const filteredStream = pipe(stream).filter(includeParts(['text'])).toStream();
  * const message = await consumeUIMessageStream(filteredStream);
  * ```
  */

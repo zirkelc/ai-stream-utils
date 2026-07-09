@@ -29,16 +29,12 @@ pnpm test src/pipe/pipe.test.ts
 
 The `pipe()` function wraps a `ReadableStream<UIMessageChunk>` and returns a `ChunkPipeline` with chainable operators:
 
-- **`pipe.ts`**: Entry point - creates internal iterable with part type tracking via `ToolCallIdMap`
+- **`pipe.ts`**: Entry point - creates internal iterable with part type tracking via `ToolPartTypeMap`
 - **`chunk-pipeline.ts`**: Fluent builder class with `.filter()`, `.map()`, `.on()`, `.toStream()` operators
 - **`type-guards.ts`**: Type guard factory functions (`includeChunks`, `includeParts`, `excludeChunks`, `excludeParts`, `chunkType`) that enable TypeScript type narrowing after filtering
 - **`types.ts`**: Core type definitions including `FilterGuard`, `ObserveGuard`, `ChunkInput`, branded types
 
 Meta chunks (start, finish, abort, error, message-metadata) always pass through filters unchanged.
-
-### Legacy Functions (`src/filter/`, `src/map/`, `src/flat-map/`)
-
-Deprecated standalone functions - use `pipe()` instead.
 
 ### Stream Utilities (`src/utils/`)
 
@@ -46,13 +42,12 @@ Helpers for stream/array/iterable conversions and SSE encoding/decoding.
 
 ### Internal (`src/internal/`)
 
-- **`get-part-type-from-chunk.ts`**: Maps chunk types to part types, tracks tool call IDs
-- **`create-ui-message-stream-reader.ts`**: Internal stream reader implementation
+- **`get-part-type-from-chunk.ts`**: Maps chunk types to part types, tracking tool call ids and approval ids
+- **`utils.ts`**: Chunk classification helpers shared by the pipeline
 
 ### Test Infrastructure (`src/test/`)
 
-- **`mock-model.ts`**: Mock AI model for testing
-- **`ui-message.ts`**: Type definitions for test UI messages
+- **`ui-message.ts`**: Test `UIMessage` type plus chunk/part fixtures built with `ai-test-kit`
 
 ## Type System
 

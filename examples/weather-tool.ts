@@ -1,7 +1,6 @@
 import { openai } from "@ai-sdk/openai";
 import { type InferUITools, isStepCount, streamText, tool, type UIMessage } from "ai";
 import { z } from "zod";
-import { flatMapUIMessageStream, partTypeIs } from "../src/flat-map";
 import { excludeParts, includeParts, pipe } from "../src/pipe";
 
 export type MyMetadata = { id: string };

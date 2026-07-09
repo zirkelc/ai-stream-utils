@@ -155,7 +155,7 @@ const stream = pipe(result.toUIMessageStream())
 
 #### Helpers
 
-`transformProviderMetadata()` changes `providerMetadata` on the chunks that carry it (`text-*`, `reasoning-*`, `tool-input-*`, `source-*`, `file`). Every other chunk passes through untouched, so you don't have to narrow by chunk type yourself.
+`transformProviderMetadata()` changes `providerMetadata` on the chunks that carry it (`text-*`, `reasoning-*`, `reasoning-file`, `tool-input-*`, `tool-output-available`, `tool-output-error`, `tool-approval-response`, `source-*`, `file`, `custom`). Every other chunk passes through untouched, so you don't have to narrow by chunk type yourself.
 
 The callback receives the current `metadata` (may be `undefined`) and returns one of three things:
 
@@ -424,55 +424,6 @@ import { convertSSEToUIMessageStream } from "ai-stream-utils";
 const response = await fetch("/api/chat");
 const sseStream = response.body.pipeThrough(new TextDecoderStream());
 const uiStream = convertSSEToUIMessageStream(sseStream);
-```
-
-## Deprecated Functions
-
-> [!WARNING]
-> These functions are deprecated and will be removed in a future version. Use `pipe()` instead.
-
-### `mapUIMessageStream`
-
-```typescript
-import { mapUIMessageStream } from "ai-stream-utils";
-
-const stream = mapUIMessageStream(result.toUIMessageStream(), ({ chunk }) => {
-  if (chunk.type === "text-delta") {
-    return { ...chunk, delta: chunk.delta.toUpperCase() };
-  }
-  return chunk;
-});
-```
-
-### `filterUIMessageStream`
-
-```typescript
-import { filterUIMessageStream, includeParts } from "ai-stream-utils";
-
-const stream = filterUIMessageStream(
-  result.toUIMessageStream(),
-  includeParts(["text", "tool-weather"]),
-);
-```
-
-### `flatMapUIMessageStream`
-
-```typescript
-import { flatMapUIMessageStream, partTypeIs } from "ai-stream-utils";
-
-const stream = flatMapUIMessageStream(
-  result.toUIMessageStream(),
-  partTypeIs("tool-weather"),
-  ({ part }) => {
-    if (part.state === "output-available") {
-      return {
-        ...part,
-        output: { ...part.output, temperature: toFahrenheit(part.output.temperature) },
-      };
-    }
-    return part;
-  },
-);
 ```
 
 ## Type Safety
