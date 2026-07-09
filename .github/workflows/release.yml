@@ -11,6 +11,7 @@ on:
 
 permissions:
   id-token: write # needed for npm publish with provenance
+  contents: write # needed to force-push the floating major version tag
 
 jobs:
   release:
@@ -30,4 +31,22 @@ jobs:
       - run: pnpm install
       - run: pnpm build
       - run: pnpm test
-      - run: pnpm publish --provenance --no-git-checks
+      # This is the current major line, so it publishes to `latest`. The v1
+      # maintenance line publishes from the `v1` branch's own release.yml (under
+      # the `legacy` dist-tag) and never reaches this file.
+      - name: Publish to npm (latest)
+        run: pnpm publish --provenance --no-git-checks
+      # Move the floating major tag (e.g. v2.x) onto this release commit so
+      # version-pinned links like /tree/v2.x always resolve to the newest
+      # release in that major line. Pushed with the default GITHUB_TOKEN, whose
+      # pushes do not re-trigger workflows (no CI loop). Gated to `release`
+      # because workflow_dispatch has no release payload -> empty TAG -> would
+      # create a broken ".x" tag.
+      - name: Update major version tag
+        if: ${{ github.event_name == 'release' }}
+        env:
+          TAG: ${{ github.event.release.tag_name }} # e.g. v2.3.0
+        run: |
+          major="${TAG%%.*}"               # v2.3.0 -> v2
+          git tag -f "${major}.x"          # tag the checked-out release commit -> v2.x
+          git push -f origin "${major}.x"
