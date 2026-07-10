@@ -228,6 +228,19 @@ export const TOOL_APPROVAL_CHUNKS: MyUIMessageChunk[] = [
   UIChunks.finishStep(),
 ];
 
+/** A tool whose input fails validation: the error arrives before any output chunk. */
+export const TOOL_INPUT_ERROR_CHUNKS: MyUIMessageChunk[] = [
+  UIChunks.startStep(),
+  UIChunks.toolInputStart({ toolCallId: "8", toolName: "weather" }),
+  UIChunks.toolInputError({
+    toolCallId: "8",
+    toolName: "weather",
+    input: { locaton: "Tokyo" },
+    errorText: "Invalid input",
+  }),
+  UIChunks.finishStep(),
+];
+
 export const TEXT_PART: MyUIMessagePart = UIParts.text("Hello World", { state: "done" });
 
 export const REASONING_PART: MyUIMessagePart = UIParts.reasoning("Thinking...", { state: "done" });

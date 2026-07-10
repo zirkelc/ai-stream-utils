@@ -278,17 +278,46 @@ export type ExcludeToolChunkTypes<UI_MESSAGE extends UIMessage> = Exclude<
 export type ToolCallState =
   | "input-available"
   | "approval-requested"
+  | "approval-responded"
   | "output-available"
   | "output-error"
   | "output-denied";
 
 /**
- * Map tool states to their corresponding chunk types.
+ * Map tool states to their corresponding chunk types. A state may be reached by
+ * more than one chunk: a tool whose input fails to parse never reaches the
+ * output phase, so its error arrives as `tool-input-error` yet still lands the
+ * part in the `output-error` state.
  */
 export type ToolStateToChunkType = {
   "input-available": "tool-input-available";
   "approval-requested": "tool-approval-request";
+  "approval-responded": "tool-approval-response";
   "output-available": "tool-output-available";
-  "output-error": "tool-output-error";
+  "output-error": "tool-output-error" | "tool-input-error";
   "output-denied": "tool-output-denied";
 };
+
+/**
+ * Tool chunks that report incremental input streaming rather than a state
+ * transition. Deliberately absent from `ToolStateToChunkType`.
+ */
+type StreamingToolChunkType = "tool-input-start" | "tool-input-delta";
+
+/**
+ * Tool chunk types the state mapping does not account for. Pinned to `never` by
+ * the assertion below so that a tool chunk added by the AI SDK cannot be
+ * silently ignored: it must be classified as either a state transition or a
+ * streaming event before this compiles again.
+ */
+type UnmappedToolChunkType = Exclude<
+  ToolChunkTypes<UIMessage>,
+  ToolStateToChunkType[ToolCallState] | StreamingToolChunkType
+>;
+
+/** Compiles only while `T` is `true`. */
+type Assert<T extends true> = T;
+
+export type _AssertEveryToolChunkIsClassified = Assert<
+  [UnmappedToolChunkType] extends [never] ? true : false
+>;

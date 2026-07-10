@@ -450,21 +450,28 @@ export function excludeTools<UI_MESSAGE extends UIMessage>(
 }
 
 /**
- * Maps tool call states to their corresponding chunk types.
+ * Maps each tool call state to the chunk types that reach it. Keys and values
+ * are pinned to `ToolStateToChunkType` by the compiler, so a chunk type the AI
+ * SDK adds to a state stops this from compiling until it is listed here.
  */
-const stateToChunkType: Record<ToolCallState, string> = {
-  "input-available": "tool-input-available",
-  "approval-requested": "tool-approval-request",
-  "output-available": "tool-output-available",
-  "output-error": "tool-output-error",
-  "output-denied": "tool-output-denied",
+const stateToChunkTypes: {
+  [STATE in ToolCallState]: Array<ToolStateToChunkType[STATE]>;
+} = {
+  "input-available": ["tool-input-available"],
+  "approval-requested": ["tool-approval-request"],
+  "approval-responded": ["tool-approval-response"],
+  "output-available": ["tool-output-available"],
+  "output-error": ["tool-output-error", "tool-input-error"],
+  "output-denied": ["tool-output-denied"],
 };
 
 /**
- * Reverse mapping from chunk type to state.
+ * Reverse mapping from chunk type to state. Several chunk types may share a state.
  */
 const chunkTypeToState: Record<string, ToolCallState> = Object.fromEntries(
-  Object.entries(stateToChunkType).map(([state, chunkType]) => [chunkType, state as ToolCallState]),
+  Object.entries(stateToChunkTypes).flatMap(([state, chunkTypes]) =>
+    chunkTypes.map((chunkType) => [chunkType, state as ToolCallState]),
+  ),
 );
 
 /**
@@ -476,7 +483,7 @@ const chunkTypeToState: Record<string, ToolCallState> = Object.fromEntries(
  * // Match all tool state transitions (any tool, any state)
  * pipe<MyUIMessage>(stream)
  *   .on(toolCall(), ({ chunk, part }) => {
- *     // Observes: tool-input-available, tool-approval-request,
+ *     // Observes: tool-input-available, tool-approval-request, tool-approval-response,
  *     // tool-output-available, tool-output-error, tool-output-denied
  *   });
  *

@@ -354,14 +354,18 @@ describe(`type-guards`, () => {
   describe(`toolCall`, () => {
     type ToolInputAvailableChunk = Extract<MyUIMessageChunk, { type: "tool-input-available" }>;
     type ToolApprovalRequestChunk = Extract<MyUIMessageChunk, { type: "tool-approval-request" }>;
+    type ToolApprovalResponseChunk = Extract<MyUIMessageChunk, { type: "tool-approval-response" }>;
     type ToolOutputAvailableChunk = Extract<MyUIMessageChunk, { type: "tool-output-available" }>;
     type ToolOutputErrorChunk = Extract<MyUIMessageChunk, { type: "tool-output-error" }>;
+    type ToolInputErrorChunk = Extract<MyUIMessageChunk, { type: "tool-input-error" }>;
     type ToolOutputDeniedChunk = Extract<MyUIMessageChunk, { type: "tool-output-denied" }>;
     type AllToolStateChunks =
       | ToolInputAvailableChunk
       | ToolApprovalRequestChunk
+      | ToolApprovalResponseChunk
       | ToolOutputAvailableChunk
       | ToolOutputErrorChunk
+      | ToolInputErrorChunk
       | ToolOutputDeniedChunk;
 
     it(`should narrow to all tool state chunks when called without arguments`, () => {

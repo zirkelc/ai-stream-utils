@@ -14,6 +14,7 @@ import {
   START_STEP_CHUNK,
   TEXT_CHUNKS,
   TOOL_APPROVAL_CHUNKS,
+  TOOL_INPUT_ERROR_CHUNKS,
   TOOL_WITH_DATA_CHUNKS,
 } from "../test/ui-message.js";
 import { createAsyncIterableStream } from "../utils/create-async-iterable-stream.js";
@@ -1360,6 +1361,72 @@ describe(`pipe`, () => {
           chunkType: `tool-output-available`,
           partType: `tool-weather`,
         });
+      });
+
+      it(`should observe the approval response chunk when called without arguments`, async () => {
+        // Arrange
+        const stream = Streams.from([START_CHUNK, ...TOOL_APPROVAL_CHUNKS, FINISH_CHUNK]);
+        const observed: Array<{ chunkType: string; partType: string }> = [];
+
+        // Act
+        await Iterables.toArray(
+          pipe<MyUIMessage>(stream)
+            .on(toolCall(), ({ chunk, part }) => {
+              observed.push({ chunkType: chunk.type, partType: part.type });
+            })
+            .toStream(),
+        );
+
+        // Assert - every tool state transition is observed, including the approval response
+        expect(observed.length).toBe(4);
+        expect(observed.map((o) => o.chunkType)).toEqual([
+          `tool-input-available`,
+          `tool-approval-request`,
+          `tool-approval-response`,
+          `tool-output-available`,
+        ]);
+        expect(observed.every((o) => o.partType === `tool-weather`)).toBe(true);
+      });
+
+      it(`should observe tool chunks filtered by the approval-responded state`, async () => {
+        // Arrange
+        const stream = Streams.from([START_CHUNK, ...TOOL_APPROVAL_CHUNKS, FINISH_CHUNK]);
+        const observed: Array<{ chunkType: string; approved: boolean }> = [];
+
+        // Act
+        await Iterables.toArray(
+          pipe<MyUIMessage>(stream)
+            .on(toolCall({ state: `approval-responded` }), ({ chunk }) => {
+              observed.push({ chunkType: chunk.type, approved: chunk.approved });
+            })
+            .toStream(),
+        );
+
+        // Assert - the response chunk exposes the approval decision
+        expect(observed.length).toBe(1);
+        expect(observed[0]).toEqual({
+          chunkType: `tool-approval-response`,
+          approved: true,
+        });
+      });
+
+      it(`should observe tool-input-error as the output-error state`, async () => {
+        // Arrange
+        const stream = Streams.from([START_CHUNK, ...TOOL_INPUT_ERROR_CHUNKS, FINISH_CHUNK]);
+        const observed: Array<string> = [];
+
+        // Act
+        await Iterables.toArray(
+          pipe<MyUIMessage>(stream)
+            .on(toolCall({ state: `output-error` }), ({ chunk }) => {
+              observed.push(chunk.type);
+            })
+            .toStream(),
+        );
+
+        // Assert - a failed input never reaches an output chunk, but is still an error state
+        expect(observed.length).toBe(1);
+        expect(observed[0]).toBe(`tool-input-error`);
       });
 
       it(`should not observe streaming chunks (tool-input-start, tool-input-delta)`, async () => {
