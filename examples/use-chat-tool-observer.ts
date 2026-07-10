@@ -54,7 +54,7 @@ export function Chat() {
           .on(toolCall(), ({ chunk, part }) => {
             console.log(`[Tool] ${part.type} → ${chunk.type}`);
           })
-          .on(toolCall({ tool: "weather", state: "output-available" }), ({ chunk, part }) => {
+          .on(toolCall({ tool: "getWeather", state: "output-available" }), ({ chunk, part }) => {
             console.log(`[Tool Complete]`, chunk.output);
           })
           .toStream();
