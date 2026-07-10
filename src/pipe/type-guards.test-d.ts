@@ -356,12 +356,14 @@ describe(`type-guards`, () => {
     type ToolApprovalRequestChunk = Extract<MyUIMessageChunk, { type: "tool-approval-request" }>;
     type ToolOutputAvailableChunk = Extract<MyUIMessageChunk, { type: "tool-output-available" }>;
     type ToolOutputErrorChunk = Extract<MyUIMessageChunk, { type: "tool-output-error" }>;
+    type ToolInputErrorChunk = Extract<MyUIMessageChunk, { type: "tool-input-error" }>;
     type ToolOutputDeniedChunk = Extract<MyUIMessageChunk, { type: "tool-output-denied" }>;
     type AllToolStateChunks =
       | ToolInputAvailableChunk
       | ToolApprovalRequestChunk
       | ToolOutputAvailableChunk
       | ToolOutputErrorChunk
+      | ToolInputErrorChunk
       | ToolOutputDeniedChunk;
 
     it(`should narrow to all tool state chunks when called without arguments`, () => {

@@ -177,6 +177,20 @@ export const TOOL_WITH_DATA_CHUNKS: MyUIMessageChunk[] = [
   { type: "finish-step" },
 ];
 
+/** A tool whose input fails validation: the error arrives before any output chunk. */
+export const TOOL_INPUT_ERROR_CHUNKS: MyUIMessageChunk[] = [
+  { type: "start-step" },
+  { type: "tool-input-start", toolCallId: "8", toolName: "weather" },
+  {
+    type: "tool-input-error",
+    toolCallId: "8",
+    toolName: "weather",
+    input: { locaton: "Tokyo" },
+    errorText: "Invalid input",
+  },
+  { type: "finish-step" },
+];
+
 export const DYNAMIC_TOOL_CHUNKS: MyUIMessageChunk[] = [
   { type: "start-step" },
   {

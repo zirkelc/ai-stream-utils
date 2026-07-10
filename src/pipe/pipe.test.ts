@@ -9,6 +9,7 @@ import {
   START_CHUNK,
   START_STEP_CHUNK,
   TEXT_CHUNKS,
+  TOOL_INPUT_ERROR_CHUNKS,
   TOOL_WITH_DATA_CHUNKS,
 } from "../test/ui-message.js";
 import { convertArrayToAsyncIterable } from "../utils/convert-array-to-async-iterable.js";
@@ -1303,6 +1304,29 @@ describe(`pipe`, () => {
           chunkType: `tool-output-available`,
           partType: `tool-weather`,
         });
+      });
+
+      it(`should observe tool-input-error as the output-error state`, async () => {
+        // Arrange
+        const stream = convertArrayToStream([
+          START_CHUNK,
+          ...TOOL_INPUT_ERROR_CHUNKS,
+          FINISH_CHUNK,
+        ]);
+        const observed: Array<string> = [];
+
+        // Act
+        await convertAsyncIterableToArray(
+          pipe<MyUIMessage>(stream)
+            .on(toolCall({ state: `output-error` }), ({ chunk }) => {
+              observed.push(chunk.type);
+            })
+            .toStream(),
+        );
+
+        // Assert - a failed input never reaches an output chunk, but is still an error state
+        expect(observed.length).toBe(1);
+        expect(observed[0]).toBe(`tool-input-error`);
       });
 
       it(`should not observe streaming chunks (tool-input-start, tool-input-delta)`, async () => {
