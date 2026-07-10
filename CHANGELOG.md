@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.3.2](https://github.com/zirkelc/ai-stream-utils/compare/v2.3.1...v2.3.2) (2026-07-10)
+
+
+### Bug Fixes
+
+* **pipe:** observe tool-input-error as the output-error state ([54bae7e](https://github.com/zirkelc/ai-stream-utils/commit/54bae7e95a5f451ebf3b1544c70014cf5d13eb72))
+
 ## [2.3.1](https://github.com/zirkelc/ai-stream-utils/compare/v2.3.0...v2.3.1) (2026-07-09)
 
 
