@@ -11,6 +11,7 @@ import type {
   ChunkMapFn,
   ChunkObserveFn,
   ChunkObserveInput,
+  ChunkObservePredicateFn,
   FilterGuard,
   ObserveGuard,
 } from "./types.js";
@@ -54,7 +55,7 @@ export class ChunkPipeline<
   ): ChunkPipeline<UI_MESSAGE, CHUNK & NARROWED_CHUNK, PART & NARROWED_PART>;
 
   /**
-   * Filters chunks using a generic predicate function.
+   * Filters chunks using a generic predicate function, which may be async.
    * The callback only receives content chunks because meta chunks pass through unchanged.
    */
   filter(
@@ -90,7 +91,7 @@ export class ChunkPipeline<
             part: { type: item.partType },
           } as ChunkInput<CHUNK, PART>;
 
-          if (predicateFn(input)) {
+          if (await predicateFn(input)) {
             yield item;
           }
         }
@@ -103,9 +104,11 @@ export class ChunkPipeline<
   }
 
   /**
-   * Transforms chunks by applying a mapping function.
+   * Transforms chunks by applying a mapping function, which may be async.
    * The callback only receives content chunks because meta chunks pass through unchanged.
    * Returning null filters out the chunk, while returning an array yields multiple chunks.
+   * An async callback is awaited before the chunk reaches any later operator, so the
+   * stream stays ordered and downstream operators always see a resolved chunk.
    */
   map(
     fn: ChunkMapFn<
@@ -136,7 +139,7 @@ export class ChunkPipeline<
             part: { type: item.partType },
           } as ChunkInput<CHUNK & ExtractChunk<UI_MESSAGE, ContentChunkType<UI_MESSAGE>>, PART>;
 
-          const result = fn(input);
+          const result = await fn(input);
           /**
            * The asArray utility normalizes the result: null becomes an empty array,
            * a single chunk becomes an array with one element, and arrays pass through as-is.
@@ -173,21 +176,22 @@ export class ChunkPipeline<
   /**
    * Observes chunks matching a predicate without filtering them.
    * Uses the current pipeline types without type narrowing.
+   * Both the predicate and the callback may be async and are awaited.
    * All chunks pass through regardless of whether the callback is invoked.
    */
   on(
-    predicate: (input: ChunkObserveInput<CHUNK>) => boolean,
+    predicate: ChunkObservePredicateFn<CHUNK>,
     callback: ChunkObserveFn<CHUNK, { type: PART[`type`] } | undefined>,
   ): ChunkPipeline<UI_MESSAGE, CHUNK, PART>;
 
   on(
-    predicate: ((input: ChunkObserveInput<CHUNK>) => boolean) | ObserveGuard<UI_MESSAGE, any, any>,
+    predicate: ChunkObservePredicateFn<CHUNK> | ObserveGuard<UI_MESSAGE, any, any>,
     callback: ChunkObserveFn<any, any>,
   ): ChunkPipeline<UI_MESSAGE, CHUNK, PART> {
     /**
      * The predicate is cast to a simple function type for runtime execution.
      */
-    const predicateFn = predicate as (input: ChunkObserveInput<CHUNK>) => boolean;
+    const predicateFn = predicate as ChunkObservePredicateFn<CHUNK>;
 
     const nextBuilder: ChunkBuilder<UI_MESSAGE> = (iterable) => {
       const prevIterable = this.prevBuilder(iterable);
@@ -203,7 +207,7 @@ export class ChunkPipeline<
             part: item.partType !== undefined ? { type: item.partType } : undefined,
           } as ChunkObserveInput<CHUNK>;
 
-          if (predicateFn(input)) {
+          if (await predicateFn(input)) {
             await callback(input);
           }
 

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   CUSTOM_CHUNK,
   DYNAMIC_TOOL_CHUNKS,
+  FILE_CHUNKS,
   FINISH_CHUNK,
   FINISH_STEP_CHUNK,
   type MyUIMessage,
@@ -900,6 +901,35 @@ describe(`pipe`, () => {
         expect(reasoningChunks.length).toBe(0);
       });
 
+      it(`should await an async predicate`, async () => {
+        // Arrange
+        const stream = Streams.from([
+          START_CHUNK,
+          ...TEXT_CHUNKS,
+          ...REASONING_CHUNKS,
+          FINISH_CHUNK,
+        ]);
+
+        // Act
+        const result = await Iterables.toArray(
+          pipe<MyUIMessage>(stream)
+            .filter(async ({ part }) => {
+              await Promise.resolve();
+              return part.type !== `reasoning`;
+            })
+            .toStream(),
+        );
+
+        // Assert - an async predicate resolving to false excludes the chunk
+        expect(result).toEqual([
+          START_CHUNK,
+          ...TEXT_CHUNKS,
+          START_STEP_CHUNK,
+          FINISH_STEP_CHUNK,
+          FINISH_CHUNK,
+        ]);
+      });
+
       it(`should chain multiple predicate filters`, async () => {
         // Arrange
         const stream = Streams.from([
@@ -1098,6 +1128,32 @@ describe(`pipe`, () => {
 
         // Assert - text-start, text-delta x2, text-end
         expect(observed.length).toBe(4);
+      });
+
+      it(`should await an async predicate`, async () => {
+        // Arrange
+        const stream = Streams.from([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+        const observed: Array<string> = [];
+
+        // Act
+        const result = await Iterables.toArray(
+          pipe<MyUIMessage>(stream)
+            .on(
+              async ({ chunk }) => {
+                await Promise.resolve();
+                return chunk.type === `text-delta`;
+              },
+              ({ chunk }) => {
+                observed.push(chunk.type);
+              },
+            )
+            .toStream(),
+        );
+
+        // Assert - only the chunks the async predicate resolved true for are observed
+        expect(observed).toEqual([`text-delta`, `text-delta`]);
+        // Assert - every chunk still passes through
+        expect(result).toEqual([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
       });
     });
 
@@ -1425,6 +1481,78 @@ describe(`pipe`, () => {
         { type: `text-delta`, id: `1`, delta: `HELLO` },
         { type: `text-delta`, id: `1`, delta: ` WORLD` },
       ]);
+    });
+
+    it(`should await an async map callback`, async () => {
+      // Arrange
+      const stream = Streams.from([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+
+      // Act
+      const result = await Iterables.toArray(
+        pipe<MyUIMessage>(stream)
+          .map(async ({ chunk }) => {
+            await Promise.resolve();
+            if (chunk.type === `text-delta`) {
+              return { ...chunk, delta: chunk.delta.toUpperCase() };
+            }
+            return chunk;
+          })
+          .toStream(),
+      );
+
+      // Assert
+      const textDeltaChunks = result.filter((c) => c.type === `text-delta`);
+      expect(textDeltaChunks).toEqual([
+        { type: `text-delta`, id: `1`, delta: `HELLO` },
+        { type: `text-delta`, id: `1`, delta: ` WORLD` },
+      ]);
+    });
+
+    it(`should pass the awaited chunk to operators chained after an async map`, async () => {
+      // Arrange - a downstream observer must see the rewritten chunk, not a pending promise
+      const stream = Streams.from([START_CHUNK, ...FILE_CHUNKS, FINISH_CHUNK]);
+      const observed: Array<string> = [];
+
+      // Act
+      const result = await Iterables.toArray(
+        pipe<MyUIMessage>(stream)
+          .map(async ({ chunk }) => {
+            await Promise.resolve();
+            if (chunk.type === `file`)
+              return { ...chunk, url: `data:${chunk.mediaType};base64,AAA` };
+            return chunk;
+          })
+          .on(chunkType(`file`), ({ chunk }) => {
+            observed.push(chunk.url);
+          })
+          .toStream(),
+      );
+
+      // Assert
+      expect(observed).toEqual([`data:application/pdf;base64,AAA`]);
+      const fileChunks = result.filter((c) => c.type === `file`);
+      expect(fileChunks.length).toBe(1);
+    });
+
+    it(`should support an async map callback returning null or an array`, async () => {
+      // Arrange
+      const stream = Streams.from([START_CHUNK, ...TEXT_CHUNKS, FINISH_CHUNK]);
+
+      // Act
+      const result = await Iterables.toArray(
+        pipe<MyUIMessage>(stream)
+          .map(async ({ chunk }) => {
+            await Promise.resolve();
+            if (chunk.type === `text-start`) return null;
+            if (chunk.type === `text-end`) return [chunk, chunk];
+            return chunk;
+          })
+          .toStream(),
+      );
+
+      // Assert
+      expect(result.filter((c) => c.type === `text-start`).length).toBe(0);
+      expect(result.filter((c) => c.type === `text-end`).length).toBe(2);
     });
   });
 

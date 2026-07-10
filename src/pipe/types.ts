@@ -11,16 +11,16 @@ export type ChunkInput<CHUNK, PART extends { type: string }> = {
 
 /**
  * Filter predicate for chunk-based operations.
- * Returns true to include the chunk, false to exclude.
+ * Returns true to include the chunk, false to exclude. Can be sync or async.
  * The __brand exclusion prevents type guards from matching this type.
  */
 export type ChunkFilterFn<CHUNK, PART extends { type: string }> = ((
   input: ChunkInput<CHUNK, PART>,
-) => boolean) & { __brand?: never };
+) => boolean | Promise<boolean>) & { __brand?: never };
 
 /**
  * Map function for chunk-based operations.
- * Returns transformed chunk(s) or null to remove.
+ * Returns transformed chunk(s) or null to remove. Can be sync or async.
  */
 export type ChunkMapFn<
   UI_MESSAGE extends UIMessage,
@@ -28,7 +28,11 @@ export type ChunkMapFn<
   PART extends { type: string },
 > = (
   input: ChunkInput<CHUNK, PART>,
-) => InferUIMessageChunk<UI_MESSAGE> | Array<InferUIMessageChunk<UI_MESSAGE>> | null;
+) =>
+  | InferUIMessageChunk<UI_MESSAGE>
+  | Array<InferUIMessageChunk<UI_MESSAGE>>
+  | null
+  | Promise<InferUIMessageChunk<UI_MESSAGE> | Array<InferUIMessageChunk<UI_MESSAGE>> | null>;
 
 /**
  * Input for observer operations.
@@ -41,6 +45,14 @@ export type ChunkObserveInput<
   chunk: CHUNK;
   part: PART;
 };
+
+/**
+ * Predicate for observer operations.
+ * Returns true to invoke the callback for this chunk. Can be sync or async.
+ */
+export type ChunkObservePredicateFn<CHUNK> = (
+  input: ChunkObserveInput<CHUNK>,
+) => boolean | Promise<boolean>;
 
 /**
  * Callback function for observer operations.

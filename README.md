@@ -43,7 +43,7 @@ The `pipe` function provides a composable pipeline API for filtering, transformi
 
 ### `.filter()`
 
-Filter chunks by returning `true` to keep or `false` to exclude.
+Filter chunks by returning `true` to keep or `false` to exclude. The predicate may be async.
 
 ```typescript
 const stream = pipe(result.toUIMessageStream())
@@ -112,7 +112,7 @@ const stream = pipe(result.toUIMessageStream())
 
 ### `.map()`
 
-Transform chunks by returning a chunk, an array of chunks, or `null` to exclude.
+Transform chunks by returning a chunk, an array of chunks, or `null` to exclude. The callback may be async, which lets a chunk be rewritten from an awaited result.
 
 ```typescript
 const stream = pipe(result.toUIMessageStream())
@@ -180,7 +180,7 @@ const stream = pipe(result.toUIMessageStream())
 
 ### `.on()`
 
-Observe chunks without modifying the stream. The callback is invoked for matching chunks.
+Observe chunks without modifying the stream. The callback is invoked for matching chunks. Both the predicate and the callback may be async.
 
 ```typescript
 const stream = pipe(result.toUIMessageStream())
@@ -220,7 +220,7 @@ The `toolCall()` type guard matches tool chunks representing state transitions (
 
 #### Examples
 
-Log stream lifecycle events.
+Log stream lifecycle events:
 
 ```typescript
 const stream = pipe(result.toUIMessageStream())
@@ -239,7 +239,7 @@ const stream = pipe(result.toUIMessageStream())
   .toStream();
 ```
 
-Observe tool state transitions for a specific tool.
+Observe tool state transitions for a specific tool:
 
 ```typescript
 const stream = pipe(result.toUIMessageStream())
@@ -255,19 +255,16 @@ const stream = pipe(result.toUIMessageStream())
   .toStream();
 ```
 
-Observe all tool calls.
+Observe all tool calls:
 
 ```typescript
 const stream = pipe(result.toUIMessageStream())
-  // on
   .on(toolCall({ state: `input-available` }), ({ chunk, part }) => {
     console.log(`Tool call ${part.type} (${chunk.toolCallId}) input=`, chunk.input);
   })
-  /** onResult */
   .on(toolCall({ state: `output-available` }), ({ chunk, part }) => {
     console.log(`Tool result ${part.type} (${chunk.toolCallId}) output=`, chunk.output);
   })
-  /** onError */
   .on(toolCall({ state: `output-error` }), ({ chunk, part }) => {
     console.log(`Tool error ${part.type} (${chunk.toolCallId}) error=`, chunk.errorText);
   })
@@ -478,7 +475,7 @@ const stream = pipe<MyUIMessage>(result.toUIMessageStream<MyUIMessage>())
 
 #### `.filter(guard)` / `.filter(predicate)`
 
-Drop chunks from the stream. Pass a type guard to narrow the chunk and part types for every later operator, or a plain predicate receiving `{ chunk, part }` and returning `true` to keep. Meta chunks always pass through, so the callback only sees content chunks.
+Drop chunks from the stream. Pass a type guard to narrow the chunk and part types for every later operator, or a plain predicate receiving `{ chunk, part }` and returning `true` to keep. A plain predicate may be async and is awaited. Meta chunks always pass through, so the callback only sees content chunks.
 
 ```ts
 pipe<MyUIMessage>(stream).filter(includeParts(["text"]));
@@ -488,18 +485,25 @@ pipe<MyUIMessage>(stream).filter(({ chunk, part }) => part.type !== "reasoning")
 
 #### `.map(fn)`
 
-Transform chunks. The callback receives `{ chunk, part }` and returns a chunk, an array of chunks, or `null` to drop it.
+Transform chunks. The callback receives `{ chunk, part }` and returns a chunk, an array of chunks, or `null` to drop it. The callback may be async, and is awaited before the chunk reaches any later operator, so ordering is preserved.
 
 ```ts
 pipe<MyUIMessage>(stream).map(({ chunk }) => {
   if (chunk.type === "text-delta") return { ...chunk, delta: chunk.delta.toUpperCase() };
   return chunk;
 });
+
+// Inline a remote file as a data URL before it reaches the client
+pipe<MyUIMessage>(stream).map(async ({ chunk }) => {
+  if (chunk.type !== "file") return chunk;
+  const base64 = await downloadAsBase64(chunk.url);
+  return { ...chunk, url: `data:${chunk.mediaType};base64,${base64}` };
+});
 ```
 
 #### `.on(guard, callback)` / `.on(predicate, callback)`
 
-Observe chunks without changing the stream. Every chunk passes through regardless of whether the callback runs. The callback may be async and is awaited; a throw propagates and fails the stream. For meta chunks `part` is `undefined`.
+Observe chunks without changing the stream. Every chunk passes through regardless of whether the callback runs. Both the predicate and the callback may be async and are awaited; a throw propagates and fails the stream. For meta chunks `part` is `undefined`.
 
 ```ts
 pipe<MyUIMessage>(stream).on(toolCall({ state: "output-available" }), async ({ chunk, part }) => {
