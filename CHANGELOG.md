@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.1.0](https://github.com/zirkelc/ai-stream-utils/compare/v3.0.0...v3.1.0) (2026-07-10)
+
+
+### Features
+
+* accept async callbacks in filter, map and on ([e8e1dbf](https://github.com/zirkelc/ai-stream-utils/commit/e8e1dbfd05eea663e6db1d870afd51b49c9658a2))
+
+
+### Bug Fixes
+
+* **examples:** observe the tool by its declared name ([38e5ea2](https://github.com/zirkelc/ai-stream-utils/commit/38e5ea2e58d7c32ffdc65a6fac3bbe336b472cfa))
+
 ## [3.0.0](https://github.com/zirkelc/ai-stream-utils/compare/v2.3.0...v3.0.0) (2026-07-09)
 
 
