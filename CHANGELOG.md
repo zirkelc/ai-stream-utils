@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.1.1](https://github.com/zirkelc/ai-stream-utils/compare/v3.1.0...v3.1.1) (2026-07-10)
+
+
+### Bug Fixes
+
+* **pipe:** observe every tool state chunk in toolCall() ([e2d2a4b](https://github.com/zirkelc/ai-stream-utils/commit/e2d2a4b70efda387d10581170fdb4eabd1c7c8cb))
+
 ## [3.1.0](https://github.com/zirkelc/ai-stream-utils/compare/v3.0.0...v3.1.0) (2026-07-10)
 
 
