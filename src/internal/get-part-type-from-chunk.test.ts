@@ -77,6 +77,52 @@ describe(`getPartTypeFromChunk`, () => {
     expect(outputPartType).toBe(`tool-weather`);
   });
 
+  it(`should map a tool call without tool-input-start through its tool-input-available`, () => {
+    // Arrange - providers that do not stream the tool input send no tool-input-start
+    const toolPartTypes = createToolPartTypeMap();
+    const input = UIChunks.toolInputAvailable({
+      toolCallId: `1`,
+      toolName: `weather`,
+      input: { location: `Tokyo` },
+    }) as MyUIMessageChunk;
+    const output = UIChunks.toolOutputAvailable({
+      toolCallId: `1`,
+      output: { temperature: 72 },
+    }) as MyUIMessageChunk;
+
+    // Act
+    const inputPartType = getPartTypeFromChunk<MyUIMessage>(input, toolPartTypes);
+    const outputPartType = getPartTypeFromChunk<MyUIMessage>(output, toolPartTypes);
+
+    // Assert
+    expect(inputPartType).toBe(`tool-weather`);
+    expect(outputPartType).toBe(`tool-weather`);
+  });
+
+  it(`should map a dynamic tool call without tool-input-start through its tool-input-error`, () => {
+    // Arrange
+    const toolPartTypes = createToolPartTypeMap();
+    const inputError = UIChunks.toolInputError({
+      toolCallId: `1`,
+      toolName: `calculator`,
+      input: {},
+      errorText: `Invalid input`,
+      dynamic: true,
+    }) as MyUIMessageChunk;
+    const outputError = UIChunks.toolOutputError({
+      toolCallId: `1`,
+      errorText: `Execution failed`,
+    }) as MyUIMessageChunk;
+
+    // Act
+    const inputPartType = getPartTypeFromChunk<MyUIMessage>(inputError, toolPartTypes);
+    const outputPartType = getPartTypeFromChunk<MyUIMessage>(outputError, toolPartTypes);
+
+    // Assert
+    expect(inputPartType).toBe(`dynamic-tool`);
+    expect(outputPartType).toBe(`dynamic-tool`);
+  });
+
   it(`should map a dynamic tool call to the dynamic-tool part`, () => {
     // Arrange
     const toolPartTypes = createToolPartTypeMap();

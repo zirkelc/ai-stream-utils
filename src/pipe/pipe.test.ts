@@ -14,6 +14,7 @@ import {
   START_STEP_CHUNK,
   TEXT_CHUNKS,
   TOOL_APPROVAL_CHUNKS,
+  TOOL_ERROR_CHUNKS,
   TOOL_INPUT_ERROR_CHUNKS,
   TOOL_WITH_DATA_CHUNKS,
 } from "../test/ui-message.js";
@@ -608,6 +609,19 @@ describe(`pipe`, () => {
         const finishChunks = result.filter((c) => c.type === `finish`);
         expect(startChunks.length).toBe(1);
         expect(finishChunks.length).toBe(1);
+      });
+
+      it(`should exclude tool calls without tool-input-start`, async () => {
+        // Arrange - providers that do not stream the tool input send no tool-input-start
+        const stream = Streams.from([START_CHUNK, ...TOOL_ERROR_CHUNKS, FINISH_CHUNK]);
+
+        // Act
+        const result = await Iterables.toArray(
+          pipe<MyUIMessage>(stream).filter(excludeTools()).toStream(),
+        );
+
+        // Assert
+        expect(result).toEqual([START_CHUNK, START_STEP_CHUNK, FINISH_STEP_CHUNK, FINISH_CHUNK]);
       });
 
       it(`should let meta chunks pass through`, async () => {

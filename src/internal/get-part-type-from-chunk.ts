@@ -3,7 +3,7 @@ import type { InferUIMessageChunk, UIMessage } from "ai";
 /**
  * Tracks the part type a tool chunk belongs to.
  *
- * Only `tool-input-start` carries the `toolName` and `dynamic` flag, so the part
+ * Only the tool input chunks carry the `toolName` and `dynamic` flag, so the part
  * type has to be remembered and looked up again for every later chunk of the
  * same tool call. Approval responses identify the call by `approvalId` instead
  * of `toolCallId`, so the id seen on the approval request is indexed as well.
@@ -84,10 +84,28 @@ export function getPartTypeFromChunk<UI_MESSAGE extends UIMessage>(
       return toolPartTypes.byApprovalId.get(c.approvalId);
     }
 
+    /**
+     * Tool input chunks also carry the toolName and dynamic flag. Providers that do not
+     * stream the tool input send no tool-input-start, so these chunks are the first of
+     * their tool call and must register its part type.
+     */
+    case `tool-input-available`:
+    case `tool-input-error`: {
+      const c = chunk as {
+        toolCallId: string;
+        toolName: string;
+        dynamic?: boolean;
+      };
+      const knownPartType = toolPartTypes.byToolCallId.get(c.toolCallId);
+      if (knownPartType !== undefined) return knownPartType;
+
+      const partType = c.dynamic ? `dynamic-tool` : `tool-${c.toolName}`;
+      toolPartTypes.byToolCallId.set(c.toolCallId, partType);
+      return partType;
+    }
+
     /** Tool chunks with toolCallId only - lookup from map */
     case `tool-input-delta`:
-    case `tool-input-available`:
-    case `tool-input-error`:
     case `tool-output-available`:
     case `tool-output-error`:
     case `tool-output-denied`: {
