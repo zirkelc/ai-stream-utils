@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.2.0](https://github.com/zirkelc/ai-stream-utils/compare/v3.1.1...v3.2.0) (2026-11-06)
+
+
+### Features
+
+* **pipe:** add redactTools() helper to remove tool input and output ([8e65ea3](https://github.com/zirkelc/ai-stream-utils/commit/8e65ea326a2a4e2ab9fdc16eceaec8a95fa8b3d3))
+
+
+### Bug Fixes
+
+* **pipe:** track the part type of tool calls without tool-input-start ([0c8ddcd](https://github.com/zirkelc/ai-stream-utils/commit/0c8ddcdf2c7ee932da6628324d5bdeca87ad44f9))
+
 ## [3.1.1](https://github.com/zirkelc/ai-stream-utils/compare/v3.1.0...v3.1.1) (2026-07-10)
 
 
