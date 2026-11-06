@@ -1,7 +1,7 @@
 import { openai } from "@ai-sdk/openai";
 import { isStepCount, readUIMessageStream, streamText, tool } from "ai";
 import { z } from "zod";
-import { pipe } from "../src/pipe";
+import { pipe, redactTools } from "../src/pipe";
 
 /**
  * Example demonstrating how to stream only the tool names to the client.
@@ -30,25 +30,7 @@ async function sendMessage() {
     stopWhen: isStepCount(5),
   });
 
-  return pipe(result.toUIMessageStream())
-    .map(({ chunk }) => {
-      // Omit the input and output of each tool chunk
-      switch (chunk.type) {
-        case `tool-input-delta`:
-          return null;
-        case `tool-input-available`:
-          return { ...chunk, input: {} };
-        case `tool-input-error`:
-          return { ...chunk, input: {} };
-        case `tool-output-available`:
-          return { ...chunk, output: null };
-        case `tool-output-error`:
-          return { ...chunk };
-        default:
-          return chunk;
-      }
-    })
-    .toStream();
+  return pipe(result.toUIMessageStream()).map(redactTools()).toStream();
 }
 
 // Runs on the client

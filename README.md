@@ -178,6 +178,14 @@ const stream = pipe(result.toUIMessageStream())
   .toStream();
 ```
 
+`redactTools()` removes the input and the output of tool calls, so the client can show a tool call (its name and state) without receiving its data. Input deltas are dropped, the input is replaced with `{}` and the output is replaced with `null`. Pass tool names to redact only those tools, set `input` or `output` to `false` to keep that data, or pass a function to replace the data with its return value.
+
+```typescript
+const stream = pipe(result.toUIMessageStream()).map(redactTools("search_customers")).toStream();
+
+// On the client: { type: "tool-search_customers", state: "output-available", input: {}, output: null, ... }
+```
+
 ### `.on()`
 
 Observe chunks without modifying the stream. The callback is invoked for matching chunks. Both the predicate and the callback may be async.
@@ -583,6 +591,22 @@ pipe<MyUIMessage>(stream).map(
     return { ...metadata, app: { traceId } };
   }),
 );
+```
+
+## `redactTools(names?, options?)`
+
+A `.map()` callback that removes the data of tool calls and keeps the tool name, id and state. Called with no names it matches every tool, including dynamic ones. Other chunks pass through untouched. The `errorText` of `tool-input-error` and `tool-output-error` chunks is not changed.
+
+- `names` (optional), a tool name or an array of tool names without the `tool-` prefix (default: every tool)
+- `options.input` (optional), drop `tool-input-delta` chunks and replace `input` on `tool-input-available` and `tool-input-error`: `true` uses `{}`, `false` keeps the input, and a function `(input) => value` uses its return value (default: `true`)
+- `options.output` (optional), replace `output` on `tool-output-available`: `true` uses `null`, `false` keeps the output, and a function `(output) => value` uses its return value (default: `true`)
+
+```ts
+pipe<MyUIMessage>(stream).map(redactTools());
+pipe<MyUIMessage>(stream).map(redactTools(["weather", "database"]));
+pipe<MyUIMessage>(stream).map(redactTools({ output: false }));
+pipe<MyUIMessage>(stream).map(redactTools("weather", { input: false }));
+pipe<MyUIMessage>(stream).map(redactTools({ output: () => ({}) }));
 ```
 
 ## `consumeUIMessageStream(stream)`
