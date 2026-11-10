@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.2.1](https://github.com/zirkelc/ai-stream-utils/compare/v3.2.0...v3.2.1) (2026-11-10)
+
+
+### Bug Fixes
+
+* **consume:** reject consumeUIMessageStream with the source stream error ([#28](https://github.com/zirkelc/ai-stream-utils/issues/28)) ([f4f4bdc](https://github.com/zirkelc/ai-stream-utils/commit/f4f4bdcd72c3ea6e09737066dd4ed740901f68c4))
+
 ## [3.2.0](https://github.com/zirkelc/ai-stream-utils/compare/v3.1.1...v3.2.0) (2026-11-06)
 
 
