@@ -1,3 +1,4 @@
+import type { InferUIMessageChunk } from "ai";
 import { Streams } from "ai-test-kit";
 import { describe, expect, it } from "vitest";
 import {
@@ -13,6 +14,14 @@ import {
   TOOL_SERVER_CHUNKS,
 } from "../test/ui-message.js";
 import { consumeUIMessageStream } from "./consume-ui-message-stream.js";
+
+type MyUIMessageChunk = InferUIMessageChunk<MyUIMessage>;
+
+function streamFromGenerator(
+  generator: () => AsyncGenerator<MyUIMessageChunk>,
+): ReadableStream<MyUIMessageChunk> {
+  return ReadableStream.from(generator());
+}
 
 describe("consumeUIMessageStream", () => {
   it("should consume a stream with text chunks and return the final message", async () => {
@@ -83,5 +92,55 @@ describe("consumeUIMessageStream", () => {
     await expect(consumeUIMessageStream<MyUIMessage>(stream)).rejects.toThrow(
       "Unexpected: stream ended without producing any messages",
     );
+  });
+
+  describe("source stream errors", () => {
+    it("should reject with the source error when the stream throws after some chunks", async () => {
+      // Arrange
+      const error = new Error("boom");
+      const stream = streamFromGenerator(async function* () {
+        yield START_CHUNK;
+        yield* TEXT_CHUNKS.slice(0, 3);
+        throw error;
+      });
+
+      // Act
+      const result = consumeUIMessageStream<MyUIMessage>(stream);
+
+      // Assert
+      await expect(result).rejects.toBe(error);
+    });
+
+    it("should reject with the source error when the stream throws before any chunk", async () => {
+      // Arrange
+      const error = new Error("boom");
+      // oxlint-disable-next-line require-yield -- the stream must fail before the first chunk
+      const stream = streamFromGenerator(async function* () {
+        throw error;
+      });
+
+      // Act
+      const result = consumeUIMessageStream<MyUIMessage>(stream);
+
+      // Assert
+      await expect(result).rejects.toBe(error);
+    });
+
+    it("should resolve when the stream contains an error chunk", async () => {
+      // Arrange
+      const stream = Streams.from<MyUIMessageChunk>([
+        START_CHUNK,
+        ...TEXT_CHUNKS,
+        { type: "error", errorText: "chunk error" },
+        FINISH_CHUNK,
+      ]);
+
+      // Act
+      const message = await consumeUIMessageStream<MyUIMessage>(stream);
+
+      // Assert
+      const textPart = message.parts.find((part) => part.type === "text");
+      expect((textPart as { text: string }).text).toBe("Hello World");
+    });
   });
 });
